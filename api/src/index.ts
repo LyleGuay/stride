@@ -5,9 +5,9 @@ import path from "path";
 
 import { BackendApp } from "./app";
 import { AppController, AuthController } from "./controllers";
-import { User } from "./entities";
+import { User, registerEntities } from "./entities";
 import { diContainer } from "./lib/di";
-import { DB, EntityStore, Migrations } from "./lib/db";
+import { DB, Migrations } from "./lib/db";
 import { AuthService } from "./lib/auth";
 
 // const app = express();
@@ -34,7 +34,7 @@ import { AuthService } from "./lib/auth";
 // export default app;
 
 async function run() {
-  EntityStore.register(User);
+  registerEntities();
   diContainer.register(DB);
   diContainer.register(Migrations);
   diContainer.register(AuthService);

@@ -2,6 +2,7 @@ import "reflect-metadata";
 
 export const TABLE_METADATA_KEY = Symbol("orm:table");
 export const COLUMN_METADATA_KEY = Symbol("orm:column");
+export const FOREIGN_KEY_METADATA_KEY = Symbol("orm:foreignkey");
 
 export interface TableMetadata {
   tableName: string;
@@ -89,4 +90,43 @@ export function getColumns(target: any): ColumnMetadata[] {
 export function getPrimaryKey(target: any): ColumnMetadata | undefined {
   const columns = getColumns(target);
   return columns.find((col) => col.primary);
+}
+
+export interface ForeignKeyMetadata {
+  propertyKey: string;
+  referencedTable: string;
+  referencedColumn: string;
+  onDelete?: "CASCADE" | "SET NULL" | "RESTRICT" | "NO ACTION";
+}
+
+export interface ForeignKeyOptions {
+  onDelete?: "CASCADE" | "SET NULL" | "RESTRICT" | "NO ACTION";
+}
+
+export function ForeignKey(
+  referencedTable: string,
+  referencedColumn: string,
+  options?: ForeignKeyOptions
+) {
+  return function (target: Object, propertyKey: string) {
+    const foreignKeys: ForeignKeyMetadata[] =
+      Reflect.getMetadata(FOREIGN_KEY_METADATA_KEY, target.constructor) || [];
+
+    foreignKeys.push({
+      propertyKey,
+      referencedTable,
+      referencedColumn,
+      onDelete: options?.onDelete,
+    });
+
+    Reflect.defineMetadata(
+      FOREIGN_KEY_METADATA_KEY,
+      foreignKeys,
+      target.constructor
+    );
+  };
+}
+
+export function getForeignKeys(target: any): ForeignKeyMetadata[] {
+  return Reflect.getMetadata(FOREIGN_KEY_METADATA_KEY, target) || [];
 }
