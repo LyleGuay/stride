@@ -3,10 +3,10 @@
 My plan for setting up go api with postgres
 - [X] Get go app running
 - [X] Add gin module
-- [ ] Env vars (godotenv or viper)
-- [ ] Add postgres connection (pgx)
-- [ ] Create basic migration for habit table
-- [ ] Route to return habits
+- [X] Env vars (godotenv or viper)
+- [X] Add postgres connection (pgx)
+- [X] Create basic migration for habit table
+- [X] Route to return habits
 
 # Lvl 2
 - [ ] Error handling middleware
