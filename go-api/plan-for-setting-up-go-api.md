@@ -17,3 +17,6 @@ My plan for setting up go api with postgres
 - [ ] Authentication/Authorization
 - [ ] Unit testing
 - [ ] Structured API Response
+
+# Extra 
+- [ ] Hot reload

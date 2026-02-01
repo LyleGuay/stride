@@ -4,8 +4,10 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 type habit struct {
@@ -36,19 +38,20 @@ func postHabit(c *gin.Context) {
 }
 
 func main() {
+
 	// Set properties of the predefined Logger, including
 	// the log entry prefix and a flag to disable printing
 	// the time, source file, and line number.
 	log.SetPrefix("lg/daily-habit-go-api: ")
 	log.SetFlags(0)
 
-	// message, err := greetings.Hello("")
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
 
-	// // If an error was returned, print it to the console and
-	// // exit the program.
-	// if err != nil {
-	// 	log.Fatal(err)
-	// }
+	dbURL := os.Getenv("DB_URL")
+	fmt.Printf("Loaded dbURL: %s\n", dbURL)
 
 	fmt.Println("Starting gin app...")
 
