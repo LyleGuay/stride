@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stride — Calorie Log (Table View)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .sidebar-overlay { transition: opacity 0.2s ease; }
+    .sidebar-panel { transition: transform 0.2s ease; }
+    .bottom-sheet { transition: transform 0.3s ease; }
+    .bottom-sheet-backdrop { transition: opacity 0.3s ease; }
+    .ring-bg { stroke: #e5e7eb; }
+    .ring-fill { transition: stroke-dashoffset 0.5s ease; }
+
+    /* Dense table styles */
+    .log-table { border-collapse: collapse; }
+    .log-table th { position: sticky; top: 0; }
+    .log-table td, .log-table th { white-space: nowrap; }
+
+    /* Meal section header row */
+    .meal-header td { background: #f9fafb; }
+
+    /* Inline add */
+    .inline-add-form { max-height: 0; overflow: hidden; transition: max-height 0.2s ease, opacity 0.2s ease; opacity: 0; }
+    .inline-add-form.open { max-height: 200px; opacity: 1; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+
+  <!-- Sidebar overlay -->
+  <div id="sidebarOverlay" class="sidebar-overlay fixed inset-0 bg-black/40 z-40 opacity-0 pointer-events-none lg:hidden" onclick="toggleSidebar()"></div>
+
+  <!-- Sidebar -->
+  <aside id="sidebar" class="sidebar-panel fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-50 -translate-x-full lg:translate-x-0 lg:fixed">
+    <div class="p-5 border-b border-gray-100">
+      <h1 class="text-xl font-bold text-stride-600">Stride</h1>
+    </div>
+    <nav class="p-3">
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-stride-50 text-stride-700 font-medium text-sm">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z"/></svg>
+        Calorie Log
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 text-sm mt-1">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Habits
+      </a>
+    </nav>
+  </aside>
+
+  <!-- Main content -->
+  <main class="lg:ml-64 min-h-screen">
+
+    <!-- Mobile top bar -->
+    <header class="sticky top-0 bg-white/80 backdrop-blur border-b border-gray-200 z-30 px-4 py-3 flex items-center gap-3 lg:hidden">
+      <button onclick="toggleSidebar()" class="p-1 -ml-1 rounded-md hover:bg-gray-100">
+        <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
+      </button>
+      <span class="font-semibold text-gray-800">Calorie Log</span>
+    </header>
+
+    <div class="max-w-3xl mx-auto px-4 py-4 pb-24">
+
+      <!-- Date header -->
+      <div class="flex items-center justify-between mb-4">
+        <button onclick="changeDate(-1)" class="p-1.5 rounded hover:bg-gray-100">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+        </button>
+        <div class="text-center">
+          <span id="dateLabel" class="text-base font-semibold">Today</span>
+          <span id="dateSubLabel" class="text-xs text-gray-500 ml-2">Thu, Feb 13, 2026</span>
+        </div>
+        <button onclick="changeDate(1)" class="p-1.5 rounded hover:bg-gray-100">
+          <svg class="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+        </button>
+      </div>
+
+      <!-- ===== COMPACT SUMMARY — ring + stats side by side ===== -->
+      <div class="bg-white border border-gray-200 rounded-lg p-4 mb-4 flex items-center gap-6">
+
+        <!-- Ring (smaller) -->
+        <div class="relative w-24 h-24 shrink-0">
+          <svg class="w-full h-full -rotate-90" viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="52" fill="none" stroke-width="10"/>
+            <circle class="ring-fill" cx="60" cy="60" r="52" fill="none" stroke-width="10" stroke="#22c55e"
+              stroke-dasharray="326.73" stroke-dashoffset="33.6" stroke-linecap="round"/>
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span class="text-lg font-bold">120</span>
+            <span class="text-[10px] text-gray-400">left</span>
+          </div>
+        </div>
+
+        <!-- Stats grid -->
+        <div class="flex-1 min-w-0">
+          <!-- Calorie row -->
+          <div class="grid grid-cols-3 gap-x-4 text-xs mb-2">
+            <div><span class="text-gray-400">Eaten</span><br><span class="font-semibold text-sm">2,330</span></div>
+            <div><span class="text-gray-400">Exercise</span><br><span class="font-semibold text-sm text-emerald-600">-150</span></div>
+            <div><span class="text-gray-400">Budget</span><br><span class="font-semibold text-sm">2,300</span></div>
+          </div>
+          <!-- Macro row -->
+          <div class="grid grid-cols-3 gap-x-4 text-xs border-t border-gray-100 pt-2">
+            <div><span class="text-blue-500 font-medium">Protein</span><br><span class="font-semibold">115</span><span class="text-gray-400"> / 150g</span></div>
+            <div><span class="text-amber-500 font-medium">Carbs</span><br><span class="font-semibold">168</span><span class="text-gray-400"> / 250g</span></div>
+            <div><span class="text-pink-500 font-medium">Fat</span><br><span class="font-semibold">94</span><span class="text-gray-400"> / 80g</span></div>
+          </div>
+        </div>
+
+        <!-- Per-meal summary (like spreadsheet right panel) -->
+        <div class="hidden sm:block shrink-0 border-l border-gray-100 pl-4">
+          <table class="text-xs">
+            <thead><tr class="text-gray-400"><th class="text-left pr-3 font-normal">Type</th><th class="text-right pr-3 font-normal">Cur</th><th class="text-right font-normal">Budg</th></tr></thead>
+            <tbody>
+              <tr><td class="pr-3 py-0.5">Breakfast</td><td class="text-right pr-3 font-medium">780</td><td class="text-right text-gray-400">400</td></tr>
+              <tr><td class="pr-3 py-0.5">Lunch</td><td class="text-right pr-3 font-medium">0</td><td class="text-right text-gray-400">400</td></tr>
+              <tr><td class="pr-3 py-0.5">Dinner</td><td class="text-right pr-3 font-medium text-red-500">1,550</td><td class="text-right text-gray-400">1,000</td></tr>
+              <tr><td class="pr-3 py-0.5">Snack</td><td class="text-right pr-3 font-medium">0</td><td class="text-right text-gray-400">600</td></tr>
+              <tr class="text-emerald-600"><td class="pr-3 py-0.5">Exercise</td><td class="text-right pr-3 font-medium">-150</td><td class="text-right text-gray-400">—</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ===== ITEM TABLE ===== -->
+      <div class="bg-white border border-gray-200 rounded-lg overflow-x-auto">
+        <table class="log-table w-full text-xs">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-wide">
+              <th class="text-left py-2 px-3 font-medium">Item</th>
+              <th class="text-right py-2 px-2 font-medium w-10">Qty</th>
+              <th class="text-left py-2 px-2 font-medium w-12">Unit</th>
+              <th class="text-right py-2 px-2 font-medium w-14">Cal</th>
+              <th class="text-right py-2 px-2 font-medium w-10 hidden sm:table-cell">P</th>
+              <th class="text-right py-2 px-2 font-medium w-10 hidden sm:table-cell">C</th>
+              <th class="text-right py-2 px-2 font-medium w-10 hidden sm:table-cell">F</th>
+              <!-- Compact macro column for mobile -->
+              <th class="text-right py-2 px-3 font-medium sm:hidden">P / C / F</th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <!-- Breakfast section -->
+            <tr class="meal-header border-t border-gray-200 cursor-pointer" onclick="toggleSection('sec-breakfast')">
+              <td colspan="4" class="py-1.5 px-3 font-semibold text-xs text-gray-700">
+                <span class="inline-block w-2 h-2 rounded-full bg-orange-400 mr-1.5"></span>Breakfast
+              </td>
+              <td colspan="3" class="py-1.5 px-2 text-right font-semibold text-gray-600 hidden sm:table-cell">780</td>
+              <td class="py-1.5 px-3 text-right font-semibold text-gray-600 sm:hidden">780</td>
+            </tr>
+            <tr class="sec-breakfast border-t border-gray-50 hover:bg-gray-50">
+              <td class="py-1.5 px-3 font-medium text-gray-800">Medium Breakfast Sausage</td>
+              <td class="py-1.5 px-2 text-right text-gray-500">2</td>
+              <td class="py-1.5 px-2 text-gray-500">Each</td>
+              <td class="py-1.5 px-2 text-right font-medium">200</td>
+              <td class="py-1.5 px-2 text-right text-blue-500 hidden sm:table-cell">6</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 hidden sm:table-cell">3</td>
+              <td class="py-1.5 px-2 text-right text-pink-500 hidden sm:table-cell">7</td>
+              <td class="py-1.5 px-3 text-right text-gray-400 sm:hidden">6 / 3 / 7</td>
+            </tr>
+            <tr class="sec-breakfast border-t border-gray-50 hover:bg-gray-50">
+              <td class="py-1.5 px-3 font-medium text-gray-800">Eggs</td>
+              <td class="py-1.5 px-2 text-right text-gray-500">2</td>
+              <td class="py-1.5 px-2 text-gray-500">Each</td>
+              <td class="py-1.5 px-2 text-right font-medium">180</td>
+              <td class="py-1.5 px-2 text-right text-blue-500 hidden sm:table-cell">8</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 hidden sm:table-cell">3</td>
+              <td class="py-1.5 px-2 text-right text-pink-500 hidden sm:table-cell">14</td>
+              <td class="py-1.5 px-3 text-right text-gray-400 sm:hidden">8 / 3 / 14</td>
+            </tr>
+            <tr class="sec-breakfast border-t border-gray-50 hover:bg-gray-50">
+              <td class="py-1.5 px-3 font-medium text-gray-800">Banana Smoothie</td>
+              <td class="py-1.5 px-2 text-right text-gray-500">1</td>
+              <td class="py-1.5 px-2 text-gray-500">Each</td>
+              <td class="py-1.5 px-2 text-right font-medium">400</td>
+              <td class="py-1.5 px-2 text-right text-blue-500 hidden sm:table-cell">25</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 hidden sm:table-cell">28</td>
+              <td class="py-1.5 px-2 text-right text-pink-500 hidden sm:table-cell">17</td>
+              <td class="py-1.5 px-3 text-right text-gray-400 sm:hidden">25 / 28 / 17</td>
+            </tr>
+            <!-- Quick add row -->
+            <tr class="sec-breakfast border-t border-gray-50">
+              <td colspan="8" class="py-0 px-0">
+                <button onclick="toggleInlineAdd('breakfast')" class="w-full text-left px-3 py-1.5 text-xs text-stride-600 hover:bg-stride-50 transition-colors">+ Add</button>
+                <div id="inline-add-breakfast" class="inline-add-form">
+                  <div class="px-3 py-2 flex items-center gap-2 bg-stride-50/50">
+                    <input type="text" placeholder="Item name" class="flex-1 min-w-0 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500">
+                    <input type="number" placeholder="Cal" class="w-16 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500">
+                    <button onclick="demoInlineSave('breakfast')" class="bg-stride-600 text-white px-2.5 py-1.5 rounded text-xs font-medium hover:bg-stride-700">Add</button>
+                    <button onclick="openSheetWithType('Breakfast')" class="text-gray-400 hover:text-stride-600 text-xs" title="Add with full details">···</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Lunch section -->
+            <tr class="meal-header border-t border-gray-200 cursor-pointer" onclick="toggleSection('sec-lunch')">
+              <td colspan="4" class="py-1.5 px-3 font-semibold text-xs text-gray-700">
+                <span class="inline-block w-2 h-2 rounded-full bg-yellow-500 mr-1.5"></span>Lunch
+              </td>
+              <td colspan="3" class="py-1.5 px-2 text-right font-semibold text-gray-400 hidden sm:table-cell">0</td>
+              <td class="py-1.5 px-3 text-right font-semibold text-gray-400 sm:hidden">0</td>
+            </tr>
+            <tr class="sec-lunch border-t border-gray-50">
+              <td colspan="8" class="py-0 px-0">
+                <button onclick="toggleInlineAdd('lunch')" class="w-full text-left px-3 py-1.5 text-xs text-stride-600 hover:bg-stride-50 transition-colors">+ Add</button>
+                <div id="inline-add-lunch" class="inline-add-form">
+                  <div class="px-3 py-2 flex items-center gap-2 bg-stride-50/50">
+                    <input type="text" placeholder="Item name" class="flex-1 min-w-0 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500">
+                    <input type="number" placeholder="Cal" class="w-16 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500">
+                    <button onclick="demoInlineSave('lunch')" class="bg-stride-600 text-white px-2.5 py-1.5 rounded text-xs font-medium hover:bg-stride-700">Add</button>
+                    <button onclick="openSheetWithType('Lunch')" class="text-gray-400 hover:text-stride-600 text-xs" title="Add with full details">···</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Dinner section -->
+            <tr class="meal-header border-t border-gray-200 cursor-pointer" onclick="toggleSection('sec-dinner')">
+              <td colspan="4" class="py-1.5 px-3 font-semibold text-xs text-gray-700">
+                <span class="inline-block w-2 h-2 rounded-full bg-indigo-400 mr-1.5"></span>Dinner
+              </td>
+              <td colspan="3" class="py-1.5 px-2 text-right font-semibold text-gray-600 hidden sm:table-cell">1,550</td>
+              <td class="py-1.5 px-3 text-right font-semibold text-gray-600 sm:hidden">1,550</td>
+            </tr>
+            <tr class="sec-dinner border-t border-gray-50 hover:bg-gray-50">
+              <td class="py-1.5 px-3 font-medium text-gray-800">Burrito w/ Quesadilla</td>
+              <td class="py-1.5 px-2 text-right text-gray-500">1</td>
+              <td class="py-1.5 px-2 text-gray-500">Each</td>
+              <td class="py-1.5 px-2 text-right font-medium">1,550</td>
+              <td class="py-1.5 px-2 text-right text-blue-500 hidden sm:table-cell">76</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 hidden sm:table-cell">134</td>
+              <td class="py-1.5 px-2 text-right text-pink-500 hidden sm:table-cell">56</td>
+              <td class="py-1.5 px-3 text-right text-gray-400 sm:hidden">76 / 134 / 56</td>
+            </tr>
+            <tr class="sec-dinner border-t border-gray-50">
+              <td colspan="8" class="py-0 px-0">
+                <button onclick="toggleInlineAdd('dinner')" class="w-full text-left px-3 py-1.5 text-xs text-stride-600 hover:bg-stride-50 transition-colors">+ Add</button>
+                <div id="inline-add-dinner" class="inline-add-form">
+                  <div class="px-3 py-2 flex items-center gap-2 bg-stride-50/50">
+                    <input type="text" placeholder="Item name" class="flex-1 min-w-0 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500">
+                    <input type="number" placeholder="Cal" class="w-16 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500">
+                    <button onclick="demoInlineSave('dinner')" class="bg-stride-600 text-white px-2.5 py-1.5 rounded text-xs font-medium hover:bg-stride-700">Add</button>
+                    <button onclick="openSheetWithType('Dinner')" class="text-gray-400 hover:text-stride-600 text-xs" title="Add with full details">···</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Snack section -->
+            <tr class="meal-header border-t border-gray-200 cursor-pointer" onclick="toggleSection('sec-snack')">
+              <td colspan="4" class="py-1.5 px-3 font-semibold text-xs text-gray-700">
+                <span class="inline-block w-2 h-2 rounded-full bg-green-400 mr-1.5"></span>Snack
+              </td>
+              <td colspan="3" class="py-1.5 px-2 text-right font-semibold text-gray-400 hidden sm:table-cell">0</td>
+              <td class="py-1.5 px-3 text-right font-semibold text-gray-400 sm:hidden">0</td>
+            </tr>
+            <tr class="sec-snack border-t border-gray-50">
+              <td colspan="8" class="py-0 px-0">
+                <button onclick="toggleInlineAdd('snack')" class="w-full text-left px-3 py-1.5 text-xs text-stride-600 hover:bg-stride-50 transition-colors">+ Add</button>
+                <div id="inline-add-snack" class="inline-add-form">
+                  <div class="px-3 py-2 flex items-center gap-2 bg-stride-50/50">
+                    <input type="text" placeholder="Item name" class="flex-1 min-w-0 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500">
+                    <input type="number" placeholder="Cal" class="w-16 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500">
+                    <button onclick="demoInlineSave('snack')" class="bg-stride-600 text-white px-2.5 py-1.5 rounded text-xs font-medium hover:bg-stride-700">Add</button>
+                    <button onclick="openSheetWithType('Snack')" class="text-gray-400 hover:text-stride-600 text-xs" title="Add with full details">···</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Exercise section -->
+            <tr class="meal-header border-t border-gray-200 cursor-pointer" onclick="toggleSection('sec-exercise')">
+              <td colspan="4" class="py-1.5 px-3 font-semibold text-xs text-gray-700">
+                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span>Exercise
+              </td>
+              <td colspan="3" class="py-1.5 px-2 text-right font-semibold text-emerald-600 hidden sm:table-cell">-150</td>
+              <td class="py-1.5 px-3 text-right font-semibold text-emerald-600 sm:hidden">-150</td>
+            </tr>
+            <tr class="sec-exercise border-t border-gray-50 hover:bg-gray-50">
+              <td class="py-1.5 px-3 font-medium text-gray-800">Walk</td>
+              <td class="py-1.5 px-2 text-right text-gray-500">0.55</td>
+              <td class="py-1.5 px-2 text-gray-500">Miles</td>
+              <td class="py-1.5 px-2 text-right font-medium text-emerald-600">-65</td>
+              <td class="py-1.5 px-2 hidden sm:table-cell"></td>
+              <td class="py-1.5 px-2 hidden sm:table-cell"></td>
+              <td class="py-1.5 px-2 hidden sm:table-cell"></td>
+              <td class="py-1.5 px-3 sm:hidden"></td>
+            </tr>
+            <tr class="sec-exercise border-t border-gray-50 hover:bg-gray-50">
+              <td class="py-1.5 px-3 font-medium text-gray-800">Walk</td>
+              <td class="py-1.5 px-2 text-right text-gray-500">0.85</td>
+              <td class="py-1.5 px-2 text-gray-500">Miles</td>
+              <td class="py-1.5 px-2 text-right font-medium text-emerald-600">-85</td>
+              <td class="py-1.5 px-2 hidden sm:table-cell"></td>
+              <td class="py-1.5 px-2 hidden sm:table-cell"></td>
+              <td class="py-1.5 px-2 hidden sm:table-cell"></td>
+              <td class="py-1.5 px-3 sm:hidden"></td>
+            </tr>
+            <tr class="sec-exercise border-t border-gray-50">
+              <td colspan="8" class="py-0 px-0">
+                <button onclick="toggleInlineAdd('exercise')" class="w-full text-left px-3 py-1.5 text-xs text-stride-600 hover:bg-stride-50 transition-colors">+ Add</button>
+                <div id="inline-add-exercise" class="inline-add-form">
+                  <div class="px-3 py-2 flex items-center gap-2 bg-stride-50/50">
+                    <input type="text" placeholder="Activity" class="flex-1 min-w-0 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500">
+                    <input type="number" placeholder="Cal" class="w-16 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500">
+                    <button onclick="demoInlineSave('exercise')" class="bg-stride-600 text-white px-2.5 py-1.5 rounded text-xs font-medium hover:bg-stride-700">Add</button>
+                    <button onclick="openSheetWithType('Exercise')" class="text-gray-400 hover:text-stride-600 text-xs" title="Add with full details">···</button>
+                  </div>
+                </div>
+              </td>
+            </tr>
+
+            <!-- Net totals row -->
+            <tr class="border-t-2 border-gray-300 bg-gray-50 font-semibold text-xs">
+              <td class="py-2 px-3 text-gray-700">Net Total</td>
+              <td class="py-2 px-2"></td>
+              <td class="py-2 px-2"></td>
+              <td class="py-2 px-2 text-right">2,180</td>
+              <td class="py-2 px-2 text-right text-blue-600 hidden sm:table-cell">115</td>
+              <td class="py-2 px-2 text-right text-amber-600 hidden sm:table-cell">168</td>
+              <td class="py-2 px-2 text-right text-pink-600 hidden sm:table-cell">94</td>
+              <td class="py-2 px-3 text-right text-gray-500 sm:hidden">115 / 168 / 94</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <!-- FAB -->
+    <button onclick="openSheet()" class="fixed bottom-6 right-6 lg:right-auto lg:left-1/2 lg:ml-96 lg:-translate-x-1/2 w-14 h-14 bg-stride-600 hover:bg-stride-700 text-white rounded-full shadow-lg flex items-center justify-center z-30 transition-colors">
+      <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+    </button>
+
+  </main>
+
+  <!-- Bottom sheet backdrop -->
+  <div id="sheetBackdrop" class="bottom-sheet-backdrop fixed inset-0 bg-black/40 z-50 opacity-0 pointer-events-none" onclick="closeSheet()"></div>
+
+  <!-- Add item bottom sheet -->
+  <div id="bottomSheet" class="bottom-sheet fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-50 translate-y-full shadow-2xl" style="max-height: 85vh;">
+    <div class="flex justify-center pt-3 pb-1">
+      <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
+    </div>
+    <div class="px-5 pb-6 overflow-y-auto" style="max-height: calc(85vh - 2rem);">
+      <h2 class="text-lg font-semibold mb-4">Log Item</h2>
+      <div class="mb-3">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Item name</label>
+        <input type="text" placeholder="e.g. Banana Smoothie" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+      </div>
+      <div class="mb-3">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+        <div class="grid grid-cols-5 gap-1">
+          <button onclick="selectType(this)" class="type-btn px-2 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100">Breakfast</button>
+          <button onclick="selectType(this)" class="type-btn px-2 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100">Lunch</button>
+          <button onclick="selectType(this)" class="type-btn px-2 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100">Dinner</button>
+          <button onclick="selectType(this)" class="type-btn px-2 py-2 text-xs font-medium rounded-lg border border-stride-600 bg-stride-50 text-stride-700">Snack</button>
+          <button onclick="selectType(this)" class="type-btn px-2 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100">Exercise</button>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+          <input type="number" value="1" min="0" step="0.25" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+          <select class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+            <option>Each</option><option>g</option><option>Miles</option><option>KM</option><option>Minutes</option>
+          </select>
+        </div>
+      </div>
+      <div class="mb-3">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Calories</label>
+        <input type="number" placeholder="0" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+      </div>
+      <div class="grid grid-cols-3 gap-3 mb-5">
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Protein (g)</label><input type="number" placeholder="—" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent"></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Carbs (g)</label><input type="number" placeholder="—" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent"></div>
+        <div><label class="block text-sm font-medium text-gray-700 mb-1">Fat (g)</label><input type="number" placeholder="—" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent"></div>
+      </div>
+      <button onclick="closeSheet()" class="w-full bg-stride-600 hover:bg-stride-700 text-white font-medium py-3 rounded-xl transition-colors">Save Item</button>
+    </div>
+  </div>
+
+  <script>
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      const isOpen = !sidebar.classList.contains('-translate-x-full');
+      sidebar.classList.toggle('-translate-x-full', isOpen);
+      overlay.classList.toggle('opacity-0', isOpen);
+      overlay.classList.toggle('pointer-events-none', isOpen);
+    }
+
+    function toggleSection(cls) {
+      document.querySelectorAll('.' + cls).forEach(row => {
+        row.style.display = row.style.display === 'none' ? '' : 'none';
+      });
+    }
+
+    function toggleInlineAdd(mealId) {
+      const form = document.getElementById('inline-add-' + mealId);
+      document.querySelectorAll('.inline-add-form.open').forEach(f => {
+        if (f.id !== 'inline-add-' + mealId) f.classList.remove('open');
+      });
+      form.classList.toggle('open');
+      if (form.classList.contains('open')) form.querySelector('input[type="text"]').focus();
+    }
+
+    function demoInlineSave(mealId) {
+      const form = document.getElementById('inline-add-' + mealId);
+      const btn = form.querySelector('button.bg-stride-600');
+      btn.textContent = '\u2713';
+      btn.classList.replace('bg-stride-600', 'bg-green-500');
+      setTimeout(() => {
+        btn.textContent = 'Add';
+        btn.classList.replace('bg-green-500', 'bg-stride-600');
+        form.classList.remove('open');
+        form.querySelectorAll('input').forEach(i => i.value = '');
+      }, 600);
+    }
+
+    function openSheet() {
+      document.getElementById('bottomSheet').classList.remove('translate-y-full');
+      document.getElementById('sheetBackdrop').classList.remove('opacity-0', 'pointer-events-none');
+    }
+    function closeSheet() {
+      document.getElementById('bottomSheet').classList.add('translate-y-full');
+      document.getElementById('sheetBackdrop').classList.add('opacity-0', 'pointer-events-none');
+    }
+    function openSheetWithType(typeName) {
+      openSheet();
+      document.querySelectorAll('.type-btn').forEach(b => {
+        const match = b.textContent.trim() === typeName;
+        b.classList.toggle('border-stride-600', match);
+        b.classList.toggle('bg-stride-50', match);
+        b.classList.toggle('text-stride-700', match);
+        b.classList.toggle('border-gray-200', !match);
+        b.classList.toggle('bg-gray-50', !match);
+        b.classList.toggle('text-gray-600', !match);
+      });
+    }
+    function selectType(btn) {
+      document.querySelectorAll('.type-btn').forEach(b => {
+        b.classList.remove('border-stride-600', 'bg-stride-50', 'text-stride-700');
+        b.classList.add('border-gray-200', 'bg-gray-50', 'text-gray-600');
+      });
+      btn.classList.remove('border-gray-200', 'bg-gray-50', 'text-gray-600');
+      btn.classList.add('border-stride-600', 'bg-stride-50', 'text-stride-700');
+    }
+
+    let dayOffset = 0;
+    function changeDate(delta) {
+      dayOffset += delta;
+      const d = new Date(); d.setDate(d.getDate() + dayOffset);
+      const label = document.getElementById('dateLabel');
+      const sub = document.getElementById('dateSubLabel');
+      label.textContent = dayOffset === 0 ? 'Today' : dayOffset === -1 ? 'Yesterday' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      sub.textContent = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+  </script>
+</body>
+</html>

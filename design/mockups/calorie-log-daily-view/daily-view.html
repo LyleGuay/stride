@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stride — Calorie Log Daily View</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Smooth transitions for sidebar and bottom sheet */
+    .sidebar-overlay { transition: opacity 0.2s ease; }
+    .sidebar-panel { transition: transform 0.2s ease; }
+    .bottom-sheet { transition: transform 0.3s ease; }
+    .bottom-sheet-backdrop { transition: opacity 0.3s ease; }
+
+    /* Circular progress ring */
+    .ring-bg { stroke: #e5e7eb; }
+    .ring-fill { transition: stroke-dashoffset 0.5s ease; }
+
+    /* Inline add row */
+    .inline-add-form { max-height: 0; overflow: hidden; transition: max-height 0.2s ease, opacity 0.2s ease; opacity: 0; }
+    .inline-add-form.open { max-height: 200px; opacity: 1; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 min-h-screen">
+
+  <!-- ===== SIDEBAR OVERLAY (mobile) ===== -->
+  <div id="sidebarOverlay" class="sidebar-overlay fixed inset-0 bg-black/40 z-40 opacity-0 pointer-events-none lg:hidden" onclick="toggleSidebar()"></div>
+
+  <!-- ===== SIDEBAR ===== -->
+  <aside id="sidebar" class="sidebar-panel fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-50 -translate-x-full lg:translate-x-0 lg:fixed">
+    <div class="p-5 border-b border-gray-100">
+      <h1 class="text-xl font-bold text-stride-600">Stride</h1>
+    </div>
+    <nav class="p-3">
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-stride-50 text-stride-700 font-medium text-sm">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 18a3.75 3.75 0 00.495-7.467 5.99 5.99 0 00-1.925 3.546 5.974 5.974 0 01-2.133-1A3.75 3.75 0 0012 18z"/></svg>
+        Calorie Log
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-gray-600 hover:bg-gray-50 text-sm mt-1">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        Habits
+      </a>
+    </nav>
+  </aside>
+
+  <!-- ===== MAIN CONTENT ===== -->
+  <main class="lg:ml-64 min-h-screen">
+
+    <!-- Top bar (mobile hamburger + title) -->
+    <header class="sticky top-0 bg-white/80 backdrop-blur border-b border-gray-200 z-30 px-4 py-3 flex items-center gap-3 lg:hidden">
+      <button onclick="toggleSidebar()" class="p-1 -ml-1 rounded-md hover:bg-gray-100">
+        <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
+      </button>
+      <span class="font-semibold text-gray-800">Calorie Log</span>
+    </header>
+
+    <!-- Content area, centered for readability -->
+    <div class="max-w-lg mx-auto px-4 py-6 pb-24">
+
+      <!-- ===== DATE HEADER ===== -->
+      <div class="flex items-center justify-between mb-6">
+        <button onclick="changeDate(-1)" class="p-2 rounded-lg hover:bg-gray-100">
+          <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+        </button>
+        <div class="text-center">
+          <div id="dateLabel" class="text-lg font-semibold">Today</div>
+          <div id="dateSubLabel" class="text-sm text-gray-500">Thu, Feb 13, 2026</div>
+        </div>
+        <button onclick="changeDate(1)" class="p-2 rounded-lg hover:bg-gray-100">
+          <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+        </button>
+      </div>
+
+      <!-- ===== CALORIE RING ===== -->
+      <div class="flex flex-col items-center mb-6">
+        <div class="relative w-44 h-44">
+          <svg class="w-full h-full -rotate-90" viewBox="0 0 120 120">
+            <circle class="ring-bg" cx="60" cy="60" r="52" fill="none" stroke-width="10"/>
+            <circle id="calorieRing" class="ring-fill" cx="60" cy="60" r="52" fill="none" stroke-width="10" stroke="#22c55e"
+              stroke-dasharray="326.73" stroke-dashoffset="33.6" stroke-linecap="round"/>
+          </svg>
+          <div class="absolute inset-0 flex flex-col items-center justify-center">
+            <span id="caloriesLeft" class="text-3xl font-bold text-gray-900">120</span>
+            <span class="text-sm text-gray-500">remaining</span>
+          </div>
+        </div>
+        <div class="mt-2 flex items-center gap-4 text-sm text-gray-500">
+          <span><span class="font-medium text-gray-700">2,180</span> eaten</span>
+          <span class="text-gray-300">|</span>
+          <span><span class="font-medium text-gray-700">150</span> exercise</span>
+          <span class="text-gray-300">|</span>
+          <span><span class="font-medium text-gray-700">2,300</span> budget</span>
+        </div>
+      </div>
+
+      <!-- ===== MACRO BARS ===== -->
+      <div class="bg-white rounded-xl border border-gray-200 p-4 mb-6 space-y-3">
+        <!-- Protein -->
+        <div>
+          <div class="flex justify-between text-sm mb-1">
+            <span class="font-medium text-blue-600">Protein</span>
+            <span class="text-gray-600">115g <span class="text-gray-400">/ 150g</span></span>
+          </div>
+          <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-full bg-blue-500 rounded-full" style="width: 77%"></div>
+          </div>
+        </div>
+        <!-- Carbs -->
+        <div>
+          <div class="flex justify-between text-sm mb-1">
+            <span class="font-medium text-amber-600">Carbs</span>
+            <span class="text-gray-600">168g <span class="text-gray-400">/ 250g</span></span>
+          </div>
+          <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-full bg-amber-400 rounded-full" style="width: 67%"></div>
+          </div>
+        </div>
+        <!-- Fat -->
+        <div>
+          <div class="flex justify-between text-sm mb-1">
+            <span class="font-medium text-pink-600">Fat</span>
+            <span class="text-gray-600">94g <span class="text-gray-400">/ 80g</span></span>
+          </div>
+          <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+            <div class="h-full bg-pink-400 rounded-full" style="width: 100%"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ===== MEAL GROUPS ===== -->
+
+      <!-- Breakfast -->
+      <div class="mb-3">
+        <button onclick="toggleMeal('breakfast')" class="w-full flex items-center justify-between bg-white border border-gray-200 rounded-t-xl px-4 py-3">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-orange-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a8 8 0 100 16 8 8 0 000-16z"/></svg>
+            <span class="font-medium text-sm">Breakfast</span>
+          </div>
+          <span class="text-sm font-medium text-gray-600">780 cal</span>
+        </button>
+        <div id="breakfast" class="bg-white border-x border-b border-gray-200 rounded-b-xl">
+          <div class="divide-y divide-gray-100">
+            <div class="px-4 py-3 flex items-center justify-between">
+              <div>
+                <div class="text-sm font-medium">Medium Breakfast Sausage</div>
+                <div class="text-xs text-gray-400">2 × Each</div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-medium">200</div>
+                <div class="text-xs text-gray-400">P 6 · C 3 · F 7</div>
+              </div>
+            </div>
+            <div class="px-4 py-3 flex items-center justify-between">
+              <div>
+                <div class="text-sm font-medium">Eggs</div>
+                <div class="text-xs text-gray-400">2 × Each</div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-medium">180</div>
+                <div class="text-xs text-gray-400">P 8 · C 3 · F 14</div>
+              </div>
+            </div>
+            <div class="px-4 py-3 flex items-center justify-between">
+              <div>
+                <div class="text-sm font-medium">Banana Smoothie</div>
+                <div class="text-xs text-gray-400">1 × Each</div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-medium">400</div>
+                <div class="text-xs text-gray-400">P 25 · C 28 · F 17</div>
+              </div>
+            </div>
+          </div>
+          <!-- Quick add trigger -->
+          <button onclick="toggleInlineAdd('breakfast')" class="quick-add-btn w-full px-4 py-2.5 text-sm text-stride-600 hover:bg-stride-50 flex items-center gap-1.5 border-t border-gray-100 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Quick add
+          </button>
+          <!-- Inline add form -->
+          <div id="inline-add-breakfast" class="inline-add-form border-t border-gray-100">
+            <div class="px-4 py-3 flex items-center gap-2">
+              <input type="text" placeholder="Item name" class="flex-1 min-w-0 border border-gray-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+              <input type="number" placeholder="Cal" class="w-20 border border-gray-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+              <button onclick="demoInlineSave('breakfast')" class="shrink-0 bg-stride-600 hover:bg-stride-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">Add</button>
+            </div>
+            <div class="px-4 pb-2">
+              <button onclick="openSheetWithType('Breakfast')" class="text-xs text-gray-400 hover:text-stride-600 transition-colors">+ Add with macros</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Lunch -->
+      <div class="mb-3">
+        <button onclick="toggleMeal('lunch')" class="w-full flex items-center justify-between bg-white border border-gray-200 rounded-t-xl px-4 py-3">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-yellow-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a8 8 0 100 16 8 8 0 000-16z"/></svg>
+            <span class="font-medium text-sm">Lunch</span>
+          </div>
+          <span class="text-sm text-gray-400 italic">No items</span>
+        </button>
+        <div id="lunch" class="bg-white border-x border-b border-gray-200 rounded-b-xl">
+          <div class="px-4 py-4 text-center text-sm text-gray-400">No items logged</div>
+          <button onclick="toggleInlineAdd('lunch')" class="quick-add-btn w-full px-4 py-2.5 text-sm text-stride-600 hover:bg-stride-50 flex items-center gap-1.5 border-t border-gray-100 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Quick add
+          </button>
+          <div id="inline-add-lunch" class="inline-add-form border-t border-gray-100">
+            <div class="px-4 py-3 flex items-center gap-2">
+              <input type="text" placeholder="Item name" class="flex-1 min-w-0 border border-gray-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+              <input type="number" placeholder="Cal" class="w-20 border border-gray-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+              <button onclick="demoInlineSave('lunch')" class="shrink-0 bg-stride-600 hover:bg-stride-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">Add</button>
+            </div>
+            <div class="px-4 pb-2">
+              <button onclick="openSheetWithType('Lunch')" class="text-xs text-gray-400 hover:text-stride-600 transition-colors">+ Add with macros</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Dinner -->
+      <div class="mb-3">
+        <button onclick="toggleMeal('dinner')" class="w-full flex items-center justify-between bg-white border border-gray-200 rounded-t-xl px-4 py-3">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-indigo-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a8 8 0 100 16 8 8 0 000-16z"/></svg>
+            <span class="font-medium text-sm">Dinner</span>
+          </div>
+          <span class="text-sm font-medium text-gray-600">1,550 cal</span>
+        </button>
+        <div id="dinner" class="bg-white border-x border-b border-gray-200 rounded-b-xl">
+          <div class="divide-y divide-gray-100">
+            <div class="px-4 py-3 flex items-center justify-between">
+              <div>
+                <div class="text-sm font-medium">Burrito w/ Quesadilla</div>
+                <div class="text-xs text-gray-400">1 × Each</div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-medium">1,550</div>
+                <div class="text-xs text-gray-400">P 76 · C 134 · F 56</div>
+              </div>
+            </div>
+          </div>
+          <button onclick="toggleInlineAdd('dinner')" class="quick-add-btn w-full px-4 py-2.5 text-sm text-stride-600 hover:bg-stride-50 flex items-center gap-1.5 border-t border-gray-100 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Quick add
+          </button>
+          <div id="inline-add-dinner" class="inline-add-form border-t border-gray-100">
+            <div class="px-4 py-3 flex items-center gap-2">
+              <input type="text" placeholder="Item name" class="flex-1 min-w-0 border border-gray-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+              <input type="number" placeholder="Cal" class="w-20 border border-gray-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+              <button onclick="demoInlineSave('dinner')" class="shrink-0 bg-stride-600 hover:bg-stride-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">Add</button>
+            </div>
+            <div class="px-4 pb-2">
+              <button onclick="openSheetWithType('Dinner')" class="text-xs text-gray-400 hover:text-stride-600 transition-colors">+ Add with macros</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Snack -->
+      <div class="mb-3">
+        <button onclick="toggleMeal('snack')" class="w-full flex items-center justify-between bg-white border border-gray-200 rounded-t-xl px-4 py-3">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-green-400" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a8 8 0 100 16 8 8 0 000-16z"/></svg>
+            <span class="font-medium text-sm">Snack</span>
+          </div>
+          <span class="text-sm text-gray-400 italic">No items</span>
+        </button>
+        <div id="snack" class="bg-white border-x border-b border-gray-200 rounded-b-xl">
+          <div class="px-4 py-4 text-center text-sm text-gray-400">No items logged</div>
+          <button onclick="toggleInlineAdd('snack')" class="quick-add-btn w-full px-4 py-2.5 text-sm text-stride-600 hover:bg-stride-50 flex items-center gap-1.5 border-t border-gray-100 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Quick add
+          </button>
+          <div id="inline-add-snack" class="inline-add-form border-t border-gray-100">
+            <div class="px-4 py-3 flex items-center gap-2">
+              <input type="text" placeholder="Item name" class="flex-1 min-w-0 border border-gray-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+              <input type="number" placeholder="Cal" class="w-20 border border-gray-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+              <button onclick="demoInlineSave('snack')" class="shrink-0 bg-stride-600 hover:bg-stride-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">Add</button>
+            </div>
+            <div class="px-4 pb-2">
+              <button onclick="openSheetWithType('Snack')" class="text-xs text-gray-400 hover:text-stride-600 transition-colors">+ Add with macros</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Exercise -->
+      <div class="mb-3">
+        <button onclick="toggleMeal('exercise')" class="w-full flex items-center justify-between bg-white border border-gray-200 rounded-t-xl px-4 py-3">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a8 8 0 100 16 8 8 0 000-16z"/></svg>
+            <span class="font-medium text-sm">Exercise</span>
+          </div>
+          <span class="text-sm font-medium text-emerald-600">-150 cal</span>
+        </button>
+        <div id="exercise" class="bg-white border-x border-b border-gray-200 rounded-b-xl">
+          <div class="divide-y divide-gray-100">
+            <div class="px-4 py-3 flex items-center justify-between">
+              <div>
+                <div class="text-sm font-medium">Walk</div>
+                <div class="text-xs text-gray-400">0.55 × Miles</div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-medium text-emerald-600">-65</div>
+              </div>
+            </div>
+            <div class="px-4 py-3 flex items-center justify-between">
+              <div>
+                <div class="text-sm font-medium">Walk</div>
+                <div class="text-xs text-gray-400">0.85 × Miles</div>
+              </div>
+              <div class="text-right">
+                <div class="text-sm font-medium text-emerald-600">-85</div>
+              </div>
+            </div>
+          </div>
+          <button onclick="toggleInlineAdd('exercise')" class="quick-add-btn w-full px-4 py-2.5 text-sm text-stride-600 hover:bg-stride-50 flex items-center gap-1.5 border-t border-gray-100 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+            Quick add
+          </button>
+          <div id="inline-add-exercise" class="inline-add-form border-t border-gray-100">
+            <div class="px-4 py-3 flex items-center gap-2">
+              <input type="text" placeholder="Activity name" class="flex-1 min-w-0 border border-gray-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+              <input type="number" placeholder="Cal" class="w-20 border border-gray-300 rounded-lg px-2.5 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+              <button onclick="demoInlineSave('exercise')" class="shrink-0 bg-stride-600 hover:bg-stride-700 text-white px-3 py-2 rounded-lg text-sm font-medium transition-colors">Add</button>
+            </div>
+            <div class="px-4 pb-2">
+              <button onclick="openSheetWithType('Exercise')" class="text-xs text-gray-400 hover:text-stride-600 transition-colors">+ Add with details</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /max-w-lg -->
+
+    <!-- ===== FAB ===== -->
+    <button onclick="openSheet()" class="fixed bottom-6 right-6 lg:right-auto lg:left-1/2 lg:ml-32 lg:-translate-x-1/2 w-14 h-14 bg-stride-600 hover:bg-stride-700 text-white rounded-full shadow-lg flex items-center justify-center z-30 transition-colors">
+      <svg class="w-7 h-7" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+    </button>
+
+  </main>
+
+  <!-- ===== BOTTOM SHEET BACKDROP ===== -->
+  <div id="sheetBackdrop" class="bottom-sheet-backdrop fixed inset-0 bg-black/40 z-50 opacity-0 pointer-events-none" onclick="closeSheet()"></div>
+
+  <!-- ===== ADD ITEM BOTTOM SHEET ===== -->
+  <div id="bottomSheet" class="bottom-sheet fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-50 translate-y-full shadow-2xl" style="max-height: 85vh;">
+    <!-- Drag handle -->
+    <div class="flex justify-center pt-3 pb-1">
+      <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
+    </div>
+
+    <div class="px-5 pb-6 overflow-y-auto" style="max-height: calc(85vh - 2rem);">
+      <h2 class="text-lg font-semibold mb-4">Log Item</h2>
+
+      <!-- Item name -->
+      <div class="mb-3">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Item name</label>
+        <input type="text" placeholder="e.g. Banana Smoothie" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+      </div>
+
+      <!-- Type selector -->
+      <div class="mb-3">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Type</label>
+        <div class="grid grid-cols-5 gap-1">
+          <button onclick="selectType(this)" class="type-btn px-2 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors">Breakfast</button>
+          <button onclick="selectType(this)" class="type-btn px-2 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors">Lunch</button>
+          <button onclick="selectType(this)" class="type-btn px-2 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors">Dinner</button>
+          <button onclick="selectType(this)" class="type-btn px-2 py-2 text-xs font-medium rounded-lg border border-stride-600 bg-stride-50 text-stride-700 transition-colors">Snack</button>
+          <button onclick="selectType(this)" class="type-btn px-2 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-colors">Exercise</button>
+        </div>
+      </div>
+
+      <!-- Qty + Unit row -->
+      <div class="grid grid-cols-2 gap-3 mb-3">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Quantity</label>
+          <input type="number" value="1" min="0" step="0.25" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Unit</label>
+          <select class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+            <option>Each</option>
+            <option>g</option>
+            <option>Miles</option>
+            <option>KM</option>
+            <option>Minutes</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Calories -->
+      <div class="mb-3">
+        <label class="block text-sm font-medium text-gray-700 mb-1">Calories</label>
+        <input type="number" placeholder="0" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+      </div>
+
+      <!-- Macros row -->
+      <div class="grid grid-cols-3 gap-3 mb-5">
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Protein (g)</label>
+          <input type="number" placeholder="—" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Carbs (g)</label>
+          <input type="number" placeholder="—" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+        </div>
+        <div>
+          <label class="block text-sm font-medium text-gray-700 mb-1">Fat (g)</label>
+          <input type="number" placeholder="—" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent">
+        </div>
+      </div>
+
+      <!-- Save -->
+      <button onclick="closeSheet()" class="w-full bg-stride-600 hover:bg-stride-700 text-white font-medium py-3 rounded-xl transition-colors">
+        Save Item
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // Sidebar toggle
+    function toggleSidebar() {
+      const sidebar = document.getElementById('sidebar');
+      const overlay = document.getElementById('sidebarOverlay');
+      const isOpen = !sidebar.classList.contains('-translate-x-full');
+      if (isOpen) {
+        sidebar.classList.add('-translate-x-full');
+        overlay.classList.add('opacity-0', 'pointer-events-none');
+      } else {
+        sidebar.classList.remove('-translate-x-full');
+        overlay.classList.remove('opacity-0', 'pointer-events-none');
+      }
+    }
+
+    // Meal group toggle
+    function toggleMeal(id) {
+      const el = document.getElementById(id);
+      if (el.style.display === 'none') {
+        el.style.display = '';
+      } else {
+        el.style.display = 'none';
+      }
+    }
+
+    // Inline quick-add toggle
+    function toggleInlineAdd(mealId) {
+      const form = document.getElementById('inline-add-' + mealId);
+      // Close any other open inline forms
+      document.querySelectorAll('.inline-add-form.open').forEach(f => {
+        if (f.id !== 'inline-add-' + mealId) f.classList.remove('open');
+      });
+      form.classList.toggle('open');
+      if (form.classList.contains('open')) {
+        form.querySelector('input[type="text"]').focus();
+      }
+    }
+
+    // Demo: flash the row green briefly to simulate saving
+    function demoInlineSave(mealId) {
+      const form = document.getElementById('inline-add-' + mealId);
+      const btn = form.querySelector('button.bg-stride-600');
+      btn.textContent = '✓';
+      btn.classList.remove('bg-stride-600', 'hover:bg-stride-700');
+      btn.classList.add('bg-green-500');
+      setTimeout(() => {
+        btn.textContent = 'Add';
+        btn.classList.remove('bg-green-500');
+        btn.classList.add('bg-stride-600', 'hover:bg-stride-700');
+        form.classList.remove('open');
+        // Clear inputs
+        form.querySelectorAll('input').forEach(i => i.value = '');
+      }, 600);
+    }
+
+    // Bottom sheet
+    function openSheet() {
+      document.getElementById('bottomSheet').classList.remove('translate-y-full');
+      const backdrop = document.getElementById('sheetBackdrop');
+      backdrop.classList.remove('opacity-0', 'pointer-events-none');
+    }
+    function closeSheet() {
+      document.getElementById('bottomSheet').classList.add('translate-y-full');
+      const backdrop = document.getElementById('sheetBackdrop');
+      backdrop.classList.add('opacity-0', 'pointer-events-none');
+    }
+
+    // Open bottom sheet with a type pre-selected (from inline "Add with macros" link)
+    function openSheetWithType(typeName) {
+      openSheet();
+      document.querySelectorAll('.type-btn').forEach(b => {
+        b.classList.remove('border-stride-600', 'bg-stride-50', 'text-stride-700');
+        b.classList.add('border-gray-200', 'bg-gray-50', 'text-gray-600');
+        if (b.textContent.trim() === typeName) {
+          b.classList.remove('border-gray-200', 'bg-gray-50', 'text-gray-600');
+          b.classList.add('border-stride-600', 'bg-stride-50', 'text-stride-700');
+        }
+      });
+    }
+
+    // Type selector
+    function selectType(btn) {
+      document.querySelectorAll('.type-btn').forEach(b => {
+        b.classList.remove('border-stride-600', 'bg-stride-50', 'text-stride-700');
+        b.classList.add('border-gray-200', 'bg-gray-50', 'text-gray-600');
+      });
+      btn.classList.remove('border-gray-200', 'bg-gray-50', 'text-gray-600');
+      btn.classList.add('border-stride-600', 'bg-stride-50', 'text-stride-700');
+    }
+
+    // Date navigation (demo only)
+    let dayOffset = 0;
+    function changeDate(delta) {
+      dayOffset += delta;
+      const d = new Date();
+      d.setDate(d.getDate() + dayOffset);
+      const label = document.getElementById('dateLabel');
+      const sub = document.getElementById('dateSubLabel');
+      if (dayOffset === 0) {
+        label.textContent = 'Today';
+      } else if (dayOffset === -1) {
+        label.textContent = 'Yesterday';
+      } else {
+        label.textContent = d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      }
+      sub.textContent = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
+    }
+  </script>
+</body>
+</html>
