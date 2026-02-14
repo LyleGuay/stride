@@ -29,12 +29,110 @@
     .log-table th { position: sticky; top: 0; }
     .log-table td, .log-table th { white-space: nowrap; }
 
-    /* Meal section header row */
-    .meal-header td { background: #f9fafb; }
+    /* Meal section header — colored left border, darker bg */
+    .meal-header td {
+      background: #f0f0f4;
+      border-bottom: 1px solid #e5e7eb;
+    }
+    .meal-header { position: relative; }
+    .meal-header td:first-child { border-left: 3px solid var(--meal-color, #9ca3af); padding-left: 10px; }
+    .meal-header.meal-breakfast { --meal-color: #f97316; }
+    .meal-header.meal-lunch { --meal-color: #eab308; }
+    .meal-header.meal-dinner { --meal-color: #818cf8; }
+    .meal-header.meal-snack { --meal-color: #4ade80; }
+    .meal-header.meal-exercise { --meal-color: #10b981; }
+
+    /* Item rows — indented under headers */
+    .item-row td:first-child { padding-left: 18px; }
+
+    /* + Add row — subtle, dimmed */
+    .add-row button {
+      font-size: 11px;
+      color: #9ca3af;
+      padding-left: 18px;
+    }
+    .add-row button:hover { color: #4f46e5; }
+    .add-row .inline-add-form { padding-left: 6px; }
 
     /* Inline add */
     .inline-add-form { max-height: 0; overflow: hidden; transition: max-height 0.2s ease, opacity 0.2s ease; opacity: 0; }
     .inline-add-form.open { max-height: 200px; opacity: 1; }
+
+    /* Inline cell editing */
+    td.editing {
+      padding: 0 !important;
+    }
+    td.editing input {
+      width: 100%;
+      height: 100%;
+      border: 2px solid #4f46e5;
+      border-radius: 3px;
+      padding: 2px 6px;
+      font-size: 12px;
+      outline: none;
+      background: #eef2ff;
+    }
+    /* Item rows that are editable */
+    .item-row td { cursor: default; user-select: none; }
+
+    /* Context menu */
+    .ctx-menu {
+      position: fixed;
+      z-index: 100;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      padding: 4px 0;
+      min-width: 160px;
+      display: none;
+    }
+    .ctx-menu.show { display: block; }
+    .ctx-menu button {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      text-align: left;
+      padding: 7px 14px;
+      font-size: 13px;
+      color: #374151;
+      background: none;
+      border: none;
+      cursor: pointer;
+    }
+    .ctx-menu button:hover { background: #f3f4f6; }
+    .ctx-menu button.danger { color: #dc2626; }
+    .ctx-menu button.danger:hover { background: #fef2f2; }
+    .ctx-menu .separator { height: 1px; background: #e5e7eb; margin: 4px 0; }
+
+    /* Profile dropdown */
+    .profile-dropdown {
+      position: absolute;
+      right: 0;
+      top: 100%;
+      margin-top: 4px;
+      background: white;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+      padding: 4px 0;
+      min-width: 160px;
+      display: none;
+      z-index: 60;
+    }
+    .profile-dropdown.show { display: block; }
+    .profile-dropdown a {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 7px 14px;
+      font-size: 13px;
+      color: #374151;
+      text-decoration: none;
+    }
+    .profile-dropdown a:hover { background: #f3f4f6; }
+    .profile-dropdown .separator { height: 1px; background: #e5e7eb; margin: 4px 0; }
   </style>
 </head>
 <body class="bg-gray-50 text-gray-900 min-h-screen">
@@ -62,12 +160,26 @@
   <!-- Main content -->
   <main class="lg:ml-64 min-h-screen">
 
-    <!-- Mobile top bar -->
-    <header class="sticky top-0 bg-white/80 backdrop-blur border-b border-gray-200 z-30 px-4 py-3 flex items-center gap-3 lg:hidden">
-      <button onclick="toggleSidebar()" class="p-1 -ml-1 rounded-md hover:bg-gray-100">
+    <!-- Top bar -->
+    <header class="sticky top-0 bg-white/80 backdrop-blur border-b border-gray-200 z-30 px-4 py-3 flex items-center gap-3">
+      <button onclick="toggleSidebar()" class="p-1 -ml-1 rounded-md hover:bg-gray-100 lg:hidden">
         <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
       </button>
       <span class="font-semibold text-gray-800">Calorie Log</span>
+      <div class="ml-auto relative">
+        <button onclick="toggleProfile(event)" class="w-8 h-8 rounded-full bg-stride-600 text-white flex items-center justify-center text-sm font-medium hover:bg-stride-700 transition-colors">L</button>
+        <div id="profileDropdown" class="profile-dropdown">
+          <a href="#">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 011.37.49l1.296 2.247a1.125 1.125 0 01-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 010 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 01-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 01-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.941-1.11.941h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 01-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 01-1.369-.49l-1.297-2.247a1.125 1.125 0 01.26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 010-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 01-.26-1.43l1.297-2.247a1.125 1.125 0 011.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+            Settings
+          </a>
+          <div class="separator"></div>
+          <a href="#">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15m3-3l3-3m0 0l-3-3m3 3H9"/></svg>
+            Sign out
+          </a>
+        </div>
+      </div>
     </header>
 
     <div class="max-w-3xl mx-auto px-4 py-4 pb-24">
@@ -152,47 +264,47 @@
           <tbody>
 
             <!-- Breakfast section -->
-            <tr class="meal-header border-t border-gray-200 cursor-pointer" onclick="toggleSection('sec-breakfast')">
+            <tr class="meal-header meal-breakfast border-t border-gray-200 cursor-pointer" onclick="toggleSection('sec-breakfast')">
               <td colspan="4" class="py-1.5 px-3 font-semibold text-xs text-gray-700">
-                <span class="inline-block w-2 h-2 rounded-full bg-orange-400 mr-1.5"></span>Breakfast
+                Breakfast
               </td>
               <td colspan="3" class="py-1.5 px-2 text-right font-semibold text-gray-600 hidden sm:table-cell">780</td>
               <td class="py-1.5 px-3 text-right font-semibold text-gray-600 sm:hidden">780</td>
             </tr>
-            <tr class="sec-breakfast border-t border-gray-50 hover:bg-gray-50">
-              <td class="py-1.5 px-3 font-medium text-gray-800">Medium Breakfast Sausage</td>
-              <td class="py-1.5 px-2 text-right text-gray-500">2</td>
-              <td class="py-1.5 px-2 text-gray-500">Each</td>
-              <td class="py-1.5 px-2 text-right font-medium">200</td>
-              <td class="py-1.5 px-2 text-right text-blue-500 hidden sm:table-cell">6</td>
-              <td class="py-1.5 px-2 text-right text-amber-500 hidden sm:table-cell">3</td>
-              <td class="py-1.5 px-2 text-right text-pink-500 hidden sm:table-cell">7</td>
+            <tr class="item-row sec-breakfast border-t border-gray-50 hover:bg-gray-50" data-type="Breakfast" oncontextmenu="showCtx(event, this)">
+              <td class="py-1.5 px-3 font-medium text-gray-800" ondblclick="editCell(this)">Medium Breakfast Sausage</td>
+              <td class="py-1.5 px-2 text-right text-gray-500" ondblclick="editCell(this, 'number')">2</td>
+              <td class="py-1.5 px-2 text-gray-500" ondblclick="editCell(this)">Each</td>
+              <td class="py-1.5 px-2 text-right font-medium" ondblclick="editCell(this, 'number')">200</td>
+              <td class="py-1.5 px-2 text-right text-blue-500 hidden sm:table-cell" ondblclick="editCell(this, 'number')">6</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 hidden sm:table-cell" ondblclick="editCell(this, 'number')">3</td>
+              <td class="py-1.5 px-2 text-right text-pink-500 hidden sm:table-cell" ondblclick="editCell(this, 'number')">7</td>
               <td class="py-1.5 px-3 text-right text-gray-400 sm:hidden">6 / 3 / 7</td>
             </tr>
-            <tr class="sec-breakfast border-t border-gray-50 hover:bg-gray-50">
-              <td class="py-1.5 px-3 font-medium text-gray-800">Eggs</td>
-              <td class="py-1.5 px-2 text-right text-gray-500">2</td>
-              <td class="py-1.5 px-2 text-gray-500">Each</td>
-              <td class="py-1.5 px-2 text-right font-medium">180</td>
-              <td class="py-1.5 px-2 text-right text-blue-500 hidden sm:table-cell">8</td>
-              <td class="py-1.5 px-2 text-right text-amber-500 hidden sm:table-cell">3</td>
-              <td class="py-1.5 px-2 text-right text-pink-500 hidden sm:table-cell">14</td>
+            <tr class="item-row sec-breakfast border-t border-gray-50 hover:bg-gray-50" data-type="Breakfast" oncontextmenu="showCtx(event, this)">
+              <td class="py-1.5 px-3 font-medium text-gray-800" ondblclick="editCell(this)">Eggs</td>
+              <td class="py-1.5 px-2 text-right text-gray-500" ondblclick="editCell(this, 'number')">2</td>
+              <td class="py-1.5 px-2 text-gray-500" ondblclick="editCell(this)">Each</td>
+              <td class="py-1.5 px-2 text-right font-medium" ondblclick="editCell(this, 'number')">180</td>
+              <td class="py-1.5 px-2 text-right text-blue-500 hidden sm:table-cell" ondblclick="editCell(this, 'number')">8</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 hidden sm:table-cell" ondblclick="editCell(this, 'number')">3</td>
+              <td class="py-1.5 px-2 text-right text-pink-500 hidden sm:table-cell" ondblclick="editCell(this, 'number')">14</td>
               <td class="py-1.5 px-3 text-right text-gray-400 sm:hidden">8 / 3 / 14</td>
             </tr>
-            <tr class="sec-breakfast border-t border-gray-50 hover:bg-gray-50">
-              <td class="py-1.5 px-3 font-medium text-gray-800">Banana Smoothie</td>
-              <td class="py-1.5 px-2 text-right text-gray-500">1</td>
-              <td class="py-1.5 px-2 text-gray-500">Each</td>
-              <td class="py-1.5 px-2 text-right font-medium">400</td>
-              <td class="py-1.5 px-2 text-right text-blue-500 hidden sm:table-cell">25</td>
-              <td class="py-1.5 px-2 text-right text-amber-500 hidden sm:table-cell">28</td>
-              <td class="py-1.5 px-2 text-right text-pink-500 hidden sm:table-cell">17</td>
+            <tr class="item-row sec-breakfast border-t border-gray-50 hover:bg-gray-50" data-type="Breakfast" oncontextmenu="showCtx(event, this)">
+              <td class="py-1.5 px-3 font-medium text-gray-800" ondblclick="editCell(this)">Banana Smoothie</td>
+              <td class="py-1.5 px-2 text-right text-gray-500" ondblclick="editCell(this, 'number')">1</td>
+              <td class="py-1.5 px-2 text-gray-500" ondblclick="editCell(this)">Each</td>
+              <td class="py-1.5 px-2 text-right font-medium" ondblclick="editCell(this, 'number')">400</td>
+              <td class="py-1.5 px-2 text-right text-blue-500 hidden sm:table-cell" ondblclick="editCell(this, 'number')">25</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 hidden sm:table-cell" ondblclick="editCell(this, 'number')">28</td>
+              <td class="py-1.5 px-2 text-right text-pink-500 hidden sm:table-cell" ondblclick="editCell(this, 'number')">17</td>
               <td class="py-1.5 px-3 text-right text-gray-400 sm:hidden">25 / 28 / 17</td>
             </tr>
             <!-- Quick add row -->
-            <tr class="sec-breakfast border-t border-gray-50">
+            <tr class="add-row sec-breakfast border-t border-gray-50">
               <td colspan="8" class="py-0 px-0">
-                <button onclick="toggleInlineAdd('breakfast')" class="w-full text-left px-3 py-1.5 text-xs text-stride-600 hover:bg-stride-50 transition-colors">+ Add</button>
+                <button onclick="toggleInlineAdd('breakfast')" class="w-full text-left py-1.5 transition-colors">+ Add</button>
                 <div id="inline-add-breakfast" class="inline-add-form">
                   <div class="px-3 py-2 flex items-center gap-2 bg-stride-50/50">
                     <input type="text" placeholder="Item name" class="flex-1 min-w-0 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500">
@@ -205,16 +317,16 @@
             </tr>
 
             <!-- Lunch section -->
-            <tr class="meal-header border-t border-gray-200 cursor-pointer" onclick="toggleSection('sec-lunch')">
+            <tr class="meal-header meal-lunch border-t border-gray-200 cursor-pointer" onclick="toggleSection('sec-lunch')">
               <td colspan="4" class="py-1.5 px-3 font-semibold text-xs text-gray-700">
-                <span class="inline-block w-2 h-2 rounded-full bg-yellow-500 mr-1.5"></span>Lunch
+                Lunch
               </td>
               <td colspan="3" class="py-1.5 px-2 text-right font-semibold text-gray-400 hidden sm:table-cell">0</td>
               <td class="py-1.5 px-3 text-right font-semibold text-gray-400 sm:hidden">0</td>
             </tr>
-            <tr class="sec-lunch border-t border-gray-50">
+            <tr class="add-row sec-lunch border-t border-gray-50">
               <td colspan="8" class="py-0 px-0">
-                <button onclick="toggleInlineAdd('lunch')" class="w-full text-left px-3 py-1.5 text-xs text-stride-600 hover:bg-stride-50 transition-colors">+ Add</button>
+                <button onclick="toggleInlineAdd('lunch')" class="w-full text-left py-1.5 transition-colors">+ Add</button>
                 <div id="inline-add-lunch" class="inline-add-form">
                   <div class="px-3 py-2 flex items-center gap-2 bg-stride-50/50">
                     <input type="text" placeholder="Item name" class="flex-1 min-w-0 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500">
@@ -227,26 +339,26 @@
             </tr>
 
             <!-- Dinner section -->
-            <tr class="meal-header border-t border-gray-200 cursor-pointer" onclick="toggleSection('sec-dinner')">
+            <tr class="meal-header meal-dinner border-t border-gray-200 cursor-pointer" onclick="toggleSection('sec-dinner')">
               <td colspan="4" class="py-1.5 px-3 font-semibold text-xs text-gray-700">
-                <span class="inline-block w-2 h-2 rounded-full bg-indigo-400 mr-1.5"></span>Dinner
+                Dinner
               </td>
               <td colspan="3" class="py-1.5 px-2 text-right font-semibold text-gray-600 hidden sm:table-cell">1,550</td>
               <td class="py-1.5 px-3 text-right font-semibold text-gray-600 sm:hidden">1,550</td>
             </tr>
-            <tr class="sec-dinner border-t border-gray-50 hover:bg-gray-50">
-              <td class="py-1.5 px-3 font-medium text-gray-800">Burrito w/ Quesadilla</td>
-              <td class="py-1.5 px-2 text-right text-gray-500">1</td>
-              <td class="py-1.5 px-2 text-gray-500">Each</td>
-              <td class="py-1.5 px-2 text-right font-medium">1,550</td>
-              <td class="py-1.5 px-2 text-right text-blue-500 hidden sm:table-cell">76</td>
-              <td class="py-1.5 px-2 text-right text-amber-500 hidden sm:table-cell">134</td>
-              <td class="py-1.5 px-2 text-right text-pink-500 hidden sm:table-cell">56</td>
+            <tr class="item-row sec-dinner border-t border-gray-50 hover:bg-gray-50" data-type="Dinner" oncontextmenu="showCtx(event, this)">
+              <td class="py-1.5 px-3 font-medium text-gray-800" ondblclick="editCell(this)">Burrito w/ Quesadilla</td>
+              <td class="py-1.5 px-2 text-right text-gray-500" ondblclick="editCell(this, 'number')">1</td>
+              <td class="py-1.5 px-2 text-gray-500" ondblclick="editCell(this)">Each</td>
+              <td class="py-1.5 px-2 text-right font-medium" ondblclick="editCell(this, 'number')">1,550</td>
+              <td class="py-1.5 px-2 text-right text-blue-500 hidden sm:table-cell" ondblclick="editCell(this, 'number')">76</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 hidden sm:table-cell" ondblclick="editCell(this, 'number')">134</td>
+              <td class="py-1.5 px-2 text-right text-pink-500 hidden sm:table-cell" ondblclick="editCell(this, 'number')">56</td>
               <td class="py-1.5 px-3 text-right text-gray-400 sm:hidden">76 / 134 / 56</td>
             </tr>
-            <tr class="sec-dinner border-t border-gray-50">
+            <tr class="add-row sec-dinner border-t border-gray-50">
               <td colspan="8" class="py-0 px-0">
-                <button onclick="toggleInlineAdd('dinner')" class="w-full text-left px-3 py-1.5 text-xs text-stride-600 hover:bg-stride-50 transition-colors">+ Add</button>
+                <button onclick="toggleInlineAdd('dinner')" class="w-full text-left py-1.5 transition-colors">+ Add</button>
                 <div id="inline-add-dinner" class="inline-add-form">
                   <div class="px-3 py-2 flex items-center gap-2 bg-stride-50/50">
                     <input type="text" placeholder="Item name" class="flex-1 min-w-0 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500">
@@ -259,16 +371,16 @@
             </tr>
 
             <!-- Snack section -->
-            <tr class="meal-header border-t border-gray-200 cursor-pointer" onclick="toggleSection('sec-snack')">
+            <tr class="meal-header meal-snack border-t border-gray-200 cursor-pointer" onclick="toggleSection('sec-snack')">
               <td colspan="4" class="py-1.5 px-3 font-semibold text-xs text-gray-700">
-                <span class="inline-block w-2 h-2 rounded-full bg-green-400 mr-1.5"></span>Snack
+                Snack
               </td>
               <td colspan="3" class="py-1.5 px-2 text-right font-semibold text-gray-400 hidden sm:table-cell">0</td>
               <td class="py-1.5 px-3 text-right font-semibold text-gray-400 sm:hidden">0</td>
             </tr>
-            <tr class="sec-snack border-t border-gray-50">
+            <tr class="add-row sec-snack border-t border-gray-50">
               <td colspan="8" class="py-0 px-0">
-                <button onclick="toggleInlineAdd('snack')" class="w-full text-left px-3 py-1.5 text-xs text-stride-600 hover:bg-stride-50 transition-colors">+ Add</button>
+                <button onclick="toggleInlineAdd('snack')" class="w-full text-left py-1.5 transition-colors">+ Add</button>
                 <div id="inline-add-snack" class="inline-add-form">
                   <div class="px-3 py-2 flex items-center gap-2 bg-stride-50/50">
                     <input type="text" placeholder="Item name" class="flex-1 min-w-0 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500">
@@ -281,36 +393,36 @@
             </tr>
 
             <!-- Exercise section -->
-            <tr class="meal-header border-t border-gray-200 cursor-pointer" onclick="toggleSection('sec-exercise')">
+            <tr class="meal-header meal-exercise border-t border-gray-200 cursor-pointer" onclick="toggleSection('sec-exercise')">
               <td colspan="4" class="py-1.5 px-3 font-semibold text-xs text-gray-700">
-                <span class="inline-block w-2 h-2 rounded-full bg-emerald-500 mr-1.5"></span>Exercise
+                Exercise
               </td>
               <td colspan="3" class="py-1.5 px-2 text-right font-semibold text-emerald-600 hidden sm:table-cell">-150</td>
               <td class="py-1.5 px-3 text-right font-semibold text-emerald-600 sm:hidden">-150</td>
             </tr>
-            <tr class="sec-exercise border-t border-gray-50 hover:bg-gray-50">
-              <td class="py-1.5 px-3 font-medium text-gray-800">Walk</td>
-              <td class="py-1.5 px-2 text-right text-gray-500">0.55</td>
-              <td class="py-1.5 px-2 text-gray-500">Miles</td>
-              <td class="py-1.5 px-2 text-right font-medium text-emerald-600">-65</td>
+            <tr class="item-row sec-exercise border-t border-gray-50 hover:bg-gray-50" data-type="Exercise" oncontextmenu="showCtx(event, this)">
+              <td class="py-1.5 px-3 font-medium text-gray-800" ondblclick="editCell(this)">Walk</td>
+              <td class="py-1.5 px-2 text-right text-gray-500" ondblclick="editCell(this, 'number')">0.55</td>
+              <td class="py-1.5 px-2 text-gray-500" ondblclick="editCell(this)">Miles</td>
+              <td class="py-1.5 px-2 text-right font-medium text-emerald-600" ondblclick="editCell(this, 'number')">-65</td>
               <td class="py-1.5 px-2 hidden sm:table-cell"></td>
               <td class="py-1.5 px-2 hidden sm:table-cell"></td>
               <td class="py-1.5 px-2 hidden sm:table-cell"></td>
               <td class="py-1.5 px-3 sm:hidden"></td>
             </tr>
-            <tr class="sec-exercise border-t border-gray-50 hover:bg-gray-50">
-              <td class="py-1.5 px-3 font-medium text-gray-800">Walk</td>
-              <td class="py-1.5 px-2 text-right text-gray-500">0.85</td>
-              <td class="py-1.5 px-2 text-gray-500">Miles</td>
-              <td class="py-1.5 px-2 text-right font-medium text-emerald-600">-85</td>
+            <tr class="item-row sec-exercise border-t border-gray-50 hover:bg-gray-50" data-type="Exercise" oncontextmenu="showCtx(event, this)">
+              <td class="py-1.5 px-3 font-medium text-gray-800" ondblclick="editCell(this)">Walk</td>
+              <td class="py-1.5 px-2 text-right text-gray-500" ondblclick="editCell(this, 'number')">0.85</td>
+              <td class="py-1.5 px-2 text-gray-500" ondblclick="editCell(this)">Miles</td>
+              <td class="py-1.5 px-2 text-right font-medium text-emerald-600" ondblclick="editCell(this, 'number')">-85</td>
               <td class="py-1.5 px-2 hidden sm:table-cell"></td>
               <td class="py-1.5 px-2 hidden sm:table-cell"></td>
               <td class="py-1.5 px-2 hidden sm:table-cell"></td>
               <td class="py-1.5 px-3 sm:hidden"></td>
             </tr>
-            <tr class="sec-exercise border-t border-gray-50">
+            <tr class="add-row sec-exercise border-t border-gray-50">
               <td colspan="8" class="py-0 px-0">
-                <button onclick="toggleInlineAdd('exercise')" class="w-full text-left px-3 py-1.5 text-xs text-stride-600 hover:bg-stride-50 transition-colors">+ Add</button>
+                <button onclick="toggleInlineAdd('exercise')" class="w-full text-left py-1.5 transition-colors">+ Add</button>
                 <div id="inline-add-exercise" class="inline-add-form">
                   <div class="px-3 py-2 flex items-center gap-2 bg-stride-50/50">
                     <input type="text" placeholder="Activity" class="flex-1 min-w-0 border border-gray-300 rounded px-2 py-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500">
@@ -345,6 +457,23 @@
     </button>
 
   </main>
+
+  <!-- Context menu -->
+  <div id="ctxMenu" class="ctx-menu">
+    <button onclick="ctxEditModal()">
+      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>
+      Edit item...
+    </button>
+    <button onclick="ctxDuplicate()">
+      <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75"/></svg>
+      Duplicate
+    </button>
+    <div class="separator"></div>
+    <button class="danger" onclick="ctxDelete()">
+      <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+      Delete
+    </button>
+  </div>
 
   <!-- Bottom sheet backdrop -->
   <div id="sheetBackdrop" class="bottom-sheet-backdrop fixed inset-0 bg-black/40 z-50 opacity-0 pointer-events-none" onclick="closeSheet()"></div>
@@ -396,6 +525,7 @@
   </div>
 
   <script>
+    // ===== Sidebar =====
     function toggleSidebar() {
       const sidebar = document.getElementById('sidebar');
       const overlay = document.getElementById('sidebarOverlay');
@@ -405,12 +535,20 @@
       overlay.classList.toggle('pointer-events-none', isOpen);
     }
 
+    // ===== Profile dropdown =====
+    function toggleProfile(e) {
+      e.stopPropagation();
+      document.getElementById('profileDropdown').classList.toggle('show');
+    }
+
+    // ===== Meal section toggle =====
     function toggleSection(cls) {
       document.querySelectorAll('.' + cls).forEach(row => {
         row.style.display = row.style.display === 'none' ? '' : 'none';
       });
     }
 
+    // ===== Inline quick-add =====
     function toggleInlineAdd(mealId) {
       const form = document.getElementById('inline-add-' + mealId);
       document.querySelectorAll('.inline-add-form.open').forEach(f => {
@@ -433,13 +571,155 @@
       }, 600);
     }
 
+    // ===== Inline cell editing (double-click) =====
+    let currentEditCell = null;
+
+    function editCell(td, type) {
+      // Cancel any existing edit
+      if (currentEditCell) cancelEdit();
+
+      const originalValue = td.textContent.trim();
+      const originalClasses = td.className;
+      currentEditCell = { td, originalValue, originalClasses };
+
+      td.classList.add('editing');
+      const input = document.createElement('input');
+      input.type = type === 'number' ? 'number' : 'text';
+      input.value = originalValue.replace(/,/g, '');
+      if (type === 'number') input.step = 'any';
+      td.textContent = '';
+      td.appendChild(input);
+      input.focus();
+      input.select();
+
+      input.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') commitEdit();
+        if (e.key === 'Escape') cancelEdit();
+        // Tab to next editable cell
+        if (e.key === 'Tab') {
+          e.preventDefault();
+          commitEdit();
+          const nextTd = e.shiftKey ? findEditableSibling(td, 'prev') : findEditableSibling(td, 'next');
+          if (nextTd) {
+            const isNum = nextTd.getAttribute('ondblclick')?.includes('number');
+            editCell(nextTd, isNum ? 'number' : undefined);
+          }
+        }
+      });
+      input.addEventListener('blur', () => {
+        // Small delay so Tab handler fires first
+        setTimeout(() => { if (currentEditCell && currentEditCell.td === td) commitEdit(); }, 50);
+      });
+    }
+
+    function findEditableSibling(td, dir) {
+      let sibling = dir === 'next' ? td.nextElementSibling : td.previousElementSibling;
+      while (sibling) {
+        if (sibling.getAttribute('ondblclick')) return sibling;
+        sibling = dir === 'next' ? sibling.nextElementSibling : sibling.previousElementSibling;
+      }
+      return null;
+    }
+
+    function commitEdit() {
+      if (!currentEditCell) return;
+      const { td } = currentEditCell;
+      const input = td.querySelector('input');
+      if (!input) return;
+      const newValue = input.value;
+      td.classList.remove('editing');
+      td.textContent = newValue;
+      // Brief green flash to confirm save
+      td.style.background = '#dcfce7';
+      setTimeout(() => { td.style.background = ''; }, 400);
+      currentEditCell = null;
+    }
+
+    function cancelEdit() {
+      if (!currentEditCell) return;
+      const { td, originalValue } = currentEditCell;
+      td.classList.remove('editing');
+      td.textContent = originalValue;
+      currentEditCell = null;
+    }
+
+    // ===== Context menu (right-click) =====
+    let ctxTargetRow = null;
+
+    function showCtx(e, row) {
+      e.preventDefault();
+      ctxTargetRow = row;
+      const menu = document.getElementById('ctxMenu');
+      menu.classList.add('show');
+
+      // Position near cursor, keep on screen
+      let x = e.clientX, y = e.clientY;
+      menu.style.left = x + 'px';
+      menu.style.top = y + 'px';
+      requestAnimationFrame(() => {
+        const rect = menu.getBoundingClientRect();
+        if (rect.right > window.innerWidth) menu.style.left = (window.innerWidth - rect.width - 8) + 'px';
+        if (rect.bottom > window.innerHeight) menu.style.top = (window.innerHeight - rect.height - 8) + 'px';
+      });
+    }
+
+    function hideCtx() {
+      document.getElementById('ctxMenu').classList.remove('show');
+      ctxTargetRow = null;
+    }
+
+    function ctxEditModal() {
+      if (!ctxTargetRow) return;
+      const cells = ctxTargetRow.querySelectorAll('td');
+      const typeName = ctxTargetRow.dataset.type || 'Snack';
+      // Open the bottom sheet and pre-fill from the row data
+      openSheetWithType(typeName);
+      // Pre-fill fields in the sheet
+      const inputs = document.querySelectorAll('#bottomSheet input');
+      if (inputs[0] && cells[0]) inputs[0].value = cells[0].textContent.trim(); // name
+      if (inputs[2] && cells[1]) inputs[2].value = cells[1].textContent.trim(); // qty
+      if (inputs[3] && cells[3]) inputs[3].value = cells[3].textContent.trim().replace(/,/g, ''); // cal
+      if (inputs[4] && cells[4]) inputs[4].value = cells[4].textContent.trim(); // protein
+      if (inputs[5] && cells[5]) inputs[5].value = cells[5].textContent.trim(); // carbs
+      if (inputs[6] && cells[6]) inputs[6].value = cells[6].textContent.trim(); // fat
+      // Update sheet title
+      document.querySelector('#bottomSheet h2').textContent = 'Edit Item';
+      hideCtx();
+    }
+
+    function ctxDuplicate() {
+      if (!ctxTargetRow) return;
+      const clone = ctxTargetRow.cloneNode(true);
+      // Flash to show it was duplicated
+      clone.style.background = '#eef2ff';
+      ctxTargetRow.after(clone);
+      setTimeout(() => { clone.style.background = ''; }, 600);
+      hideCtx();
+    }
+
+    function ctxDelete() {
+      if (!ctxTargetRow) return;
+      ctxTargetRow.style.background = '#fef2f2';
+      ctxTargetRow.style.opacity = '0.5';
+      setTimeout(() => {
+        ctxTargetRow.style.transition = 'opacity 0.2s ease, max-height 0.2s ease';
+        ctxTargetRow.style.opacity = '0';
+        setTimeout(() => ctxTargetRow.remove(), 200);
+      }, 300);
+      hideCtx();
+    }
+
+    // ===== Bottom sheet =====
     function openSheet() {
+      document.querySelector('#bottomSheet h2').textContent = 'Log Item';
       document.getElementById('bottomSheet').classList.remove('translate-y-full');
       document.getElementById('sheetBackdrop').classList.remove('opacity-0', 'pointer-events-none');
     }
     function closeSheet() {
       document.getElementById('bottomSheet').classList.add('translate-y-full');
       document.getElementById('sheetBackdrop').classList.add('opacity-0', 'pointer-events-none');
+      // Clear fields
+      document.querySelectorAll('#bottomSheet input').forEach(i => { if (i.type !== 'number' || i.value !== '1') i.value = ''; });
     }
     function openSheetWithType(typeName) {
       openSheet();
@@ -462,6 +742,7 @@
       btn.classList.add('border-stride-600', 'bg-stride-50', 'text-stride-700');
     }
 
+    // ===== Date nav =====
     let dayOffset = 0;
     function changeDate(delta) {
       dayOffset += delta;
@@ -471,6 +752,25 @@
       label.textContent = dayOffset === 0 ? 'Today' : dayOffset === -1 ? 'Yesterday' : d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       sub.textContent = d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' });
     }
+
+    // ===== Global click to close menus =====
+    document.addEventListener('click', (e) => {
+      // Close context menu
+      if (!e.target.closest('.ctx-menu')) hideCtx();
+      // Close profile dropdown
+      if (!e.target.closest('.profile-dropdown') && !e.target.closest('[onclick*="toggleProfile"]')) {
+        document.getElementById('profileDropdown').classList.remove('show');
+      }
+    });
+
+    // Escape key closes things
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') {
+        hideCtx();
+        document.getElementById('profileDropdown').classList.remove('show');
+        if (currentEditCell) cancelEdit();
+      }
+    });
   </script>
 </body>
 </html>

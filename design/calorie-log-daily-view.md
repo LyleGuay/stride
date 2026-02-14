@@ -28,7 +28,8 @@ The daily view is the primary screen of the Calorie Logging module in Stride. It
 **Purpose:** Top-level navigation for all Stride modules.
 
 **Layout:**
-- Left sidebar (collapsible on mobile via hamburger icon):
+- **Top header bar** — sticky, spans the content area. Contains: hamburger menu (mobile), page title, profile avatar (top-right). Clicking avatar opens a dropdown with: Settings, Sign out.
+- **Left sidebar** (collapsible on mobile via hamburger icon):
   - App name "Stride" at top
   - Nav items: "Calorie Log", "Habits" (more modules later)
   - Active item highlighted
@@ -74,7 +75,7 @@ The daily view is the primary screen of the Calorie Logging module in Stride. It
 - `FloatingActionButton` — Fixed-position (+) button.
 
 **States:**
-- Empty: Ring shows 0/budget, all meal sections say "No items", FAB and quick-add visible.
+- Empty: Ring shows 0/budget, all meal sections visible with "+ Add" rows, no items. FAB visible.
 - Loaded: Ring fills based on consumed/budget, items listed under meal groups.
 - Over budget: Ring turns red, calories remaining shows negative number in red.
 
@@ -83,10 +84,14 @@ The daily view is the primary screen of the Calorie Logging module in Stride. It
 - Tap "+ Quick add" in a meal group → expands inline name + calories form
 - Type name + calories, tap Add → item saved, form clears, closes
 - Tap "Add with macros" → opens bottom sheet with type pre-selected
-- Tap FAB → opens add-item bottom sheet
+- Tap FAB → opens add-item bottom sheet (title: "Log Item")
 - Tap meal group header → collapse/expand that section
-- Swipe item left → delete (future)
-- Tap item → edit (future)
+- **Double-click a cell** → cell becomes an inline text/number input. Enter saves, Escape cancels, Tab moves to next editable cell. Green flash on save.
+- **Right-click an item row** → context menu appears with:
+  - "Edit item..." → opens bottom sheet pre-filled with the row's data (title: "Edit Item")
+  - "Duplicate" → clones the row below the original
+  - "Delete" → fades out and removes the row
+- **Profile avatar (top-right)** → dropdown with: Settings, Sign out
 
 ### Add Item Bottom Sheet
 
