@@ -1,0 +1,3 @@
+
+# Stride
+Stride is a multi-module app for daily habits, tasks, goals, etc...
