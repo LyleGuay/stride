@@ -3,7 +3,9 @@
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
-    "migrations-run": "go run ./cmd/migrate",
+    "migrations:run": "go run ./cmd/migrate",
+    "create-user": "go run ./cmd/create-user",
+    "dev": "go run .",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",

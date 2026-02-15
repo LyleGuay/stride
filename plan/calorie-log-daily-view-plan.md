@@ -35,24 +35,24 @@ Implement the calorie logging daily view as designed in `design/mockups/calorie-
 - [x] **A.4 — Create user CLI tool**
   Create `go-api/cmd/create-user/main.go`. A standalone CLI that connects to the database (reads `DB_URL` from `go-api/.env`), prompts for username, email, and password, hashes the password with bcrypt, generates a UUID auth_token, inserts the user into the `users` table, and inserts a default `calorie_log_settings` row for that user (2300 cal budget, 150g protein, 250g carbs, 80g fat, type budgets: 400/400/1000/600). Usage: `go run ./cmd/create-user`. Add `golang.org/x/crypto` dependency via `go get`. Add usage instructions to `CLAUDE.md`.
 
-- [ ] **A.5 — Run migrations and create dev user**
+- [x] **A.5 — Run migrations and create dev user**
   Run `go run ./cmd/migrate` from `go-api/` to apply all pending migrations. Then run `go run ./cmd/create-user` to create a dev user (which also seeds their calorie_log_settings). Order: migrations first (creates the tables), CLI second (inserts data).
 
 ### Phase B: Go API — Auth Middleware & Config
 
-- [ ] **B.1 — Fix Vite proxy port mismatch**
+- [x] **B.1 — Fix Vite proxy port mismatch**
   In `web-client/vite.config.ts`, change the proxy target from `http://localhost:3001` to `http://localhost:3000`. Also update `CLAUDE.md` to reflect the correct proxy target.
 
-- [ ] **B.2 — Add POST /api/login endpoint**
+- [x] **B.2 — Add POST /api/login endpoint**
   In `go-api/main.go`: add a `login` handler registered outside the auth middleware group. Accepts JSON body `{ "username": "...", "password": "..." }`. Looks up the user by username, verifies the password against the stored bcrypt hash using `bcrypt.CompareHashAndPassword`. If valid, returns `{ "token": user.auth_token, "user_id": user.id }`. Returns 401 if credentials are invalid. Register as `router.POST("/api/login", handler.login)`.
 
-- [ ] **B.3 — Add auth middleware to the Go API**
+- [x] **B.3 — Add auth middleware to the Go API**
   In `go-api/main.go`: add an `authMiddleware` function that reads the `Authorization: Bearer <token>` header, looks up the token in the `users` table, and sets `user_id` on the Gin context via `c.Set("user_id", userId)`. Return 401 if token is missing or invalid. Apply this middleware to a `/api` route group. Move existing habit routes under this group as well.
 
-- [ ] **B.4 — Add route prefix `/api` to all authenticated routes**
+- [x] **B.4 — Add route prefix `/api` to all authenticated routes**
   Currently routes are registered as `/habits`. Change them to `/api/habits` by using a Gin route group: `api := router.Group("/api")` with auth middleware, then register all routes on `api`. The login route stays outside the group (no auth required). This aligns with the Vite proxy which forwards `/api/*` requests.
 
-- [ ] **B.5 — Establish API error response pattern**
+- [x] **B.5 — Establish API error response pattern**
   In `go-api/main.go`: define an `apiError` helper function that returns a consistent JSON error shape: `{ "error": "message" }` with the appropriate HTTP status code. Use this in all handlers instead of bare `fmt.Printf`. Pattern: `c.JSON(http.StatusBadRequest, gin.H{"error": "item_name is required"})`. Apply to the login and auth middleware handlers. All subsequent Phase C handlers should follow this pattern.
 
 ### Phase C: Go API — Calorie Log Endpoints

@@ -119,7 +119,7 @@ go mod tidy               # Manage dependencies
 ### Web Client (`web-client/`)
 
 ```bash
-npm run dev       # Vite dev server with HMR (proxies /api to localhost:3001)
+npm run dev       # Vite dev server with HMR (proxies /api to localhost:3000)
 npm run build     # TypeScript check + Vite production build
 npm run lint      # ESLint
 npm run preview   # Preview production build
