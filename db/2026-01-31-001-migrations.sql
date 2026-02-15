@@ -1,0 +1,5 @@
+CREATE TABLE "migrations" (
+  "migration" TEXT PRIMARY KEY,
+  "description" TEXT NOT NULL,
+  "ran_at" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);

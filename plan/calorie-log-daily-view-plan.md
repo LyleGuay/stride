@@ -18,13 +18,13 @@ Implement the calorie logging daily view as designed in `design/mockups/calorie-
 
 ### Phase A: Database Schema
 
-- [ ] **A.1 — Create schema versions migration**
+- [x] **A.1 — Create schema versions migration**
   Create `db/2026-01-31-001-schema-versions.sql`. This is the bootstrap migration — it creates the `schema_versions` table and inserts its own version record. No guard check needed (it's the first migration). Wrap in a transaction.
 
-- [ ] **A.2 — Create users migration**
+- [x] **A.2 — Create users migration**
   Create `db/2026-01-31-002-users.sql`. Uses the migration guard pattern (temp table + check against `schema_versions`). Creates the `users` table (`id` serial PK, `username` varchar unique, `email` varchar unique, `auth_token` text, `password` text). Also creates the `habits` table and enum from the original migration, plus habit seed data. Delete `go-api/migrations/1-2026-01-31-initial-migration.sql` since it's been split into A.1 and A.2. Update `CLAUDE.md` to document `db/` as the migrations directory.
 
-- [ ] **A.3 — Create calorie log migration**
+- [x] **A.3 — Create calorie log migration**
   Create `db/2026-02-14-001-calorie-log.sql`. Uses the migration guard pattern. This migration should:
   - Create enum `calorie_log_items_type_enum` with values: `breakfast`, `lunch`, `dinner`, `snack`, `exercise`.
   - Create enum `calorie_log_items_uom_enum` with values: `each`, `g`, `miles`, `km`, `minutes`.
@@ -32,11 +32,11 @@ Implement the calorie logging daily view as designed in `design/mockups/calorie-
   - Create table `calorie_log_settings` with columns: `user_id` (int, PK, FK to users), `calorie_budget` (int, default 2300), `protein_target_g` (int, default 150), `carbs_target_g` (int, default 250), `fat_target_g` (int, default 80), `breakfast_budget` (int, default 400), `lunch_budget` (int, default 400), `dinner_budget` (int, default 1000), `snack_budget` (int, default 600).
   - No user seed data in the migration. The CLI tool (A.4) handles user creation and settings.
 
-- [ ] **A.4 — Create user CLI tool**
+- [x] **A.4 — Create user CLI tool**
   Create `go-api/cmd/create-user/main.go`. A standalone CLI that connects to the database (reads `DB_URL` from `go-api/.env`), prompts for username, email, and password, hashes the password with bcrypt, generates a UUID auth_token, inserts the user into the `users` table, and inserts a default `calorie_log_settings` row for that user (2300 cal budget, 150g protein, 250g carbs, 80g fat, type budgets: 400/400/1000/600). Usage: `go run ./cmd/create-user`. Add `golang.org/x/crypto` dependency via `go get`. Add usage instructions to `CLAUDE.md`.
 
 - [ ] **A.5 — Run migrations and create dev user**
-  Run all three migrations in order against the database (A.1 → A.2 → A.3). Then run the CLI tool to create a dev user (which also seeds their calorie_log_settings). Order: migrations first (creates the tables), CLI second (inserts data).
+  Run `go run ./cmd/migrate` from `go-api/` to apply all pending migrations. Then run `go run ./cmd/create-user` to create a dev user (which also seeds their calorie_log_settings). Order: migrations first (creates the tables), CLI second (inserts data).
 
 ### Phase B: Go API — Auth Middleware & Config
 

@@ -110,8 +110,10 @@ Stride is a life & productivity dashboard — habits, tasks, goals, calorie logg
 ### Go API (`go-api/`)
 
 ```bash
-go run .          # Run server (localhost:3000)
-go mod tidy       # Manage dependencies
+go run .                  # Run server (localhost:3000)
+go run ./cmd/migrate      # Run pending migrations from db/
+go run ./cmd/create-user  # Create a user (prompts for username, email, password)
+go mod tidy               # Manage dependencies
 ```
 
 ### Web Client (`web-client/`)
@@ -127,7 +129,7 @@ npm run preview   # Preview production build
 
 ### Go API
 
-Uses Gin framework with a `Handler` struct that holds the `*pgx.Conn` database connection. Routes are registered in `main.go`. PostgreSQL queries use `pgx.CollectRows` with `RowToStructByName` for scanning into Go structs. Migrations are plain SQL files in `go-api/migrations/`.
+Uses Gin framework with a `Handler` struct that holds the `*pgx.Conn` database connection. Routes are registered in `main.go`. PostgreSQL queries use `pgx.CollectRows` with `RowToStructByName` for scanning into Go structs. Migrations are plain SQL files in `db/`. Naming: `YYYY-MM-DD-SEQ-name.sql` (e.g. `2026-01-31-001-schema-versions.sql`). Each migration (except the bootstrap) uses the guard pattern: temp table + check against `schema_versions`.
 
 ### Web Client
 
@@ -135,7 +137,7 @@ React 19 + TypeScript + Vite 7 + Tailwind CSS 4. Configured as a PWA (`vite-plug
 
 ### Database
 
-PostgreSQL (hosted on DigitalOcean). Current tables: `users`, `habits`. Enum types follow the pattern `{table}_{column}_enum`. Migration tracking via a `schema_versions` table.
+PostgreSQL (hosted on DigitalOcean). Current tables: `users`, `habits`. Enum types follow the pattern `{table}_{column}_enum`. Migration tracking via a `migrations` table (keyed by filename).
 
 ## Environment Variables
 
