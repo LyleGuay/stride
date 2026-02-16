@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -32,7 +33,7 @@ func (d *DateOnly) UnmarshalJSON(b []byte) error {
 }
 
 type Handler struct {
-	dbConn *pgx.Conn
+	db *pgxpool.Pool
 }
 
 type user struct {
@@ -93,8 +94,8 @@ type dailySummary struct {
 }
 
 // queryOne runs a query and scans the first row into T using RowToStructByName.
-func queryOne[T any](conn *pgx.Conn, c *gin.Context, sql string, args pgx.NamedArgs) (T, error) {
-	rows, err := conn.Query(c, sql, args)
+func queryOne[T any](pool *pgxpool.Pool, c *gin.Context, sql string, args pgx.NamedArgs) (T, error) {
+	rows, err := pool.Query(c, sql, args)
 	if err != nil {
 		log.Printf("[queryOne] Query error: %v", err)
 		var zero T
@@ -108,8 +109,8 @@ func queryOne[T any](conn *pgx.Conn, c *gin.Context, sql string, args pgx.NamedA
 }
 
 // queryMany runs a query and scans all rows into []T using RowToStructByName.
-func queryMany[T any](conn *pgx.Conn, c *gin.Context, sql string, args pgx.NamedArgs) ([]T, error) {
-	rows, err := conn.Query(c, sql, args)
+func queryMany[T any](pool *pgxpool.Pool, c *gin.Context, sql string, args pgx.NamedArgs) ([]T, error) {
+	rows, err := pool.Query(c, sql, args)
 	if err != nil {
 		log.Printf("[queryMany] Query error: %v", err)
 		return nil, err
@@ -139,7 +140,7 @@ func (h *Handler) login(c *gin.Context) {
 
 	fmt.Printf("user: '%s'\n", body.Username)
 
-	u, err := queryOne[user](h.dbConn, c,
+	u, err := queryOne[user](h.db, c,
 		"SELECT * FROM users WHERE username = @username",
 		pgx.NamedArgs{"username": body.Username})
 	if err != nil {
@@ -169,7 +170,7 @@ func (h *Handler) authMiddleware() gin.HandlerFunc {
 		token := strings.TrimPrefix(header, "Bearer ")
 
 		var userID int
-		err := h.dbConn.QueryRow(c, "SELECT id FROM users WHERE auth_token = $1", token).Scan(&userID)
+		err := h.db.QueryRow(c, "SELECT id FROM users WHERE auth_token = $1", token).Scan(&userID)
 		if err != nil {
 			apiError(c, http.StatusUnauthorized, "invalid token")
 			c.Abort()
@@ -187,7 +188,7 @@ func (h *Handler) getDailySummary(c *gin.Context) {
 	date := c.DefaultQuery("date", time.Now().Format("2006-01-02"))
 	args := pgx.NamedArgs{"userID": userID, "date": date}
 
-	items, err := queryMany[calorieLogItem](h.dbConn, c,
+	items, err := queryMany[calorieLogItem](h.db, c,
 		`SELECT * FROM calorie_log_items
 		 WHERE user_id = @userID AND date = @date
 		 ORDER BY created_at`, args)
@@ -199,7 +200,7 @@ func (h *Handler) getDailySummary(c *gin.Context) {
 		items = []calorieLogItem{}
 	}
 
-	settings, err := queryOne[calorieLogUserSettings](h.dbConn, c,
+	settings, err := queryOne[calorieLogUserSettings](h.db, c,
 		"SELECT * FROM calorie_log_user_settings WHERE user_id = @userID",
 		pgx.NamedArgs{"userID": userID})
 	if err != nil {
@@ -276,7 +277,7 @@ func (h *Handler) createCalorieLogItem(c *gin.Context) {
 		body.Date = time.Now().Format("2006-01-02")
 	}
 
-	item, err := queryOne[calorieLogItem](h.dbConn, c,
+	item, err := queryOne[calorieLogItem](h.db, c,
 		`INSERT INTO calorie_log_items (user_id, date, item_name, type, qty, uom, calories, protein_g, carbs_g, fat_g)
 		 VALUES (@userID, @date, @itemName, @type, @qty, @uom, @calories, @proteinG, @carbsG, @fatG)
 		 RETURNING *`,
@@ -315,7 +316,7 @@ func (h *Handler) updateCalorieLogItem(c *gin.Context) {
 		return
 	}
 
-	item, err := queryOne[calorieLogItem](h.dbConn, c,
+	item, err := queryOne[calorieLogItem](h.db, c,
 		`UPDATE calorie_log_items SET
 			date = COALESCE(@date, date),
 			item_name = COALESCE(@itemName, item_name),
@@ -348,7 +349,7 @@ func (h *Handler) deleteCalorieLogItem(c *gin.Context) {
 	userID := c.GetInt("user_id")
 	id := c.Param("id")
 
-	result, err := h.dbConn.Exec(c,
+	result, err := h.db.Exec(c,
 		"DELETE FROM calorie_log_items WHERE id = @id AND user_id = @userID",
 		pgx.NamedArgs{"id": id, "userID": userID})
 	if err != nil {
@@ -367,7 +368,7 @@ func (h *Handler) deleteCalorieLogItem(c *gin.Context) {
 func (h *Handler) getUserSettings(c *gin.Context) {
 	userID := c.GetInt("user_id")
 
-	s, err := queryOne[calorieLogUserSettings](h.dbConn, c,
+	s, err := queryOne[calorieLogUserSettings](h.db, c,
 		"SELECT * FROM calorie_log_user_settings WHERE user_id = @userID",
 		pgx.NamedArgs{"userID": userID})
 	if err != nil {
@@ -443,7 +444,7 @@ func (h *Handler) patchUserSettings(c *gin.Context) {
 		strings.Join(setClauses, ", ") +
 		" WHERE user_id = @userID RETURNING *"
 
-	s, err := queryOne[calorieLogUserSettings](h.dbConn, c, query, args)
+	s, err := queryOne[calorieLogUserSettings](h.db, c, query, args)
 	if err != nil {
 		apiError(c, http.StatusInternalServerError, "failed to update settings")
 		return
@@ -453,7 +454,7 @@ func (h *Handler) patchUserSettings(c *gin.Context) {
 }
 
 func (h *Handler) getHabits(c *gin.Context) {
-	habits, err := queryMany[habit](h.dbConn, c, "SELECT * FROM habits", pgx.NamedArgs{})
+	habits, err := queryMany[habit](h.db, c, "SELECT * FROM habits", pgx.NamedArgs{})
 	if err != nil {
 		apiError(c, http.StatusInternalServerError, "failed to fetch habits")
 		return
@@ -472,14 +473,14 @@ func (h *Handler) postHabit(c *gin.Context) {
 	c.JSON(http.StatusCreated, newHabit)
 }
 
-func getDBConn() *pgx.Conn {
-	conn, err := pgx.Connect(context.Background(), os.Getenv("DB_URL"))
+func getDBPool() *pgxpool.Pool {
+	pool, err := pgxpool.New(context.Background(), os.Getenv("DB_URL"))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)
 	}
-	fmt.Println("DB Connection setup!")
-	return conn
+	fmt.Println("DB pool ready!")
+	return pool
 }
 
 func main() {
@@ -490,8 +491,9 @@ func main() {
 		log.Fatal("Error loading .env file")
 	}
 
-	dbConn := getDBConn()
-	handler := Handler{dbConn: dbConn}
+	pool := getDBPool()
+	defer pool.Close()
+	handler := Handler{db: pool}
 
 	router := gin.Default()
 	router.SetTrustedProxies(nil)

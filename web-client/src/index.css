@@ -1,1 +1,14 @@
 @import "tailwindcss";
+
+@theme {
+  --color-stride-50: #eef2ff;
+  --color-stride-100: #e0e7ff;
+  --color-stride-200: #c7d2fe;
+  --color-stride-300: #a5b4fc;
+  --color-stride-400: #818cf8;
+  --color-stride-500: #6366f1;
+  --color-stride-600: #4f46e5;
+  --color-stride-700: #4338ca;
+  --color-stride-800: #3730a3;
+  --color-stride-900: #312e81;
+}

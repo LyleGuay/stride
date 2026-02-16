@@ -77,19 +77,19 @@ Implement the calorie logging daily view as designed in `design/mockups/calorie-
 
 ### Phase D: Web Client — Foundation & App Shell
 
-- [ ] **D.1 — Install react-router and set up routing**
+- [x] **D.1 — Install react-router and set up routing**
   Run `npm install react-router` in `web-client/`. Create `web-client/src/router.tsx` with routes: `/` redirects to `/calorie-log`, `/calorie-log` renders the CalorieLog page, `/habits` renders the existing habits page (move current App.tsx content). Update `web-client/src/App.tsx` to render the router.
 
-- [ ] **D.2 — Create the app shell layout component**
+- [x] **D.2 — Create the app shell layout component**
   Create `web-client/src/components/AppShell.tsx`. This is the sidebar + header + content layout that wraps all pages. Sidebar with "Stride" branding, nav links for "Calorie Log" and "Habits" (active state based on current route). Sticky header bar with hamburger toggle (mobile), page title, and profile avatar button (top-right). Mobile: sidebar is an overlay. Desktop (lg:): sidebar is fixed. Use Tailwind classes matching the mockup.
 
-- [ ] **D.3 — Create profile dropdown component**
+- [x] **D.3 — Create profile dropdown component**
   Create `web-client/src/components/ProfileDropdown.tsx`. Avatar button shows user initial. Click toggles a dropdown with "Settings" and "Sign out" options. Click outside closes it. Settings is a placeholder link for now. Sign out clears the auth token. Match mockup styling.
 
-- [ ] **D.4 — Create API service layer**
+- [x] **D.4 — Create API service layer**
   Create `web-client/src/api.ts`. Export functions: `login(username, password)`, `fetchDailySummary(date: string)`, `createCalorieLogItem(item)`, `updateCalorieLogItem(id, fields)`, `deleteCalorieLogItem(id)`, `fetchUserSettings()`, `updateUserSettings(settings)`. All calls go to `/api/...` with `Authorization: Bearer <token>` header. Token stored in localStorage. Handle 401 by redirecting to the login page.
 
-- [ ] **D.5 — Create login page**
+- [x] **D.5 — Create login page**
   Create `web-client/src/pages/Login.tsx`. Simple form with username and password fields and a "Sign in" button. Calls `POST /api/login`, stores the returned token in localStorage, redirects to `/calorie-log`. Shows error message on invalid credentials. Add `/login` route to the router. If no token in localStorage, redirect all routes to `/login`.
 
 ### Phase E: Web Client — Daily View Components
