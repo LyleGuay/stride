@@ -19,7 +19,7 @@ CREATE TABLE "calorie_log_items" (
 
 CREATE INDEX idx_calorie_log_items_user_date ON calorie_log_items (user_id, date);
 
-CREATE TABLE "calorie_log_settings" (
+CREATE TABLE "calorie_log_user_settings" (
   "user_id" INT PRIMARY KEY REFERENCES users(id),
   "calorie_budget" INT DEFAULT 2300,
   "protein_target_g" INT DEFAULT 150,

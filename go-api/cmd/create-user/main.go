@@ -62,7 +62,7 @@ func main() {
 	}
 
 	_, err = conn.Exec(context.Background(),
-		`INSERT INTO calorie_log_settings (user_id) VALUES ($1)`, userID)
+		`INSERT INTO calorie_log_user_settings (user_id) VALUES ($1)`, userID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating calorie log settings: %v\n", err)
 		os.Exit(1)

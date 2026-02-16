@@ -57,22 +57,22 @@ Implement the calorie logging daily view as designed in `design/mockups/calorie-
 
 ### Phase C: Go API — Calorie Log Endpoints
 
-- [ ] **C.1 — Add calorie log item structs**
+- [x] **C.1 — Add calorie log item structs**
   In `go-api/main.go`: define `calorieLogItem` struct with json/db tags matching the `calorie_log_items` table. Define `calorieLogSettings` struct matching `calorie_log_settings`. Define a `dailySummary` response struct with fields: `date`, `calorieBudget`, `caloriesFood`, `caloriesExercise`, `netCalories`, `caloriesLeft`, `proteinG`, `carbsG`, `fatG`, `items` ([]calorieLogItem), `settings` (calorieLogSettings).
 
-- [ ] **C.2 — GET /api/calorie-log/daily?date=YYYY-MM-DD**
+- [x] **C.2 — GET /api/calorie-log/daily?date=YYYY-MM-DD**
   Add handler `getDailySummary` to `go-api/main.go`. Query `calorie_log_items` for the given date and user_id (from auth context). Query `calorie_log_settings` for the user. Compute summary totals (food calories, exercise calories, net, remaining, macro totals). Return the `dailySummary` struct as JSON. If no date param, default to today.
 
-- [ ] **C.3 — POST /api/calorie-log/items**
+- [x] **C.3 — POST /api/calorie-log/items**
   Add handler `createCalorieLogItem` to `go-api/main.go`. Accept JSON body matching the item fields (item_name, type, qty, uom, calories, protein_g, carbs_g, fat_g, date). Insert into `calorie_log_items` with the user_id from auth context. Return the created item with its generated `id`.
 
-- [ ] **C.4 — PUT /api/calorie-log/items/:id**
+- [x] **C.4 — PUT /api/calorie-log/items/:id**
   Add handler `updateCalorieLogItem` to `go-api/main.go`. Accept JSON body with updatable fields. Update the row in `calorie_log_items` where `id` matches and `user_id` matches (auth guard). Set `updated_at` to now(). Return the updated item.
 
-- [ ] **C.5 — DELETE /api/calorie-log/items/:id**
+- [x] **C.5 — DELETE /api/calorie-log/items/:id**
   Add handler `deleteCalorieLogItem` to `go-api/main.go`. Delete the row from `calorie_log_items` where `id` and `user_id` match. Return 204 on success, 404 if not found.
 
-- [ ] **C.6 — GET /api/user/settings and PUT /api/user/settings**
+- [x] **C.6 — GET /api/user/settings and PUT /api/user/settings**
   Add handlers `getUserSettings` and `updateUserSettings` to `go-api/main.go`. GET returns the `calorie_log_settings` row for the authenticated user. PUT accepts JSON body with budget fields and upserts the row. Return the settings.
 
 ### Phase D: Web Client — Foundation & App Shell
