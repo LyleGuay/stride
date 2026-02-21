@@ -115,13 +115,6 @@ export default function DailySummary({ summary }: Props) {
                 </tr>
               )
             })}
-            <tr className="text-emerald-600">
-              <td className="pr-3 py-0.5">Exercise</td>
-              <td className="text-right pr-3 font-medium">
-                {(meals.exercise || 0) > 0 ? `-${meals.exercise}` : '0'}
-              </td>
-              <td className="text-right text-gray-400">&mdash;</td>
-            </tr>
           </tbody>
         </table>
       </div>

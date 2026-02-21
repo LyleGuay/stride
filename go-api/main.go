@@ -235,12 +235,17 @@ func (h *Handler) getDailySummary(c *gin.Context) {
 		return
 	}
 
-	// Compute totals
+	// Compute totals. Exercise calories are treated as their absolute value so
+	// that both positive and negative stored values produce the correct net.
 	var caloriesFood, caloriesExercise int
 	var proteinG, carbsG, fatG float64
 	for _, item := range items {
 		if item.Type == "exercise" {
-			caloriesExercise += item.Calories
+			cal := item.Calories
+			if cal < 0 {
+				cal = -cal
+			}
+			caloriesExercise += cal
 		} else {
 			caloriesFood += item.Calories
 		}

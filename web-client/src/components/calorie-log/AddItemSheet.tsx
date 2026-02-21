@@ -7,11 +7,12 @@ import { useState, type FormEvent } from 'react'
 import type { CalorieLogItem } from '../../api'
 
 const TYPES = ['breakfast', 'lunch', 'dinner', 'snack', 'exercise'] as const
-const UNITS = ['each', 'g', 'miles', 'km', 'minutes'] as const
+const ALL_UNITS = ['each', 'g', 'miles', 'km', 'minutes'] as const
+const EXERCISE_UNITS = ['each', 'minutes', 'miles', 'km'] as const
 
 // Unit display labels (DB stores lowercase).
 const UNIT_LABELS: Record<string, string> = {
-  each: 'Each', g: 'g', miles: 'Miles', km: 'KM', minutes: 'Minutes',
+  each: 'Each', g: 'g', miles: 'Miles', km: 'km', minutes: 'Minutes',
 }
 
 interface Props {
@@ -149,7 +150,11 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
                 <button
                   key={t}
                   type="button"
-                  onClick={() => setType(t)}
+                  onClick={() => {
+                    setType(t)
+                    // Reset UOM to 'each' when switching to exercise if current UOM is food-only
+                    if (t === 'exercise' && uom === 'g') setUom('each')
+                  }}
                   className={`px-2 py-2 text-xs font-medium rounded-lg border capitalize ${
                     type === t
                       ? 'border-stride-600 bg-stride-50 text-stride-700'
@@ -182,7 +187,7 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
                 onChange={e => setUom(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent"
               >
-                {UNITS.map(u => (
+                {(type === 'exercise' ? EXERCISE_UNITS : ALL_UNITS).map(u => (
                   <option key={u} value={u}>{UNIT_LABELS[u]}</option>
                 ))}
               </select>
@@ -201,8 +206,8 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
             />
           </div>
 
-          {/* Macros */}
-          <div className="grid grid-cols-3 gap-3 mb-5">
+          {/* Macros — hidden for exercise (no nutritional macros tracked) */}
+          {type !== 'exercise' && <div className="grid grid-cols-3 gap-3 mb-5">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Protein (g)</label>
               <input
@@ -227,11 +232,11 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent"
               />
             </div>
-          </div>
+          </div>}
 
           <button
             type="submit"
-            className="w-full bg-stride-600 hover:bg-stride-700 text-white font-medium py-3 rounded-xl transition-colors"
+            className={`w-full bg-stride-600 hover:bg-stride-700 text-white font-medium py-3 rounded-xl transition-colors ${type === 'exercise' ? 'mt-5' : ''}`}
           >
             {editItem ? 'Save Changes' : 'Save Item'}
           </button>

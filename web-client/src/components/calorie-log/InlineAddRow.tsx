@@ -1,17 +1,22 @@
 // InlineAddRow — inline row for quick-adding items within a meal section.
 // Two states: a collapsed "+ Add" trigger row, and an expanded input row with
-// column-aligned fields (name, qty, unit, cal, P, C, F). Enter submits,
-// Escape cancels.
+// column-aligned fields (name, qty, unit, cal, and P/C/F for non-exercise).
+// Open state is controlled by the parent so only one row can be open at a time.
+// Enter submits, Escape cancels.
 
 import { useState, useRef, useEffect } from 'react'
 
-const UNITS = ['each', 'g', 'miles', 'km', 'minutes'] as const
+const ALL_UNITS = ['each', 'g', 'miles', 'km', 'minutes'] as const
+const EXERCISE_UNITS = ['each', 'minutes', 'miles', 'km'] as const
 const UNIT_LABELS: Record<string, string> = {
   each: 'Each', g: 'g', miles: 'Miles', km: 'km', minutes: 'Minutes',
 }
 
 interface Props {
   mealType: string
+  isOpen: boolean
+  onOpen: () => void
+  onClose: () => void
   onAdd: (fields: {
     name: string
     qty: number | null
@@ -23,8 +28,10 @@ interface Props {
   }) => void
 }
 
-export default function InlineAddRow({ mealType, onAdd }: Props) {
-  const [open, setOpen] = useState(false)
+export default function InlineAddRow({ mealType, isOpen, onOpen, onClose, onAdd }: Props) {
+  const isExercise = mealType === 'exercise'
+  const units = isExercise ? EXERCISE_UNITS : ALL_UNITS
+
   const [name, setName] = useState('')
   const [qty, setQty] = useState('1')
   const [uom, setUom] = useState('each')
@@ -34,15 +41,18 @@ export default function InlineAddRow({ mealType, onAdd }: Props) {
   const [fat, setFat] = useState('')
   const nameRef = useRef<HTMLInputElement>(null)
 
-  // Auto-focus name input when the row expands
+  // Auto-focus name input when the row opens
   useEffect(() => {
-    if (open) nameRef.current?.focus()
-  }, [open])
+    if (isOpen) nameRef.current?.focus()
+  }, [isOpen])
 
-  const reset = () => {
-    setName(''); setQty('1'); setUom('each')
-    setCalories(''); setProtein(''); setCarbs(''); setFat('')
-  }
+  // Reset all fields when the row closes
+  useEffect(() => {
+    if (!isOpen) {
+      setName(''); setQty('1'); setUom('each')
+      setCalories(''); setProtein(''); setCarbs(''); setFat('')
+    }
+  }, [isOpen])
 
   const handleSubmit = () => {
     if (!name.trim() || !calories) return
@@ -51,32 +61,26 @@ export default function InlineAddRow({ mealType, onAdd }: Props) {
       qty: qty ? parseFloat(qty) : null,
       uom: uom || null,
       calories: parseInt(calories, 10),
-      protein_g: protein ? parseFloat(protein) : null,
-      carbs_g: carbs ? parseFloat(carbs) : null,
-      fat_g: fat ? parseFloat(fat) : null,
+      protein_g: !isExercise && protein ? parseFloat(protein) : null,
+      carbs_g: !isExercise && carbs ? parseFloat(carbs) : null,
+      fat_g: !isExercise && fat ? parseFloat(fat) : null,
     })
-    reset()
-    setOpen(false)
+    onClose()
   }
 
-  const handleCancel = () => {
-    reset()
-    setOpen(false)
-  }
-
-  // Shared keyDown handler for all inputs — Enter submits, Escape cancels
+  // Shared keyDown handler — Enter submits, Escape cancels
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') { e.preventDefault(); handleSubmit() }
-    else if (e.key === 'Escape') handleCancel()
+    else if (e.key === 'Escape') onClose()
   }
 
   // Collapsed state — simple "+ Add" trigger
-  if (!open) {
+  if (!isOpen) {
     return (
       <tr className="border-t border-gray-50">
         <td colSpan={8} className="py-0 px-0">
           <button
-            onClick={() => setOpen(true)}
+            onClick={onOpen}
             className="w-full text-left py-1.5 pl-[18px] text-[11px] text-gray-400 hover:text-stride-600 transition-colors"
           >
             + Add
@@ -95,7 +99,7 @@ export default function InlineAddRow({ mealType, onAdd }: Props) {
           <input
             ref={nameRef}
             type="text"
-            placeholder={mealType === 'exercise' ? 'Activity' : 'Item name'}
+            placeholder={isExercise ? 'Activity' : 'Item name'}
             value={name}
             onChange={e => setName(e.target.value)}
             onKeyDown={handleKeyDown}
@@ -111,7 +115,7 @@ export default function InlineAddRow({ mealType, onAdd }: Props) {
           </button>
           <button
             type="button"
-            onClick={handleCancel}
+            onClick={onClose}
             tabIndex={-1}
             className="shrink-0 text-gray-400 hover:text-gray-600 text-xs px-0.5"
             aria-label="Cancel"
@@ -140,7 +144,7 @@ export default function InlineAddRow({ mealType, onAdd }: Props) {
           onChange={e => setUom(e.target.value)}
           className="w-full border border-gray-200 rounded px-1 py-1 text-xs focus:outline-none focus:border-stride-400 bg-white"
         >
-          {UNITS.map(u => <option key={u} value={u}>{UNIT_LABELS[u]}</option>)}
+          {units.map(u => <option key={u} value={u}>{UNIT_LABELS[u]}</option>)}
         </select>
       </td>
 
@@ -155,40 +159,42 @@ export default function InlineAddRow({ mealType, onAdd }: Props) {
         />
       </td>
 
-      {/* Protein — desktop only */}
-      <td className="py-1 px-1 w-12 hidden sm:table-cell">
-        <input
-          type="number" placeholder="P"
-          value={protein}
-          onChange={e => setProtein(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className="w-full border border-gray-200 rounded px-1 py-1 text-xs text-right focus:outline-none focus:border-stride-400 bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-        />
+      {/* P/C/F — shown on desktop for non-exercise, always hidden for exercise */}
+      <td className={`py-1 px-1 w-12 ${isExercise ? 'hidden' : 'hidden sm:table-cell'}`}>
+        {!isExercise && (
+          <input
+            type="number" placeholder="P"
+            value={protein}
+            onChange={e => setProtein(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="w-full border border-gray-200 rounded px-1 py-1 text-xs text-right focus:outline-none focus:border-stride-400 bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+        )}
+      </td>
+      <td className={`py-1 px-1 w-12 ${isExercise ? 'hidden' : 'hidden sm:table-cell'}`}>
+        {!isExercise && (
+          <input
+            type="number" placeholder="C"
+            value={carbs}
+            onChange={e => setCarbs(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="w-full border border-gray-200 rounded px-1 py-1 text-xs text-right focus:outline-none focus:border-stride-400 bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+        )}
+      </td>
+      <td className={`py-1 px-1 w-12 ${isExercise ? 'hidden' : 'hidden sm:table-cell'}`}>
+        {!isExercise && (
+          <input
+            type="number" placeholder="F"
+            value={fat}
+            onChange={e => setFat(e.target.value)}
+            onKeyDown={handleKeyDown}
+            className="w-full border border-gray-200 rounded px-1 py-1 text-xs text-right focus:outline-none focus:border-stride-400 bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+          />
+        )}
       </td>
 
-      {/* Carbs — desktop only */}
-      <td className="py-1 px-1 w-12 hidden sm:table-cell">
-        <input
-          type="number" placeholder="C"
-          value={carbs}
-          onChange={e => setCarbs(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className="w-full border border-gray-200 rounded px-1 py-1 text-xs text-right focus:outline-none focus:border-stride-400 bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-        />
-      </td>
-
-      {/* Fat — desktop only */}
-      <td className="py-1 px-1 w-12 hidden sm:table-cell">
-        <input
-          type="number" placeholder="F"
-          value={fat}
-          onChange={e => setFat(e.target.value)}
-          onKeyDown={handleKeyDown}
-          className="w-full border border-gray-200 rounded px-1 py-1 text-xs text-right focus:outline-none focus:border-stride-400 bg-white [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-        />
-      </td>
-
-      {/* Mobile combined P/C/F column — empty placeholder for column count */}
+      {/* Mobile combined P/C/F column — empty placeholder */}
       <td className="sm:hidden" />
     </tr>
   )

@@ -35,6 +35,11 @@ const UNIT_OPTIONS = [
 
 interface Props {
   items: CalorieLogItem[]
+  // Server-computed totals — used in the net total footer row.
+  netCalories: number
+  netProtein: number
+  netCarbs: number
+  netFat: number
   onInlineAdd: (type: string, fields: {
     name: string; qty: number | null; uom: string | null; calories: number
     protein_g: number | null; carbs_g: number | null; fat_g: number | null
@@ -43,19 +48,16 @@ interface Props {
   onItemAction: (item: CalorieLogItem, position: { x: number; y: number }) => void
 }
 
-export default function ItemTable({ items, onInlineAdd, onUpdateItem, onItemAction }: Props) {
+export default function ItemTable({ items, netCalories, netProtein, netCarbs, netFat,
+  onInlineAdd, onUpdateItem, onItemAction }: Props) {
   // Group items by meal type
   const grouped: Record<string, CalorieLogItem[]> = Object.fromEntries(
     MEAL_TYPES.map(t => [t, items.filter(i => i.type === t)])
   )
 
-  // Compute net totals (exercise subtracts from the net)
-  const netCalories = items.reduce(
-    (sum, i) => sum + (i.type === 'exercise' ? -i.calories : i.calories), 0
-  )
-  const netProtein = items.reduce((sum, i) => sum + (i.protein_g ?? 0), 0)
-  const netCarbs = items.reduce((sum, i) => sum + (i.carbs_g ?? 0), 0)
-  const netFat = items.reduce((sum, i) => sum + (i.fat_g ?? 0), 0)
+  /* ─── Inline add state — only one section open at a time ───────────── */
+
+  const [activeAddType, setActiveAddType] = useState<string | null>(null)
 
   /* ─── Inline editing state ─────────────────────────────────────────── */
 
@@ -152,6 +154,9 @@ export default function ItemTable({ items, onInlineAdd, onUpdateItem, onItemActi
               onTabEdit={tabToNext}
               onItemAction={onItemAction}
               onInlineAdd={(fields) => onInlineAdd(type, fields)}
+              isAddOpen={activeAddType === type}
+              onAddOpen={() => setActiveAddType(type)}
+              onAddClose={() => setActiveAddType(null)}
             />
           ))}
 
@@ -179,7 +184,7 @@ export default function ItemTable({ items, onInlineAdd, onUpdateItem, onItemActi
 // MealSection renders a meal header row, its item rows, and an inline-add row.
 function MealSection({ type, items, editing, editValue, flashKey, skipBlurRef,
   onStartEdit, onEditChange, onCommitEdit, onCancelEdit, onTabEdit,
-  onItemAction, onInlineAdd,
+  onItemAction, onInlineAdd, isAddOpen, onAddOpen, onAddClose,
 }: {
   type: string
   items: CalorieLogItem[]
@@ -197,6 +202,9 @@ function MealSection({ type, items, editing, editValue, flashKey, skipBlurRef,
     name: string; qty: number | null; uom: string | null; calories: number
     protein_g: number | null; carbs_g: number | null; fat_g: number | null
   }) => void
+  isAddOpen: boolean
+  onAddOpen: () => void
+  onAddClose: () => void
 }) {
   const borderColor = MEAL_BORDER_COLORS[type] || 'border-l-gray-400'
   const isExercise = type === 'exercise'
@@ -208,15 +216,18 @@ function MealSection({ type, items, editing, editValue, flashKey, skipBlurRef,
     <>
       {/* Section header — colored left border, darker bg */}
       <tr className="border-t border-gray-200 bg-[#f0f0f4]">
-        <td colSpan={4} className={`py-1.5 px-3 font-semibold text-xs text-gray-700 border-l-[3px] ${borderColor}`}>
+        {/* Name spans Item, Qty, Unit */}
+        <td colSpan={3} className={`py-1.5 px-3 font-semibold text-xs text-gray-700 border-l-[3px] ${borderColor}`}>
           <span className="capitalize">{type}</span>
         </td>
-        <td colSpan={3} className={`py-1.5 px-2 text-right font-semibold ${totalColor} hidden sm:table-cell`}>
-          {displayTotal}
+        {/* Total aligned with Cal column — omitted for exercise (subtracted at net level) */}
+        <td className={`py-1.5 px-2 text-right font-semibold ${totalColor}`}>
+          {isExercise ? '' : displayTotal}
         </td>
-        <td className={`py-1.5 px-3 text-right font-semibold ${totalColor} sm:hidden`}>
-          {displayTotal}
-        </td>
+        {/* Empty P/C/F cells — desktop only */}
+        <td colSpan={3} className="hidden sm:table-cell" />
+        {/* Empty mobile combined column */}
+        <td className="sm:hidden" />
       </tr>
 
       {/* Item rows — indented under headers */}
@@ -239,7 +250,13 @@ function MealSection({ type, items, editing, editValue, flashKey, skipBlurRef,
       ))}
 
       {/* Inline quick-add row */}
-      <InlineAddRow mealType={type} onAdd={onInlineAdd} />
+      <InlineAddRow
+        mealType={type}
+        isOpen={isAddOpen}
+        onOpen={onAddOpen}
+        onClose={onAddClose}
+        onAdd={onInlineAdd}
+      />
     </>
   )
 }
@@ -334,7 +351,7 @@ function ItemRow({ item, isExercise, editing, editValue, flashKey, skipBlurRef,
       {/* Calories */}
       <EditableCell
         item={item} field="calories"
-        displayValue={isExercise ? `-${item.calories}` : item.calories.toLocaleString()}
+        displayValue={isExercise ? `-${Math.abs(item.calories)}` : item.calories.toLocaleString()}
         className={`py-1.5 px-2 text-right font-medium whitespace-nowrap ${isExercise ? 'text-emerald-600' : ''}`}
         isEditing={isEditing('calories')} editValue={editValue} isFlashing={isFlashing('calories')}
         skipBlurRef={skipBlurRef}

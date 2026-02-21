@@ -196,6 +196,10 @@ export default function CalorieLog() {
       <DailySummary summary={summary} />
       <ItemTable
         items={summary.items}
+        netCalories={summary.net_calories}
+        netProtein={summary.protein_g}
+        netCarbs={summary.carbs_g}
+        netFat={summary.fat_g}
         onInlineAdd={handleInlineAdd}
         onUpdateItem={handleUpdateItem}
         onItemAction={handleItemAction}
