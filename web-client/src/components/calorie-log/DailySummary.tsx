@@ -70,22 +70,29 @@ export default function DailySummary({ summary }: Props) {
           </div>
         </div>
 
-        {/* Macro row */}
+        {/* Macro row — protein is a minimum to reach (amber → green), carbs/fat are budgets (red if over) */}
         <div className="grid grid-cols-3 gap-x-4 text-xs border-t border-gray-100 pt-2">
           <div>
             <span className="text-blue-500 font-medium">Protein</span><br />
             <span className="font-semibold">{Math.round(protein_g)}</span>
             <span className="text-gray-400"> / {settings.protein_target_g}g</span>
+            {protein_g >= settings.protein_target_g
+              ? <span className="ml-1 text-green-500 text-[10px]">✓</span>
+              : <span className="ml-1 text-amber-400 text-[10px]">↑</span>}
           </div>
           <div>
             <span className="text-amber-500 font-medium">Carbs</span><br />
             <span className="font-semibold">{Math.round(carbs_g)}</span>
             <span className="text-gray-400"> / {settings.carbs_target_g}g</span>
+            {carbs_g > settings.carbs_target_g &&
+              <span className="ml-1 text-red-500 text-[10px]">!</span>}
           </div>
           <div>
             <span className="text-pink-500 font-medium">Fat</span><br />
             <span className="font-semibold">{Math.round(fat_g)}</span>
             <span className="text-gray-400"> / {settings.fat_target_g}g</span>
+            {fat_g > settings.fat_target_g &&
+              <span className="ml-1 text-red-500 text-[10px]">!</span>}
           </div>
         </div>
       </div>
