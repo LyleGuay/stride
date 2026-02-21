@@ -1,6 +1,7 @@
-// AddItemSheet — bottom sheet for creating or editing a calorie log item.
-// Slides up with a backdrop overlay. Supports "Log Item" (create) and
-// "Edit Item" (pre-filled) modes. Type selector uses segmented buttons.
+// AddItemSheet — form for creating or editing a calorie log item.
+// Mobile: slides up as a bottom sheet. Desktop (sm+): centered modal dialog
+// with scale-in animation. Supports "Log Item" (create) and "Edit Item"
+// (pre-filled) modes. Type selector uses segmented buttons.
 
 import { useState, type FormEvent } from 'react'
 import type { CalorieLogItem } from '../../api'
@@ -88,30 +89,45 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
 
   return (
     <>
-      {/* Backdrop */}
+      {/* Backdrop — also acts as flex centering container on desktop */}
       <div
-        className={`fixed inset-0 bg-black/40 z-50 transition-opacity duration-300 ${
-          open ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
+        className={`fixed inset-0 bg-black/40 z-50 transition-opacity duration-300
+          sm:flex sm:items-center sm:justify-center sm:p-4
+          ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
         onClick={onClose}
-      />
-
-      {/* Sheet */}
-      <div
-        className={`fixed bottom-0 left-0 right-0 bg-white rounded-t-2xl z-50 shadow-2xl transition-transform duration-300 ${
-          open ? 'translate-y-0' : 'translate-y-full'
-        }`}
-        style={{ maxHeight: '85vh' }}
       >
-        {/* Drag handle */}
-        <div className="flex justify-center pt-3 pb-1">
-          <div className="w-10 h-1 bg-gray-300 rounded-full" />
-        </div>
+        {/* Mobile: bottom sheet (slide up). Desktop: centered modal (scale in). */}
+        <div
+          className={`bg-white shadow-2xl overflow-hidden transition-all duration-300
+            fixed bottom-0 left-0 right-0 rounded-t-2xl
+            ${open ? 'translate-y-0' : 'translate-y-full'}
+            sm:static sm:rounded-xl sm:w-full sm:max-w-lg sm:translate-y-0
+            ${open ? 'sm:scale-100 sm:opacity-100' : 'sm:scale-95 sm:opacity-0'}`}
+          style={{ maxHeight: '85vh' }}
+          onClick={e => e.stopPropagation()}
+        >
+          {/* Drag handle — mobile only */}
+          <div className="flex justify-center pt-3 pb-1 sm:hidden">
+            <div className="w-10 h-1 bg-gray-300 rounded-full" />
+          </div>
 
-        <form onSubmit={handleSubmit} className="px-5 pb-6 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 2rem)' }}>
-          <h2 className="text-lg font-semibold mb-4">
-            {editItem ? 'Edit Item' : 'Log Item'}
-          </h2>
+          <form onSubmit={handleSubmit} className="px-5 pt-4 pb-6 sm:pt-5 overflow-y-auto" style={{ maxHeight: 'calc(85vh - 2rem)' }}>
+            {/* Header: title + close button (close button visible on desktop) */}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">
+                {editItem ? 'Edit Item' : 'Log Item'}
+              </h2>
+              <button
+                type="button"
+                onClick={onClose}
+                className="hidden sm:flex items-center justify-center w-8 h-8 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                aria-label="Close"
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
 
           {/* Item name */}
           <div className="mb-3">
@@ -219,7 +235,8 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
           >
             {editItem ? 'Save Changes' : 'Save Item'}
           </button>
-        </form>
+          </form>
+        </div>
       </div>
     </>
   )

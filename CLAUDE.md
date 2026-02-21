@@ -32,7 +32,7 @@ Use good judgment. The goal is that a developer reading the code for the first t
 ### What to comment
 
 - **Functions/methods:** Brief comment explaining what it does. Every exported/handler function should have one.
-- **Structs/types/interfaces:** What it represents and when it's used.
+- **Classes/Structs/types/interfaces:** should have a `/**/` explaining what it is, it's purpose and how it fits in the big picture.
 - **Code blocks:** When a block of code has a distinct purpose (e.g. "build dynamic SET clause", "compute daily totals"), add a short comment above it explaining the block's intent. Use these liberally — they make scanning code much faster.
 - **Why, not what.** Comment non-obvious _reasons_: workarounds, business logic, intentional error suppression, ordering dependencies, or anything a future reader would question.
 - **Edge cases and gotchas.** If code handles a subtle case, say why.
@@ -41,13 +41,12 @@ Use good judgment. The goal is that a developer reading the code for the first t
 ### What NOT to comment
 
 - Do not restate what a single line obviously does. `// increment counter` above `counter++` is noise.
-- Do not use JSDoc on every function. Only add JSDoc when the function is part of a public API or the types genuinely need explanation.
+- Do not include `@param` or other JSDoc decotators unless it adds useful info.
 - Do not leave `// TODO` comments unless I ask for them.
 - Do not add commented-out code. Delete it; git has history.
 
 ### Style
 
-- One to three lines is the sweet spot. Longer is fine if the context warrants it.
 - Use `//` for inline and block-level comments. Use `/* */` for file or section headers when it improves readability.
 - Write in plain language, not formal doc-speak. "Clears cache because user permissions changed" not "This method is responsible for the invalidation of the cache subsequent to a modification of user permissions."
 
@@ -81,10 +80,6 @@ pool, err := pgxpool.New(ctx, os.Getenv("DB_URL"))
 // GOOD — explains intentional error suppression
 // Safe to ignore — profile image is optional and we don't want to block user creation.
 try { await uploadAvatar(file); } catch { }
-
-// BAD — restates the code
-// Create a new user
-async createUser(dto: CreateUserDto) { ... }
 ```
 
 ## Keeping Documentation in Sync

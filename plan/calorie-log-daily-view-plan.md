@@ -117,16 +117,16 @@ Implement the calorie logging daily view as designed in `design/mockups/calorie-
 
 ### Phase F: Web Client — Inline Edit & Context Menu
 
-- [ ] **F.1 — Add double-click inline editing to ItemTable**
+- [x] **F.1 — Add double-click inline editing to ItemTable**
   In `web-client/src/components/calorie-log/ItemTable.tsx`: add `onDoubleClick` handler to editable `<td>` cells (name, qty, unit, cal, P, C, F). On double-click, replace cell content with an `<input>`. Enter commits (calls `updateCalorieLogItem` API), Escape cancels, Tab moves to next editable cell. Green flash on successful save. Track editing state (which cell is active).
 
-- [ ] **F.2 — Add right-click context menu to item rows**
+- [x] **F.2 — Add right-click context menu to item rows**
   Create `web-client/src/components/calorie-log/ContextMenu.tsx`. Fixed-positioned menu shown on right-click of an item row. Options: "Edit item..." (opens bottom sheet pre-filled), "Duplicate" (calls create API with same data), separator, "Delete" (calls delete API, fade-out animation). Click outside or Escape closes. Position near cursor, kept on screen.
 
-- [ ] **F.3 — Add mobile touch support for edit/delete**
+- [x] **F.3 — Add mobile touch support for edit/delete**
   Right-click and double-click don't exist on mobile. In `web-client/src/components/calorie-log/ItemTable.tsx`: add a `···` action button to each item row (visible on mobile, hidden on desktop with `sm:hidden`). Tapping it opens the same context menu (positioned near the button). On desktop, the `···` button is hidden and right-click is the primary trigger. This ensures edit/duplicate/delete are accessible on touch devices.
 
-- [ ] **F.4 — Wire up edit, duplicate, and delete actions**
+- [x] **F.4 — Wire up edit, duplicate, and delete actions**
   In `web-client/src/pages/CalorieLog.tsx`: implement handlers for `onEditInModal` (open sheet with item data, save calls PUT), `onDuplicate` (POST with same fields, insert into list), `onDelete` (DELETE call, remove from list with animation). Optimistic UI updates — update local state immediately, revert on API error.
 
 ### Phase G: Polish & Integration Testing
