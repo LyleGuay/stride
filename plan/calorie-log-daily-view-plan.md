@@ -94,25 +94,25 @@ Implement the calorie logging daily view as designed in `design/mockups/calorie-
 
 ### Phase E: Web Client — Daily View Components
 
-- [ ] **E.1 — Create the CalorieLog page component**
+- [x] **E.1 — Create the CalorieLog page component**
   Create `web-client/src/pages/CalorieLog.tsx`. This is the main page component. It fetches `dailySummary` on mount (and when date changes). Manages state for: current date, items, settings, bottom sheet open/close, context menu state. Renders the sub-components below. Uses the `max-w-3xl mx-auto` container from the mockup.
 
-- [ ] **E.2 — Create DateHeader component**
+- [x] **E.2 — Create DateHeader component**
   Create `web-client/src/components/calorie-log/DateHeader.tsx`. Left/right arrows, "Today"/"Yesterday" or formatted date, sub-label with full date. Props: `date`, `onDateChange`. Match mockup layout.
 
-- [ ] **E.3 — Create DailySummary component (ring + stats + meal budget table)**
+- [x] **E.3 — Create DailySummary component (ring + stats + meal budget table)**
   Create `web-client/src/components/calorie-log/DailySummary.tsx`. Compact horizontal layout from the table mockup: SVG ring (smaller, left side), calorie stats grid (eaten/exercise/budget), macro row (P/C/F with targets), per-meal budget table (right side, hidden on mobile). Props: summary data + settings. Ring color: green under budget, red over.
 
-- [ ] **E.4 — Create ItemTable component with MealSection rows**
+- [x] **E.4 — Create ItemTable component with MealSection rows**
   Create `web-client/src/components/calorie-log/ItemTable.tsx`. Renders the `<table>` with sticky header (Item, Qty, Unit, Cal, P, C, F — responsive with combined P/C/F column on mobile). Groups items by type into meal sections. Each section has: colored left-border header row, item data rows, "+ Add" row. Net total footer row. Props: items array, event handlers for add/edit/delete.
 
-- [ ] **E.5 — Create InlineAddRow component**
+- [x] **E.5 — Create InlineAddRow component**
   Create `web-client/src/components/calorie-log/InlineAddRow.tsx`. The "+ Add" button that expands to show name + calories inputs + Add button + "···" link to open bottom sheet. Props: meal type, onAdd callback, onOpenSheet callback. Animated expand/collapse.
 
-- [ ] **E.6 — Create AddItemSheet (bottom sheet) component**
+- [x] **E.6 — Create AddItemSheet (bottom sheet) component**
   Create `web-client/src/components/calorie-log/AddItemSheet.tsx`. Slides up from bottom with backdrop. Form fields: item name, type selector (segmented buttons), qty, unit dropdown, calories, protein, carbs, fat. Save button. Supports two modes: "Log Item" (create) and "Edit Item" (pre-filled, updates existing). Props: open state, initial values, onSave, onClose.
 
-- [ ] **E.7 — Create FloatingActionButton component**
+- [x] **E.7 — Create FloatingActionButton component**
   Create `web-client/src/components/calorie-log/FloatingActionButton.tsx`. Fixed-position (+) button, bottom-right. onClick opens the bottom sheet in create mode. Styled to match mockup (indigo, shadow, responsive positioning).
 
 ### Phase F: Web Client — Inline Edit & Context Menu

@@ -1,9 +1,12 @@
-// API service layer — all calls go through here with auth headers.
+// API service layer — all backend calls go through request() which handles
+// auth headers, 401 redirects, and consistent error extraction.
 
 function getToken(): string | null {
   return localStorage.getItem('token')
 }
 
+// request is the base fetch wrapper. Attaches Bearer token, handles 401
+// by clearing the token and redirecting to login, and extracts error messages.
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken()
   const headers: Record<string, string> = {
@@ -37,7 +40,9 @@ export function login(username: string, password: string) {
   })
 }
 
-// Calorie log
+/* ─── Types ───────────────────────────────────────────────────────── */
+
+// CalorieLogItem mirrors the calorie_log_items DB row.
 export interface CalorieLogItem {
   id: number
   user_id: number
@@ -54,6 +59,8 @@ export interface CalorieLogItem {
   updated_at: string
 }
 
+// CalorieLogUserSettings contains the user's daily calorie budget, macro targets,
+// and per-meal budgets.
 export interface CalorieLogUserSettings {
   user_id: number
   calorie_budget: number
@@ -66,6 +73,8 @@ export interface CalorieLogUserSettings {
   snack_budget: number
 }
 
+// DailySummary is the response from GET /calorie-log/daily — includes items,
+// settings, and server-computed totals (net calories, macros, etc.).
 export interface DailySummary {
   date: string
   calorie_budget: number
@@ -79,6 +88,8 @@ export interface DailySummary {
   items: CalorieLogItem[]
   settings: CalorieLogUserSettings
 }
+
+/* ─── API functions ───────────────────────────────────────────────── */
 
 export function fetchDailySummary(date: string) {
   return request<DailySummary>(`/api/calorie-log/daily?date=${date}`)

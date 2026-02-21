@@ -27,42 +27,56 @@
 
 ## Comments
 
+Use good judgment. The goal is that a developer reading the code for the first time can understand what's going on without guessing. Err on the side of commenting — a useful comment is always better than a missing one.
+
 ### What to comment
 
-- **Classes/modules:** One brief comment explaining what it is and when you'd use it.
-- **Functions/methods:** One brief comment explaining what it does. Add param/return notes only if the types don't make it obvious.
-- **Why, not what.** Comment non-obvious _reasons_: workarounds, business logic, cache invalidation, intentional error suppression, ordering dependencies, or anything a future reader would question.
+- **Functions/methods:** Brief comment explaining what it does. Every exported/handler function should have one.
+- **Structs/types/interfaces:** What it represents and when it's used.
+- **Code blocks:** When a block of code has a distinct purpose (e.g. "build dynamic SET clause", "compute daily totals"), add a short comment above it explaining the block's intent. Use these liberally — they make scanning code much faster.
+- **Why, not what.** Comment non-obvious _reasons_: workarounds, business logic, intentional error suppression, ordering dependencies, or anything a future reader would question.
 - **Edge cases and gotchas.** If code handles a subtle case, say why.
+- **API endpoints:** What the endpoint does, any notable behavior (defaults, side effects).
 
 ### What NOT to comment
 
-- Do not restate what the code obviously does. `// increment counter` above `counter++` is noise.
+- Do not restate what a single line obviously does. `// increment counter` above `counter++` is noise.
 - Do not use JSDoc on every function. Only add JSDoc when the function is part of a public API or the types genuinely need explanation.
-- Do not write novel-length block comments. One to two lines is almost always enough.
 - Do not leave `// TODO` comments unless I ask for them.
 - Do not add commented-out code. Delete it; git has history.
 
 ### Style
 
-- Keep comments short — one line preferred, two lines max.
-- Use `//` for inline comments, not block `/* */` (unless it's a file/class header).
+- One to three lines is the sweet spot. Longer is fine if the context warrants it.
+- Use `//` for inline and block-level comments. Use `/* */` for file or section headers when it improves readability.
 - Write in plain language, not formal doc-speak. "Clears cache because user permissions changed" not "This method is responsible for the invalidation of the cache subsequent to a modification of user permissions."
 
 ### Examples
+
+```go
+// GOOD — handler purpose
+// getDailySummary returns calorie log items and computed totals for a given date.
+func (h *Handler) getDailySummary(c *gin.Context) {
+
+// GOOD — block comment explaining a section's purpose
+// Build SET clause dynamically — only update fields the client provided
+setClauses := []string{}
+args := pgx.NamedArgs{"userID": userID}
+
+// GOOD — struct purpose
+// DateOnly wraps time.Time to serialize as "YYYY-MM-DD" in JSON responses.
+type DateOnly struct{ time.Time }
+
+// GOOD — explains a non-obvious decision
+// We use a connection pool instead of a single conn because Neon
+// closes idle connections after ~5 minutes.
+pool, err := pgxpool.New(ctx, os.Getenv("DB_URL"))
+```
 
 ```typescript
 // GOOD — explains why
 // Guard: org-level routes must verify the caller belongs to this org tree
 @UseGuards(AccessOrganizationGuard)
-
-// GOOD — brief class purpose
-// Handles user CRUD and permission assignment for org members.
-@Controller('user-auth')
-export class UserAuthController { ... }
-
-// GOOD — explains a non-obvious decision
-// We retry here because the external auth provider occasionally returns 503 on first attempt.
-await retry(() => authProvider.validate(token), { retries: 2 });
 
 // GOOD — explains intentional error suppression
 // Safe to ignore — profile image is optional and we don't want to block user creation.
@@ -71,15 +85,18 @@ try { await uploadAvatar(file); } catch { }
 // BAD — restates the code
 // Create a new user
 async createUser(dto: CreateUserDto) { ... }
-
-// BAD — JSDoc spam on an obvious function
-/**
- * @param {string} name - The name of the user
- * @param {number} orgId - The organization ID
- * @returns {Promise<User>} The created user
- */
-async createUser(name: string, orgId: number): Promise<User> { ... }
 ```
+
+## Keeping Documentation in Sync
+
+When you change code, update any documentation or comments affected by the change:
+
+- **Comments near changed code.** If a comment describes behavior you just changed, update it. Stale comments are worse than no comments.
+- **CLAUDE.md.** If you change architecture, add/remove commands, change table names, update routes, etc., update the relevant sections here.
+- **README files.** If a README describes something you changed, update it.
+- **Plan files.** Do not modify task descriptions in plan files — only check off completed tasks.
+
+This is not optional. Outdated docs actively mislead, so treat doc updates as part of the change.
 
 ## Changes and Testing
 
@@ -129,15 +146,15 @@ npm run preview   # Preview production build
 
 ### Go API
 
-Uses Gin framework with a `Handler` struct that holds the `*pgx.Conn` database connection. Routes are registered in `main.go`. PostgreSQL queries use `pgx.CollectRows` with `RowToStructByName` for scanning into Go structs. Migrations are plain SQL files in `db/`. Naming: `YYYY-MM-DD-SEQ-name.sql` (e.g. `2026-01-31-001-schema-versions.sql`). Each migration (except the bootstrap) uses the guard pattern: temp table + check against `schema_versions`.
+Uses Gin framework with a `Handler` struct that holds a `*pgxpool.Pool` connection pool. Routes are registered in `main.go`. PostgreSQL queries use `queryOne[T]` / `queryMany[T]` generic helpers with `pgx.NamedArgs` and `RowToStructByName` for scanning into Go structs. Migrations are plain SQL files in `db/` (pure DDL, no guard checks). Naming: `YYYY-MM-DD-SEQ-name.sql` (e.g. `2026-01-31-001-schema-versions.sql`). The migrate CLI tool handles transaction wrapping and tracking.
 
 ### Web Client
 
-React 19 + TypeScript + Vite 7 + Tailwind CSS 4. Configured as a PWA (`vite-plugin-pwa`). The Vite dev server proxies `/api` requests to `localhost:3001`.
+React 19 + TypeScript + Vite 7 + Tailwind CSS 4. Configured as a PWA (`vite-plugin-pwa`). Uses react-router for routing with a token-based auth guard. The Vite dev server proxies `/api` requests to `localhost:3000`. API calls go through `src/api.ts`.
 
 ### Database
 
-PostgreSQL (hosted on DigitalOcean). Current tables: `users`, `habits`. Enum types follow the pattern `{table}_{column}_enum`. Migration tracking via a `migrations` table (keyed by filename).
+PostgreSQL (hosted on Neon). Current tables: `users`, `calorie_log_items`, `calorie_log_user_settings`. Enum types follow the pattern `{table}_{column}` (e.g. `calorie_log_item_type`). Migration tracking via a `migrations` table (keyed by filename).
 
 ## Environment Variables
 

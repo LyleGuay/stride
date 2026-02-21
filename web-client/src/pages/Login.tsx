@@ -1,3 +1,6 @@
+// Login page — simple username/password form. On success, stores the auth
+// token in localStorage and redirects to /calorie-log.
+
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router'
 import { login } from '../api'

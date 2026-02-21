@@ -1,8 +1,11 @@
+// AppShell is the main layout wrapper for all authenticated pages.
+// Sidebar: fixed on desktop (lg+), slide-out overlay on mobile.
+// Header: sticky top bar with hamburger toggle, app title, and profile dropdown.
+// Page content renders via <Outlet />.
+
 import { useState } from 'react'
 import { Outlet, NavLink } from 'react-router'
 import ProfileDropdown from './ProfileDropdown'
-
-// Main layout: sidebar + header + content area.
 export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 

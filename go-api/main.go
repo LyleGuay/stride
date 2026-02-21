@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
 	"golang.org/x/crypto/bcrypt"
@@ -32,10 +33,24 @@ func (d *DateOnly) UnmarshalJSON(b []byte) error {
 	return nil
 }
 
+// ScanDate implements pgtype.DateScanner so pgx can scan PostgreSQL date
+// columns (OID 1082) into DateOnly.
+func (d *DateOnly) ScanDate(v pgtype.Date) error {
+	if !v.Valid {
+		return fmt.Errorf("cannot scan NULL into DateOnly")
+	}
+	d.Time = v.Time
+	return nil
+}
+
+// Handler holds shared dependencies (db pool) for all route handlers.
 type Handler struct {
 	db *pgxpool.Pool
 }
 
+/* ─── Domain structs ─────────────────────────────────────────────────── */
+
+// user maps to the users table. AuthToken and Password are hidden from JSON responses.
 type user struct {
 	ID        int        `json:"id" db:"id"`
 	Username  string     `json:"username" db:"username"`
@@ -51,6 +66,8 @@ type habit struct {
 	Cadence string `json:"cadence" db:"cadence"`
 }
 
+// calorieLogItem maps to calorie_log_items. Nullable numeric fields use pointers
+// so pgx can scan NULLs and JSON omits them naturally.
 type calorieLogItem struct {
 	ID        int      `json:"id" db:"id"`
 	UserID    int      `json:"user_id" db:"user_id"`
@@ -67,6 +84,8 @@ type calorieLogItem struct {
 	UpdatedAt *time.Time `json:"updated_at" db:"updated_at"`
 }
 
+// calorieLogUserSettings maps to calorie_log_user_settings. One row per user
+// with daily calorie budget, macro targets, and per-meal calorie budgets.
 type calorieLogUserSettings struct {
 	UserID          int `json:"user_id" db:"user_id"`
 	CalorieBudget   int `json:"calorie_budget" db:"calorie_budget"`
@@ -79,6 +98,8 @@ type calorieLogUserSettings struct {
 	SnackBudget     int `json:"snack_budget" db:"snack_budget"`
 }
 
+// dailySummary is the response shape for GET /calorie-log/daily.
+// Includes the day's items, user settings, and computed totals.
 type dailySummary struct {
 	Date             string                 `json:"date"`
 	CalorieBudget    int                    `json:"calorie_budget"`
@@ -93,7 +114,10 @@ type dailySummary struct {
 	Settings         calorieLogUserSettings `json:"settings"`
 }
 
+/* ─── Database helpers ────────────────────────────────────────────────── */
+
 // queryOne runs a query and scans the first row into T using RowToStructByName.
+// Logs query and scan errors for debugging (e.g. struct/column mismatches).
 func queryOne[T any](pool *pgxpool.Pool, c *gin.Context, sql string, args pgx.NamedArgs) (T, error) {
 	rows, err := pool.Query(c, sql, args)
 	if err != nil {
@@ -122,12 +146,15 @@ func queryMany[T any](pool *pgxpool.Pool, c *gin.Context, sql string, args pgx.N
 	return results, err
 }
 
-// apiError returns a consistent JSON error response.
+// apiError returns a consistent JSON error response: {"error": "message"}.
 func apiError(c *gin.Context, status int, message string) {
 	c.JSON(status, gin.H{"error": message})
 }
 
-// login verifies credentials and returns the user's auth token.
+/* ─── Auth routes ─────────────────────────────────────────────────────── */
+
+// login verifies username/password and returns the user's auth token.
+// POST /api/login (public — no auth required).
 func (h *Handler) login(c *gin.Context) {
 	var body struct {
 		Username string `json:"username"`
@@ -138,8 +165,6 @@ func (h *Handler) login(c *gin.Context) {
 		return
 	}
 
-	fmt.Printf("user: '%s'\n", body.Username)
-
 	u, err := queryOne[user](h.db, c,
 		"SELECT * FROM users WHERE username = @username",
 		pgx.NamedArgs{"username": body.Username})
@@ -147,8 +172,6 @@ func (h *Handler) login(c *gin.Context) {
 		apiError(c, http.StatusUnauthorized, "invalid credentials")
 		return
 	}
-
-	fmt.Printf("Password: %s\n", u.Password)
 
 	if err := bcrypt.CompareHashAndPassword([]byte(u.Password), []byte(body.Password)); err != nil {
 		apiError(c, http.StatusUnauthorized, "invalid credentials")
@@ -182,7 +205,10 @@ func (h *Handler) authMiddleware() gin.HandlerFunc {
 	}
 }
 
+/* ─── Calorie log routes ──────────────────────────────────────────────── */
+
 // getDailySummary returns calorie log items and computed totals for a given date.
+// GET /api/calorie-log/daily?date=YYYY-MM-DD (defaults to today).
 func (h *Handler) getDailySummary(c *gin.Context) {
 	userID := c.GetInt("user_id")
 	date := c.DefaultQuery("date", time.Now().Format("2006-01-02"))
@@ -196,6 +222,7 @@ func (h *Handler) getDailySummary(c *gin.Context) {
 		apiError(c, http.StatusInternalServerError, "failed to fetch items")
 		return
 	}
+	// Ensure items is an empty array (not null) in JSON
 	if items == nil {
 		items = []calorieLogItem{}
 	}
@@ -228,6 +255,7 @@ func (h *Handler) getDailySummary(c *gin.Context) {
 		}
 	}
 
+	// Net = food minus exercise, left = budget minus net
 	net := caloriesFood - caloriesExercise
 	left := settings.CalorieBudget - net
 
@@ -247,6 +275,7 @@ func (h *Handler) getDailySummary(c *gin.Context) {
 }
 
 // createCalorieLogItem inserts a new calorie log entry.
+// POST /api/calorie-log/items. Defaults date to today if omitted.
 func (h *Handler) createCalorieLogItem(c *gin.Context) {
 	userID := c.GetInt("user_id")
 
@@ -296,6 +325,7 @@ func (h *Handler) createCalorieLogItem(c *gin.Context) {
 }
 
 // updateCalorieLogItem updates an existing calorie log entry.
+// PUT /api/calorie-log/items/:id. Uses COALESCE so omitted fields keep their current value.
 func (h *Handler) updateCalorieLogItem(c *gin.Context) {
 	userID := c.GetInt("user_id")
 	id := c.Param("id")
@@ -344,7 +374,8 @@ func (h *Handler) updateCalorieLogItem(c *gin.Context) {
 	c.JSON(http.StatusOK, item)
 }
 
-// deleteCalorieLogItem removes a calorie log entry.
+// deleteCalorieLogItem removes a calorie log entry. Returns 204 on success.
+// DELETE /api/calorie-log/items/:id.
 func (h *Handler) deleteCalorieLogItem(c *gin.Context) {
 	userID := c.GetInt("user_id")
 	id := c.Param("id")
@@ -364,7 +395,10 @@ func (h *Handler) deleteCalorieLogItem(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+/* ─── User settings routes ────────────────────────────────────────────── */
+
 // getUserSettings returns the calorie log settings for the authenticated user.
+// GET /api/calorie-log/user-settings.
 func (h *Handler) getUserSettings(c *gin.Context) {
 	userID := c.GetInt("user_id")
 
@@ -380,6 +414,8 @@ func (h *Handler) getUserSettings(c *gin.Context) {
 }
 
 // patchUserSettings updates only the provided calorie log settings fields.
+// PATCH /api/calorie-log/user-settings. Uses pointer fields (*int) in the request
+// body to distinguish "not provided" from zero — only non-nil fields get updated.
 func (h *Handler) patchUserSettings(c *gin.Context) {
 	userID := c.GetInt("user_id")
 
@@ -398,7 +434,7 @@ func (h *Handler) patchUserSettings(c *gin.Context) {
 		return
 	}
 
-	// Build SET clause dynamically from provided fields
+	// Build SET clause dynamically — only update fields the client actually sent
 	setClauses := []string{}
 	args := pgx.NamedArgs{"userID": userID}
 
@@ -473,6 +509,10 @@ func (h *Handler) postHabit(c *gin.Context) {
 	c.JSON(http.StatusCreated, newHabit)
 }
 
+/* ─── Server setup ────────────────────────────────────────────────────── */
+
+// getDBPool creates a connection pool. We use a pool (not a single conn) because
+// Neon closes idle connections after ~5 minutes.
 func getDBPool() *pgxpool.Pool {
 	pool, err := pgxpool.New(context.Background(), os.Getenv("DB_URL"))
 	if err != nil {

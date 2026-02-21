@@ -1,10 +1,13 @@
+// App router — defines all routes and wraps authenticated pages in RequireAuth.
+// Login is public; all other routes require a token in localStorage.
+
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router'
 import AppShell from './components/AppShell'
 import CalorieLog from './pages/CalorieLog'
 import Habits from './pages/Habits'
 import Login from './pages/Login'
 
-// Redirects to /login if no auth token is present.
+// RequireAuth redirects to /login if no auth token is present.
 function RequireAuth({ children }: { children: React.ReactNode }) {
   const token = localStorage.getItem('token')
   if (!token) return <Navigate to="/login" replace />
