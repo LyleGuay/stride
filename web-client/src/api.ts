@@ -60,7 +60,8 @@ export interface CalorieLogItem {
 }
 
 // CalorieLogUserSettings contains the user's daily calorie budget, macro targets,
-// and per-meal budgets.
+// per-meal budgets, body-profile fields for TDEE computation, and server-computed
+// values populated when all profile fields are present.
 export interface CalorieLogUserSettings {
   user_id: number
   calorie_budget: number
@@ -71,6 +72,22 @@ export interface CalorieLogUserSettings {
   lunch_budget: number
   dinner_budget: number
   snack_budget: number
+  // Profile fields — nullable until the user completes setup
+  sex: string | null
+  date_of_birth: string | null
+  height_cm: number | null
+  weight_lbs: number | null
+  activity_level: string | null
+  target_weight_lbs: number | null
+  target_date: string | null
+  units: string
+  budget_auto: boolean
+  setup_complete: boolean
+  // Computed by server when all profile fields are present
+  computed_bmr?: number
+  computed_tdee?: number
+  computed_budget?: number
+  pace_lbs_per_week?: number
 }
 
 // DailySummary is the response from GET /calorie-log/daily — includes items,

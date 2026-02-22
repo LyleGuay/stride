@@ -42,10 +42,12 @@ func (d *DateOnly) UnmarshalJSON(b []byte) error {
 }
 
 // ScanDate implements pgtype.DateScanner so pgx can scan PostgreSQL date
-// columns (OID 1082) into DateOnly.
+// columns (OID 1082) into DateOnly. NULL values zero the time and return nil
+// so that *DateOnly pointer fields can be set to nil by pgx's NULL handling.
 func (d *DateOnly) ScanDate(v pgtype.Date) error {
 	if !v.Valid {
-		return fmt.Errorf("cannot scan NULL into DateOnly")
+		d.Time = time.Time{}
+		return nil
 	}
 	d.Time = v.Time
 	return nil
@@ -93,17 +95,36 @@ type calorieLogItem struct {
 }
 
 // calorieLogUserSettings maps to calorie_log_user_settings. One row per user
-// with daily calorie budget, macro targets, and per-meal calorie budgets.
+// with daily calorie budget, macro targets, per-meal budgets, and body-profile
+// fields used for auto TDEE computation.
 type calorieLogUserSettings struct {
-	UserID          int `json:"user_id" db:"user_id"`
-	CalorieBudget   int `json:"calorie_budget" db:"calorie_budget"`
-	ProteinTargetG  int `json:"protein_target_g" db:"protein_target_g"`
-	CarbsTargetG    int `json:"carbs_target_g" db:"carbs_target_g"`
-	FatTargetG      int `json:"fat_target_g" db:"fat_target_g"`
-	BreakfastBudget int `json:"breakfast_budget" db:"breakfast_budget"`
-	LunchBudget     int `json:"lunch_budget" db:"lunch_budget"`
-	DinnerBudget    int `json:"dinner_budget" db:"dinner_budget"`
-	SnackBudget     int `json:"snack_budget" db:"snack_budget"`
+	UserID          int     `json:"user_id"          db:"user_id"`
+	CalorieBudget   int     `json:"calorie_budget"   db:"calorie_budget"`
+	ProteinTargetG  int     `json:"protein_target_g" db:"protein_target_g"`
+	CarbsTargetG    int     `json:"carbs_target_g"   db:"carbs_target_g"`
+	FatTargetG      int     `json:"fat_target_g"     db:"fat_target_g"`
+	BreakfastBudget int     `json:"breakfast_budget" db:"breakfast_budget"`
+	LunchBudget     int     `json:"lunch_budget"     db:"lunch_budget"`
+	DinnerBudget    int     `json:"dinner_budget"    db:"dinner_budget"`
+	SnackBudget     int     `json:"snack_budget"     db:"snack_budget"`
+
+	// Profile fields — all nullable; zero-knowledge rows still work.
+	Sex             *string   `json:"sex"              db:"sex"`
+	DateOfBirth     *DateOnly `json:"date_of_birth"    db:"date_of_birth"`
+	HeightCM        *float64  `json:"height_cm"        db:"height_cm"`
+	WeightLBS       *float64  `json:"weight_lbs"       db:"weight_lbs"`
+	ActivityLevel   *string   `json:"activity_level"   db:"activity_level"`
+	TargetWeightLBS *float64  `json:"target_weight_lbs" db:"target_weight_lbs"`
+	TargetDate      *DateOnly `json:"target_date"      db:"target_date"`
+	Units           string    `json:"units"            db:"units"`
+	BudgetAuto      bool      `json:"budget_auto"      db:"budget_auto"`
+	SetupComplete   bool      `json:"setup_complete"   db:"setup_complete"`
+
+	// Computed fields — populated server-side from profile; not stored in DB.
+	ComputedBMR    *int     `json:"computed_bmr,omitempty"`
+	ComputedTDEE   *int     `json:"computed_tdee,omitempty"`
+	ComputedBudget *int     `json:"computed_budget,omitempty"`
+	PaceLbsPerWeek *float64 `json:"pace_lbs_per_week,omitempty"`
 }
 
 // weekDayDBRow is the shape of each row returned by the week-summary GROUP BY query.
@@ -183,6 +204,68 @@ func queryMany[T any](pool *pgxpool.Pool, c *gin.Context, sql string, args pgx.N
 // apiError returns a consistent JSON error response: {"error": "message"}.
 func apiError(c *gin.Context, status int, message string) {
 	c.JSON(status, gin.H{"error": message})
+}
+
+/* ─── TDEE computation ────────────────────────────────────────────────── */
+
+// computeTDEE computes BMR (Mifflin-St Jeor), TDEE, suggested daily calorie
+// budget, and weight-loss pace (lbs/week) from user profile settings.
+// Returns ok=false when any required profile field is nil or the target date
+// is in the past (budget would be meaningless in those cases).
+func computeTDEE(s *calorieLogUserSettings) (bmr, tdee, budget int, paceLbsPerWeek float64, ok bool) {
+	if s.Sex == nil || s.DateOfBirth == nil || s.HeightCM == nil ||
+		s.WeightLBS == nil || s.ActivityLevel == nil ||
+		s.TargetWeightLBS == nil || s.TargetDate == nil {
+		return 0, 0, 0, 0, false
+	}
+
+	// Age derived from date of birth
+	today := time.Now()
+	age := today.Year() - s.DateOfBirth.Year()
+	if today.Before(s.DateOfBirth.AddDate(age, 0, 0)) {
+		age--
+	}
+
+	// BMR via Mifflin-St Jeor: different constant for male vs female
+	weightKG := *s.WeightLBS / 2.20462
+	bmrF := 10*weightKG + 6.25**s.HeightCM - 5*float64(age)
+	if *s.Sex == "male" {
+		bmrF += 5
+	} else {
+		bmrF -= 161
+	}
+
+	// TDEE: multiply BMR by activity level multiplier
+	multipliers := map[string]float64{
+		"sedentary":  1.2,
+		"light":      1.375,
+		"moderate":   1.55,
+		"active":     1.725,
+		"very_active": 1.9,
+	}
+	mult, found := multipliers[*s.ActivityLevel]
+	if !found {
+		return 0, 0, 0, 0, false
+	}
+	tdeeF := bmrF * mult
+
+	// Pace from target weight delta and time remaining
+	weeksUntil := time.Until(s.TargetDate.Time).Hours() / 24 / 7
+	if weeksUntil <= 0 {
+		return 0, 0, 0, 0, false
+	}
+	pace := (*s.WeightLBS - *s.TargetWeightLBS) / weeksUntil
+	// Cap pace at 2 lbs/week (safe maximum), floor at 0.25
+	if pace > 2 {
+		pace = 2
+	}
+	if pace < 0.25 {
+		pace = 0.25
+	}
+
+	// Budget = TDEE minus the caloric deficit implied by pace (3500 cal ≈ 1 lb fat)
+	budgetF := tdeeF - pace*500
+	return int(bmrF), int(tdeeF), int(budgetF), pace, true
 }
 
 /* ─── Auth routes ─────────────────────────────────────────────────────── */
@@ -526,6 +609,8 @@ func (h *Handler) deleteCalorieLogItem(c *gin.Context) {
 /* ─── User settings routes ────────────────────────────────────────────── */
 
 // getUserSettings returns the calorie log settings for the authenticated user.
+// Computed TDEE fields (bmr, tdee, budget, pace) are populated when all profile
+// fields are present.
 // GET /api/calorie-log/user-settings.
 func (h *Handler) getUserSettings(c *gin.Context) {
 	userID := c.GetInt("user_id")
@@ -538,24 +623,44 @@ func (h *Handler) getUserSettings(c *gin.Context) {
 		return
 	}
 
+	// Populate computed TDEE fields when all required profile data is present
+	if bmr, tdee, budget, pace, ok := computeTDEE(&s); ok {
+		s.ComputedBMR = &bmr
+		s.ComputedTDEE = &tdee
+		s.ComputedBudget = &budget
+		s.PaceLbsPerWeek = &pace
+	}
+
 	c.JSON(http.StatusOK, s)
 }
 
 // patchUserSettings updates only the provided calorie log settings fields.
-// PATCH /api/calorie-log/user-settings. Uses pointer fields (*int) in the request
-// body to distinguish "not provided" from zero — only non-nil fields get updated.
+// PATCH /api/calorie-log/user-settings. Uses pointer fields in the request body
+// to distinguish "not provided" from zero — only non-nil fields get updated.
+// When budget_auto is true after the update, the calorie_budget is overwritten
+// with the TDEE-derived value if all required profile fields are present.
 func (h *Handler) patchUserSettings(c *gin.Context) {
 	userID := c.GetInt("user_id")
 
 	var body struct {
-		CalorieBudget   *int `json:"calorie_budget"`
-		ProteinTargetG  *int `json:"protein_target_g"`
-		CarbsTargetG    *int `json:"carbs_target_g"`
-		FatTargetG      *int `json:"fat_target_g"`
-		BreakfastBudget *int `json:"breakfast_budget"`
-		LunchBudget     *int `json:"lunch_budget"`
-		DinnerBudget    *int `json:"dinner_budget"`
-		SnackBudget     *int `json:"snack_budget"`
+		CalorieBudget   *int     `json:"calorie_budget"`
+		ProteinTargetG  *int     `json:"protein_target_g"`
+		CarbsTargetG    *int     `json:"carbs_target_g"`
+		FatTargetG      *int     `json:"fat_target_g"`
+		BreakfastBudget *int     `json:"breakfast_budget"`
+		LunchBudget     *int     `json:"lunch_budget"`
+		DinnerBudget    *int     `json:"dinner_budget"`
+		SnackBudget     *int     `json:"snack_budget"`
+		Sex             *string  `json:"sex"`
+		DateOfBirth     *string  `json:"date_of_birth"` // YYYY-MM-DD string, stored as date
+		HeightCM        *float64 `json:"height_cm"`
+		WeightLBS       *float64 `json:"weight_lbs"`
+		ActivityLevel   *string  `json:"activity_level"`
+		TargetWeightLBS *float64 `json:"target_weight_lbs"`
+		TargetDate      *string  `json:"target_date"` // YYYY-MM-DD string, stored as date
+		Units           *string  `json:"units"`
+		BudgetAuto      *bool    `json:"budget_auto"`
+		SetupComplete   *bool    `json:"setup_complete"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		apiError(c, http.StatusBadRequest, "invalid request body")
@@ -598,6 +703,46 @@ func (h *Handler) patchUserSettings(c *gin.Context) {
 		setClauses = append(setClauses, "snack_budget = @snackBudget")
 		args["snackBudget"] = *body.SnackBudget
 	}
+	if body.Sex != nil {
+		setClauses = append(setClauses, "sex = @sex")
+		args["sex"] = *body.Sex
+	}
+	if body.DateOfBirth != nil {
+		setClauses = append(setClauses, "date_of_birth = @dateOfBirth")
+		args["dateOfBirth"] = *body.DateOfBirth
+	}
+	if body.HeightCM != nil {
+		setClauses = append(setClauses, "height_cm = @heightCM")
+		args["heightCM"] = *body.HeightCM
+	}
+	if body.WeightLBS != nil {
+		setClauses = append(setClauses, "weight_lbs = @weightLBS")
+		args["weightLBS"] = *body.WeightLBS
+	}
+	if body.ActivityLevel != nil {
+		setClauses = append(setClauses, "activity_level = @activityLevel")
+		args["activityLevel"] = *body.ActivityLevel
+	}
+	if body.TargetWeightLBS != nil {
+		setClauses = append(setClauses, "target_weight_lbs = @targetWeightLBS")
+		args["targetWeightLBS"] = *body.TargetWeightLBS
+	}
+	if body.TargetDate != nil {
+		setClauses = append(setClauses, "target_date = @targetDate")
+		args["targetDate"] = *body.TargetDate
+	}
+	if body.Units != nil {
+		setClauses = append(setClauses, "units = @units")
+		args["units"] = *body.Units
+	}
+	if body.BudgetAuto != nil {
+		setClauses = append(setClauses, "budget_auto = @budgetAuto")
+		args["budgetAuto"] = *body.BudgetAuto
+	}
+	if body.SetupComplete != nil {
+		setClauses = append(setClauses, "setup_complete = @setupComplete")
+		args["setupComplete"] = *body.SetupComplete
+	}
 
 	if len(setClauses) == 0 {
 		apiError(c, http.StatusBadRequest, "no fields to update")
@@ -612,6 +757,26 @@ func (h *Handler) patchUserSettings(c *gin.Context) {
 	if err != nil {
 		apiError(c, http.StatusInternalServerError, "failed to update settings")
 		return
+	}
+
+	// If budget_auto is on, compute TDEE and persist the resulting calorie_budget
+	if s.BudgetAuto {
+		if _, _, budget, _, ok := computeTDEE(&s); ok {
+			updated, err := queryOne[calorieLogUserSettings](h.db, c,
+				"UPDATE calorie_log_user_settings SET calorie_budget = @budget WHERE user_id = @userID RETURNING *",
+				pgx.NamedArgs{"budget": budget, "userID": userID})
+			if err == nil {
+				s = updated
+			}
+		}
+	}
+
+	// Populate computed TDEE fields for the response
+	if bmr, tdee, budget, pace, ok := computeTDEE(&s); ok {
+		s.ComputedBMR = &bmr
+		s.ComputedTDEE = &tdee
+		s.ComputedBudget = &budget
+		s.PaceLbsPerWeek = &pace
 	}
 
 	c.JSON(http.StatusOK, s)

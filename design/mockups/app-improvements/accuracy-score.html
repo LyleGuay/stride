@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calorie Accuracy Score — Stride</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        stride: {
+          50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe',
+          300: '#a5b4fc', 400: '#828cf8', 500: '#6366f1',
+          600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81',
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+  .gauge-ring { transition: stroke-dashoffset 1s ease; }
+</style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div class="flex h-screen overflow-hidden">
+  <!-- Sidebar -->
+  <div class="hidden md:flex flex-col w-52 bg-white border-r border-gray-200 shrink-0">
+    <div class="px-4 py-4 border-b border-gray-100">
+      <span class="text-lg font-bold text-stride-600">Stride</span>
+    </div>
+    <nav class="flex-1 px-2 py-3 space-y-0.5">
+      <a class="flex items-center gap-2 px-3 py-2 rounded-lg text-gray-500 hover:bg-gray-50 text-sm">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Calorie Log
+      </a>
+      <a class="flex items-center gap-2 px-3 py-2 rounded-lg bg-stride-50 text-stride-700 text-sm font-medium">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+        Settings
+      </a>
+    </nav>
+  </div>
+
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <div class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
+      <h1 class="text-base font-semibold text-gray-800">Settings</h1>
+      <div class="w8 h-8 rounded-full bg-stride-100 flex items-center justify-center text-stride-700 text-sm font-semibold">L</div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p6">
+      <div class="max-w-xl mx-auto space-y-5">
+
+        <!-- View toggle for mockup -->
+        <div class="flex gap-2 mb-2">
+          <button onclick="showView('settings')" id="btn-settings"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg bg-stride-600 text-white">Settings View</button>
+          <button onclick="showView('daily')" id="btn-daily"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-600">Daily View</button>
+          <button onclick="showView('weekly')" id="btn-weekly"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-600">Weekly Summary</button>
+          <button onclick="showView('ai')" id="btn-ai"
+            class="px-3 py-1.5 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-600">AI Scgestion</button>
+        </div>
+
+        <!-- ========== SETTIGNS VIEW ========= -->
+        <div id="view-settings" class="tab-content active space-y-4">
+
+          <!-- Body metrics (condensed) -->
+          <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
+              <h2 class="text-sm font-semibold text-gray-700">Body Metrics</h2>
+            </div>
+            <div class="px-4 py-3 grid grid-cols-2 gap-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Current weight</label>
+                <div class="flex items-center border border-gray-200 rounded-lg px-3 py-2 bg-white">
+                  <input type="number" value="183" class="flex-1 text-sm text-gray-800 focus:outline-none w-full [appearance:textfield]" />
+                  <span class="text-xs text-gray-400 ml-1">lbs</span>
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-500 mb-1">Age</label>
+                <input type="number" value="32" class="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none [appearance:textfield]" />
+              </div>
+            </div>
+          </div>
+
+          <!-- Weight Log section -->
+          <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div class="px-4 py-3 bg-gray-50 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h2 class="text-sm font-semibold text-gray-700">Weight Log</h2>
+                <p class="text-[11px] text-gray-400 mt-0.5">Regular check-ins unlock accuracy tracking</p>
+              </div>
+              <button onclick="logWeight()" class="px-3 py-1.5 bg-stride-600 text-white text-xs font-medium rounded-lg hover:bg-stride-700">
+                Log today's weight
+              </button>
+            </div>
+            <div class="px-4 py-3">
+              <div class="space-y-1.5">
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-gray-500">Feb 22</span>
+                  <span class="font-medium text-gray-800">183.2 lbs</span>
+                  <span class="text-gray-400">today</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-gray-500">Feb 15</span>
+                  <span class="font-medium text-gray-800">184.0 lbs</span>
+                  <span class="text-green-500">−0.8 lbs</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-gray-500">Feb 8</span>
+                  <span class="font-medium text-gray-800">184.8 lbs</span>
+                  <span class="text-green-500">−0.8 lbs</span>
+                </div>
+                <div class="flex items-center justify-between text-xs">
+                  <span class="text-gray-500">Feb 1</span>
+                  <span class="font-medium text-gray-800">185.5 lbs</span>
+                  <span class="text-green-500">−0.7 lbs</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Accuracy Score card — the main feature -->
+          <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
+              <h2 class="text-sm font-semibold text-gray-700">Logging Accuracy</h2>
+              <p class="text-[11px] text-gray-400 mt-0.5">Based on your last 30 days of entries + weight check-ins</p>
+            </div>
+            <div class="px-4 py-4">
+
+              <!-- Gauge + number -->
+              <div class="flex items-center gap-6 mb-4">
+                <div class="relative w-24 h-24 shrink-0">
+                  <!-- Background arc -->
+                  <svg viewBox="0 0 100 100" class="w-24 h-24">
+                    <circle cx="50" cy="50" r="38" fill="none" stroke="#f3f4f6" stroke-width="10" stroke-dasharray="239" stroke-dashoffset="60" stroke-linecap="round" transform="rotate(108 50 50)"/>
+                    <!-- Accuracy arc: 72% of 239 = 172; red-amber-green based on value -->
+                    <circle cx="50" cy="50" r="38" fill="none" stroke="#f59e0b" stroke-width="10"
+                      stroke-dasharray="239" stroke-dashoffset="124" stroke-linecap="round"
+                      transform="rotate(108 50 50)" class="gaee-ring" id="accuracy-arc"/>
+                  </svg>
+                  <div class="absolute inset-0 flex flex-col items-center justify-center">
+                    <span class="text-2xl font-bold text-gray-800" id="accuracy-pct">72%</span>
+                    <span class="text-[9px] text-gray-400 uppercase tracking-wide">accuracy</span>
+                  </div>
+              </div>
+
+                <div class="flex-1">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-medium rounded-full">
+                      ☦ Under-logging
+                    </span>
+                  </div>
+                  <p class="text-xs text-gray-600 leading-relaxed">
+                    Your entries are typically <strong>~28% lower</strong> than actual intake, based on comparing your logged deficit to measured weight loss over 30 days.
+                  </p>
+                </div>
+              </div>
+
+              <!-- The math -->
+              <div class="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 space-y-1 mb-4">
+                <div class="font-medium text-gray-700 mb-1.5">How this is calculated (last 30 days)</div>
+                <div class="flex justify-between"><span>Calorie deficit logged</span><span class="font-medium">9450 cal</span></div>
+                <div class="flex justify-between"><span>Expected weight loss</span><span class="font-medium">2.70 lbs</span></div>
+                <div class="flex justify-between"><span>Actual weight loss</span><span class="font-medium text-green-600">1.95 lbs</span></div>
+                <div class="border-t border-gray-200 pt-1 flex justify-between"><span>Accuracy</span><span class="font-semibold text-amber-600">72%</span></div>
+              </div>
+
+              <!-- Slider to demo different accuracy levels -->
+              <div class="mb-4">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-xs text-gray-500">Simulate accuracy</span>
+                  <span class="text-xs font-medium text-gray-700" id="slider-label">72%</span>
+                </div>
+                <input type="range" min="40" max="120" value="72" oninput="updateAccuracy(this.value)"
+                  class="w-full accent-stride-600" />
+                <div class="flex justify-between text-[9px] text-gray-300 mt-0.5">
+                  <span>40%</span><span>80%</span><span>120%</span>
+                </div>
+              </div>
+
+              <!-- AI auto-correct toggle -->
+              <div class="flex items-center justify-between py-3 border-t border-gray-100">
+                <div>
+                  <div class="text-xs font-medium text-gray-700">Auto-correct AI suggestions</div>
+                  <div class="text-[11px] text-gray-400">Adjust AI calorie estimates based on your accuracy</div>
+                </div>
+                <button onclick="toggleAutoCorrect()" id="autocorrect-toggle"
+                  class="relative w-10 h-6 rounded-full bg-stride-600 transition-colors shrink-0">
+                  <span id="autocorrect-knob" class="absolute top-1 right-1 w-4 h-4 bg-white rounded-full shadow transition-all"></span>
+                </button>
+              </div>
+
+              <div id="autocorrect-note" class="mt-2 p-2.5 bg-stride-50 rounded-lg text-[11px] text-stride-700">
+                AI suggestions will be <strong>adjusted +39%</strong> to account for your under-logging pattern. You'll see a badge on each suggestion explaining this.
+              </div>
+            </div>
+          </div>
+
+          <!-- Accuracy trend over time -->
+          <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
+              <h2 class="text-sm font-semibold text-gray-700">Accuracy Trend</h2>
+            </div>
+            <div class="px-4 py-4">
+              <div class="flex items-end gap-1.5 h-20">
+                <div class="flex flex-col items-center gap-1 flex-1">
+                  <div class="w-full bg-amber-300 rounded-t" style="height:48px" title="Oct: 64%"></div>
+                  <span class="text-[9px] text-gray-400">Oct</span>
+                </div>
+                <div class="flex flex-col items-center gap-1 flex-1">
+                  <div class="w-full bg-amber-300 rounded-t" style="height:52px" title="Nov: 68%"></div>
+                  <span class="text-[9px] text-gray-400">Nov</span>
+                </div>
+                <div class="flex flex-col items-center gap-1 flex-1">
+                  <div class= w-full bg-amber-400 rounded-t" style="height:56px" title="Dec: 72%"></div>
+                  <span class="text-[9px] text-gray-400">Dec</span>
+                </div>
+                <div class="flex flex-col items-center gap-1 flex-1">
+                  <div class="w-full bg-green-400 rounded-t" style="height:65px" title="Jan: 84%"></div>
+                  <span class="text-[9px] text-gray-400">Jan</span>
+                </div>
+                <div class="flex flex-col items-center gap-1 flex-1">
+                  <div class="w-full bg-amber-400 rounded-t" style="height:56px" title="Feb: 72%"></div>
+                  <span class="text-[9px] text-gray-400">Feb</span>
+                </div>
+              </div>
+              <p class="text-[11px] text-gray-400 mt-2">Improving overall. January was your most accurate month.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========= DAFILR�T��U�========= -->
+        <div id="view-daily" class="tab-content space-y-4">
+          <div class="bg-white rounded-xl border border-gray-100 p-4">
+            <div class="flex items-center justify-between mb-1">
+              <h3 class="text-sm font-semibold text-gray-700">Today, Feb 22</h3>
+              <button class="text-xs text-stride-600 font-medium hover:underline">Log weight →</button>
+            </div>
+            <div class="flex items-center gap-4">
+              <div class="relative w-20 h-20">
+                <svg viewBox="0 0 80 80" class="w-20 h-20 -rotate-90">
+                  <circle cx="40" cy="40" r="32" fill="none" stroke="#e0e7ff" stroke-width="8"/>
+                  <circle cx="40" cy="40" r="32" fill="none" stroke="#4f46e5" stroke-width="8" stroke-dasharray="201" stroke-dashoffset="60" stroke-linecap="round"/>
+                </svg>
+                <div class="absolute inset-0 flex flex-col items-center justify-center">
+                  <span class="text-lg font-bold text-gray-800">892</span>
+                  <span class="text-[9px] text-gray-400">left</span>
+                </div>
+              </div>
+              <div class="flex-1">
+                <div class="text-xs text-gray-500 mb-2">Budget: 2,100 · Logged: 1,208</div>
+                <!-- Weight log shortcut card -->
+                <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 flex items-center justify-between">
+                  <div>
+                    <div class="text-[11px] font-medium text-amber-800">Log today's weight</div>
+                    <div class="text-[10px] text-amber-600">Helps track accuracy</div>
+                  </div>
+                  <button onclick="showWeightInput()" class="text-xs bg-amber-400 text-white px-2 py-1 rounded-md font-medium hover:bg-amber-500">+ Log</button>
+                </div>
+              </div>
+            </div>
+            <!-- Weight quick-log input -->
+            <div id="weight-input-area" class="hidden mt-3 flex items-center gap-2">
+              <input type="number" id="weight-val" value="183.2" step="0.1"
+                class="border border-gray-300 rounded-lg px-3 py-2 text-sm flex-1 focus:outline-none focus:ring-2 focus:ring-stride-500 [appearance:textfield]" />
+              <span class="text-sm text-gray-500">lbs</span>
+              <button onclick="saveWeight()" class="bg-stride-600 text-white text-sm px-3 py-2 rounded-lg font-medium hover:bg-stride-700">Save</button>
+              <button onclick="hideWeightInput()" class="text-gray-400 hover:text-gray-600 text-sm">✕</button>
+            </div>
+          </div>
+
+          <!-- Accuracy badge on daily view -->
+          <div class="bg-white rounded-xl border border-gray-100 px-4 py-3 flex items-center justify-between">
+            <div>
+              <span class="text-sm font-medium text-gray-700">Logging Accuracy</span>
+              <p class="text-[11px] text-gray-400">30-day rolling average</p>
+            </div>
+            <div class="flex items-center gap-2">
+              <div class="w4 h-2 rounded-full bg-amber-400"></div>
+              <span class="text-sm font-bold text-amber-600">72%</span>
+              <button class="text-[11px] text-gray-400 hover:text-gray-600">Details →</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========= WEEKLY SUMMARY ========= -->
+        <div id="view-weekly" class="tab-content">
+          <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
+              <h2 class="text-sm font-semibold text-gray-700">Weekly Summary — Feb 16–22</h2>
+            </div>
+            <div class="px-4 py-4 space-y-3">
+              <div class="flex items-center justify-between">
+                <span class="text-sm text-gray-600">Total calories consumed</span>
+                <span class="text-sm font-semibold text-gray-800">12,840 cal</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-sm text-gray-600">Total budget</span>
+                <span class="text-sm text-gray-600">14,700 cal</span>
+              </div>
+              <div class="flex items-center justify-between border-t border-gray-100 pt-3">
+                <span class="text-sm font-medium text-gray-700">Net deficit</span>
+                <span class="text-sm font-bold text-green-600">−1,860 cal</span>
+              </div>
+              <div class="flex items-center justify-between">
+                <span class="text-sm text-gray-600">Expected loss</span>
+                <span class="text-sm text-gray-600">0.53 lbs</span>
+              </div>
+              <!-- Accuracy indicator inline -->
+              <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex items-start gap-2">
+                <span class="text-amber-500 mt-0.5">☦</span>
+                <div>
+                  <div class="text-xs font-medium text-amber-800">Accuracy: 72% — May be underestimating</div>
+                  <div class="text-[11px] text-amber-700 mt-0.5">
+                    Actual expected loss is closer to <strong>0.38 lbs</strong> based on your logging accuracy.
+                    <a href="#" class="underline ml-1">Improve accuracy →</a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ========= AI SUGGESTION WITH ACCURACY BAGGE -->
+        <div id="view-ai" class="tab-content">
+          <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
+              <h2 class="text-sm font-semibold text-gray-700">Log Item — AI Suggestion with Accuracy</h2>
+            </div>
+            <div class="px-4 py-4 space-y-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Item name</label>
+                <input type="text" value="3 scrambled eggs with butter" readonly
+                

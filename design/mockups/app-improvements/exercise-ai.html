@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exercise AI — Stride</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config = {
+  theme: {
+    extend: {
+      colors: {
+        stride: {
+          50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe',
+          300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1',
+          600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81',
+        }
+      }
+    }
+  }
+}
+</script>
+<style>
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  .suggestion-enter { animation: slideDown 0.2s ease forwards; }
+  @keyframes slideDown {
+    from { opacity: 0; transform: translateY(-6px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  .flash-green { animation: flashGreen 0.7s ease forwards; }
+  @keyframes flashGreen {
+    0% { background: transparent; }
+    30% { background: #d1fae5; }
+    100% { background: transparent; }
+  }
+  .pulse { animation: pulse 1.2s ease-in-out infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+</style>
+</head>
+<body class="bg-gray-100 min-h-screen">
+
+<div class="flex h-screen overflow-hidden">
+  <!-- Sidebar -->
+  <div class="hidden md:flex flex-col w-52 bg-white border-r border-gray-200 shrink-0">
+    <div class="px-4 py-4 border-b border-gray-100">
+      <span class="text-lg font-bold text-stride-600">Stride</span>
+    </div>
+    <nav class="flex-1 px-2 py-3 space-y-0.5">
+      <a class="flex items-center gap-2 px-3 py-2 rounded-lg bg-stride-50 text-stride-700 text-sm font-medium">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Calorie Log
+      </a>
+    </nav>
+
+    <!-- User profile summary (for context — shows the stats sent to AI) -->
+    <div class="px-3 py-3 border-t border-gray-100">
+      <div class="text-[10px] text-gray-400 font-medium uppercase tracking-wide mb-2">Your profile (sent to AI)</div>
+      <div class="space-y-1 text-[11px] text-gray-600">
+        <div class="flex justify-between"><span>Weight</span><span class="font-medium">183 lbs</span></div>
+        <div class="flex justify-between"><span>Height</span><span class="font-medium">5'11"</span></div>
+        <div class="flex justify-between"><span>Age</span><span class="font-medium">32</span></div>
+        <div class="flex justify-between"><span>Sex</span><span class="font-medium">Male</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flex-1 flex flex-col overflow-hidden">
+    <div class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
+      <h1 class="text-base font-semibold text-gray-800">Calorie Log</h1>
+      <div class="w-8 h-8 rounded-full bg-stride-100 flex items-center justify-center text-stride-700 text-sm font-semibold">L</div>
+    </div>
+
+    <div class="flex-1 overflow-y-auto p-6">
+      <div class="max-w-3xl mx-auto">
+
+        <!-- Tabs -->
+        <div class="flex bg-gray-100 rounded-lg p-1 mb-4">
+          <button class="flex-1 py-1.5 text-sm font-medium rounded-md bg-white text-gray-800 shadow-sm">Daily</button>
+          <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Weekly</button>
+        </div>
+
+        <!-- Date header -->
+        <div class="flex items-center justify-between mb-4">
+          <button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500">‹</button>
+          <div class="text-center">
+            <div class="text-sm font-semibold text-gray-800">Today</div>
+            <div class="text-xs text-gray-400">Saturday, Feb 22</div>
+          </div>
+          <button class="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-400">›</button>
+        </div>
+
+        <!-- Summary ring -->
+        <div class="bg-white rounded-xl border border-gray-100 p-4 mb-4 flex items-center gap-6">
+          <div class="relative w-20 h-20 shrink-0">
+            <svg viewBox="0 0 80 80" class="w-20 h-20 -rotate-90">
+              <circle cx="40" cy="40" r="32" fill="none" stroke="#e0e7ff" stroke-width="8"/>
+              <circle cx="40" cy="40" r="32" fill="none" stroke="#4f46e5" stroke-width="8" stroke-dasharray="201" stroke-dashoffset="70" stroke-linecap="round"/>
+            </svg>
+            <div class="absolute inset-0 flex flex-col items-center justify-center">
+              <span class="text-lg font-bold text-gray-800">892</span>
+              <span class="text-[9px] text-gray-400">remaining</span>
+            </div>
+          </div>
+          <div class="flex-1 text-xs text-gray-500">Budget: 2,100 cal · Consumed: 1,208 cal · Exercise: −0 cal</div>
+        </div>
+
+        <!-- Food sections (collapsed for context) -->
+        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden mb-3">
+          <div class="px-4 py-2.5 bg-gray-50 flex items-center justify-between">
+            <span class="text-sm font-semibold text-gray-700">Breakfast</span>
+            <span class="text-xs text-gray-400">420 cal</span>
+          </div>
+          <div class="px-3 py-1.5 text-xs text-gray-400 border-t border-gray-50">
+            <button class="w-full text-left py-0.5 text-gray-400 hover:text-stride-600">+ Add</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden mb-3">
+          <div class="px-4 py-2.5 bg-gray-50 flex items-center justify-between">
+            <span class="text-sm font-semibold text-gray-700">Lunch</span>
+            <span class="text-xs text-gray-400">488 cal</span>
+          </div>
+          <div class="px-3 py-1.5 text-xs text-gray-400 border-t border-gray-50">
+            <button class="w-full text-left py-0.5 text-gray-400 hover:text-stride-600">+ Add</button>
+          </div>
+        </div>
+
+        <!-- ============ EXERCISE SECTION — main demo ============ -->
+        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden mb-3">
+          <div class="px-4 py-2.5 bg-green-50 flex items-center justify-between">
+            <span class="text-sm font-semibold text-green-700">Exercise</span>
+            <span class="text-xs text-green-600 font-medium" id="exercise-subtotal">−0 cal</span>
+          </div>
+
+          <table class="w-full text-xs" id="exercise-table">
+            <thead>
+              <tr class="border-b border-gray-50">
+                <th class="py-1.5 px-3 text-left text-[10px] font-medium text-gray-400 uppercase tracking-wide">Activity</th>
+                <th class="py-1.5 px-1 text-right text-[10px] font-medium text-gray-400 uppercase tracking-wide w-14">Qty</th>
+                <th class="py-1.5 px-1 text-left text-[10px] font-medium text-gray-400 uppercase tracking-wide w-20">Unit</th>
+                <th class="py-1.5 px-1 text-right text-[10px] font-medium text-gray-400 uppercase tracking-wide w-16">Cal burned</th>
+                <th class="w-6"></th>
+              </tr>
+            </thead>
+            <tbody id="exercise-items">
+              <!-- Existing exercise items go here -->
+              <tr class="border-t border-gray-50" id="ex-add-trigger">
+                <td colspan="5" class="py-0 px-0">
+                  <button onclick="openExerciseAdd()" class="w-full text-left py-1.5 pl-[18px] text-[11px] text-gray-400 hover:text-stride-600 transition-colors">
+                    + Add
+                  </button>
+                </td>
+              </tr>
+
+              <!-- Suggestion row (below inline add, spans full table) -->
+              <tr id="ex-suggestion-row" class="hidden">
+                <td colspan="5" class="px-0 py-0">
+                  <div id="ex-suggestion-card" class="mx-2 my-1.5 border border-green-200 bg-green-50 rounded-xl px-3 py-2.5 suggestion-enter">
+                    <!-- States injected by JS -->
+                  </div>
+                </td>
+              </tr>
+
+              <!-- Inline add input row -->
+              <tr id="ex-add-row" class="hidden border-t border-green-100 bg-green-50/30">
+                <td class="py-1 pl-[14px] pr-1">
+                  <div class="flex items-center gap-1">
+                    <input id="ex-name" type="text" placeholder="Activity description"
+                      oninput="handleExerciseInput(this.value)"
+                      class="flex-1 min-w-0 border border-green-300 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-green-500 bg-white" />
+                    <button onclick="submitExercise()" class="shrink-0 bg-green-600 text-white text-[11px] px-2 py-1 rounded hover:bg-green-700">Add</button>
+                    <button onclick="closeExerciseAdd()" class="shrink-0 text-gray-400 hover:text-gray-600 text-xs px-0.5">✕</button>
+                  </div>
+                </td>
+                <td class="py-1 px-1 w-14">
+                  <input id="ex-qty" type="number" value="1" min="0" step="1"
+                    class="w-full border border-gray-200 rounded px-1 py-1 text-xs text-right focus:outline-none focus:border-green-400 bg-white [appearance:textfield]" />
+                </td>
+                <td class="py-1 px-1 w-20">
+                  <select id="ex-uom" class="w-full border border-gray-200 rounded px-1 py-1 text-xs focus:outline-none focus:border-green-400 bg-white">
+                    <option>each</option><option selected>minutes</option><option>miles</option><option>km</option>
+                  </select>
+                </td>
+                <td class="py-1 px-1 w-16">
+                  <input id="ex-cal" type="number" placeholder="Cal"
+                    class="w-full border border-gray-200 rounded px-1 py-1 text-xs text-right focus:outline-none focus:border-green-400 bg-white [appearance:textfield]" />
+                </td>
+                <td class="w-6"></td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Demo controls -->
+        <div class="bg-white rounded-xl border border-gray-100 p-4 mb-4">
+          <div class="text-xs font-semibold text-gray-700 mb-3">Try these exercise descriptions:</div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="tryExercise('Walked 1.5 miles in 30 minutes')" class="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs text-gray-700 rounded-lg">Walked 1.5 miles in 30 minutes</button>
+            <button onclick="tryExercise('30 min treadmill moderate pace')" class="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs text-gray-700 rounded-lg">30 min treadmill moderate</button>
+            <button onclick="tryExercise('45 min weight training')" class="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs text-gray-700 rounded-lg">45 min weight training</button>
+            <button onclick="tryExercise('10000 steps')" class="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs text-gray-700 rounded-lg">10,000 steps</button>
+            <button onclick="tryExercise('20 min HIIT workout')" class="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs text-gray-700 rounded-lg">20 min HIIT workout</button>
+            <button onclick="tryExercise('1 hour yoga')" class="px-2.5 py-1.5 bg-gray-100 hover:bg-gray-200 text-xs text-gray-700 rounded-lg">1 hour yoga</button>
+            <button onclick="tryExercise('xyzzy')" class="px-2.5 py-1.5 bg-red-50 hover:bg-red-100 text-xs text-red-600 rounded-lg">xyzzy (unrecognized)</button>
+          </div>
+        </div>
+
+        <!-- Bottom sheet demo: Add Item modal (exercise type selected) -->
+        <div class="bg-white rounded-xl border border-gray-100 overflow-hidden mb-4">
+          <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
+            <h2 class="text-sm font-semibold text-gray-700">Log Item Modal — Exercise Mode</h2>
+            <p class="text-[11px] text-gray-400">Same AI suggestion appears as a card below the name field</p>
+          </div>
+          <div class="px-5 py-4">
+            <!-- Type selector -->
+            <div class="mb-3">
+              <label class="block text-xs font-medium text-gray-700 mb-1">Type</label>
+              <div class="grid grid-cols-5 gap-1">
+                <button class="px-2 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-600 capitalize">breakfast</button>
+                <button class="px-2 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-600 capitalize">lunch</button>
+                <button class="px-2 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-600 capitalize">dinner</button>
+                <button class="px-2 py-2 text-xs font-medium rounded-lg border border-gray-200 bg-gray-50 text-gray-600 capitalize">snack</button>
+                <button class="px-2 py-2 text-xs font-medium rounded-lg border border-green-600 bg-green-50 text-green-700 capitalize">exercise</button>
+              </div>
+            </div>
+
+            <!-- Name field with suggestion card below -->
+            <div class="mb-3">
+              <label class="block text-xs font-medium text-gray-700 mb-1">Activity description</label>
+              <input id="modal-ex-name" type="text" placeholder="e.g. 30 min jogging"
+                value="30 min treadmill moderate pace"
+                oninput="handleModalExerciseInput(this.value)"
+                class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent" />
+
+              <!-- Suggestion card -->
+              <div id="modal-suggestion" class="mt-2 border border-green-200 bg-green-50 rounded-xl px-3 py-2.5 suggestion-enter">
+                <div class="flex items-start justify-between gap-2 mb-1.5">
+                  <div class="flex items-center gap-1.5">
+                    <span class="text-green-600">✦</span>
+                    <span class="text-sm font-semibold text-gray-800">Treadmill (Moderate)</span>
+                  </div>
+                  <button onclick="dismissModalSuggestion()" class="text-gray-400 hover:text-gray-600 text-xs shrink-0">✕</button>
+                </div>
+                <div class="text-xs text-gray-600 mb-2">30 min · <strong class="text-green-700">~248 cal burned</strong></div>
+                <div class="text-[10px] text-green-700 bg-green-100 rounded-md px-2 py-1 mb-2.5 flex items-center gap-1">
+                  <span>👤</span>
+                  Personalized for your stats: 183 lbs, 5'11", 32M
+                </div>
+                <button onclick="applyModalSuggestion()" class="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-xs font-medium rounded-lg hover:bg-green-700">
+                  <span>✦</span> Apply
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-3">
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Duration</label>
+                <input id="modal-ex-qty" type="number" value="30" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm [appearance:textfield]" />
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Unit</label>
+                <select id="modal-ex-uom" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white">
+                  <option>each</option><option selected>minutes</option><option>miles</option><option>km</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="mb-5">
+              <label class="block text-xs font-medium text-gray-700 mb-1">Calories burned</label>
+              <input id="modal-ex-cal" type="number" value="248" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm [appearance:textfield]" />
+            </div>
+
+            <button class="w-full bg-green-600 hover:bg-green-700 text-white font-medium py-3 rounded-xl transition-colors text-sm">
+              Save Item
+            </button>
+          </div>
+        </div>
+
+        <!-- Profile context note -->
+        <div class="bg-stride-50 border border-stride-200 rounded-xl p-4 text-sm text-stride-800">
+          <div class="font-semibold mb-2">✦ Exercise AI — Design Notes</div>
+          <ul class="space-y-1.5 text-xs text-stride-700 list-disc list-inside">
+            <li>Click <strong>+ Add</strong> in the Exercise section, then click one of the demo buttons to simulate typing</li>
+            <li>600ms debounce fires AI request — loading state → result</li>
+            <li>Suggestion shows <strong>activity name · duration · cal burned</strong> (no macros for exercise)</li>
+            <li>Calories auto-filled as positive (backend subtracts from net)</li>
+            <li>AI prompt includes user profile: weight, height, age, sex → personalized MET-based estimate</li>
+            <li>Separate endpoint: <code class="bg-stride-100 px-1 py-0.5 rounded">POST /api/calorie-log/suggest-exercise</code></li>
+          </ul>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-4 py-2 rounded-full shadow-lg z-50"></div>
+
+<script>
+// Fake AI lookup for exercise descriptions (weight-adjusted for 183 lbs)
+const exerciseDb = {
+  'walk': { name: 'Walking', duration: 30, distance: null, cal: 130 },
+  'treadmill': { name: 'Treadmill (Moderate)', duration: 30, distance: null, cal: 248 },
+  'weight training': { name: 'Weight Training', duration: 45, distance: null, cal: 205 },
+  'strength': { name: 'Weight Training', duration: 45, distance: null, cal: 205 },
+  '10000 steps': { name: 'Walking (10,000 steps)', duration: 90, distance: '~5 miles', cal: 383 },
+  'steps': { name: 'Walking (Steps)', duration: null, distance: null, cal: 383 },
+  'hiit': { name: 'HIIT Workout', duration: 20, distance: null, cal: 226 },
+  'yoga': { name: 'Yoga', duration: 60, distance: null, cal: 152 },
+  'run': { name: 'Running', duration: 30, distance: null, cal: 352 },
+  'jog': { name: 'Jogging', duration: 30, distance: null, cal: 298 },
+  'bike': { name: 'Cycling', duration: 30, distance: null, cal: 274 },
+  'cycling': { name: 'Cycling', duration: 30, distance: null, cal: 274 },
+  'swim': { name: 'Swimming', duration: 30, distance: null, cal: 260 },
+};
+
+let debounceTimer = null;
+let totalExerciseCal = 0;
+
+function openExerciseAdd() {
+  document.getElementById('ex-add-trigger').classList.add('hidden');
+  document.getElementById('ex-add-row').classList.remove('hidden');
+  document.getElementById('ex-name').focus();
+}
+
+function closeExerciseAdd() {
+  document.getElementById('ex-add-trigger').classList.remove('hidden');
+  document.getElementById('ex-add-row').classList.add('hidden');
+  document.getElementById('ex-suggestion-row').classList.add('hidden');
+  clearExerciseFields();
+}
+
+function clearExerciseFields() {
+  document.getElementById('ex-name').value = '';
+  document.getElementById('ex-qty').value = '1';
+  document.getElementById('ex-cal').value = '';
+}
+
+function handleExerciseInput(val) {
+  clearTimeout(debounceTimer);
+  if (val.trim().length < 2) {
+    document.getElementById('ex-suggestion-row').classList.add('hidden');
+    return;
+  }
+  // Show loading state immediately
+  showExerciseSuggestionLoading();
+  debounceTimer = setTimeout(() => fetchExerciseSuggestion(val), 800);
+}
+
+function showExerciseSuggestionLoading() {
+  const row = document.getElementById('ex-suggestion-row');
+  const card = document.getElementById('ex-suggestion-card');
+  row.classList.remove('hidden');
+  card.innerHTML = `
+    <div class="flex items-center gap-2 text-gray-400 text-xs pulse">
+      <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+      </svg>
+      Estimating calories burned...
+    </div>`;
+}
+
+function fetchExerciseSuggestion(desc) {
+  const lower = desc.toLowerCase();
+  let match = null;
+  for (const [key, val] of Object.entries(exerciseDb)) {
+    if (lower.includes(key)) { match = val; break; }
+  }
+
+  const card = document.getElementById('ex-suggestion-card');
+
+  // Parse duration/distance from description
+  const durMatch = lower.match(/(\d+)\s*(min|minute|hour|hr)/);
+  const distMatch = lower.match(/(\d+\.?\d*)\s*(mile|km|step)/);
+
+  if (!match) {
+    card.innerHTML = `
+      <div class="flex items-center gap-2">
+        <span class="text-amber-500">⚠</span>
+        <div>
+          <div class="text-xs font-medium text-amber-800">Couldn't estimate calories for this activity</div>
+          <div class="text-[11px] text-amber-600">Try being more specific (e.g. "30 min jogging" or "walked 2 miles")</div>
+        </div>
+        <button onclick="document.getElementById('ex-suggestion-row').classList.add('hidden')" class="ml-auto text-gray-400 hover:text-gray-600 text-xs shrink-0">✕</button>
+      </div>`;
+    return;
+  }
+
+  let dur = durMatch ? parseInt(durMatch[1]) : match.duration;
+  if (durMatch && durMatch[2].startsWith('hour')) dur = parseInt(durMatch[1]) * 60;
+
+  // Scale calories by duration ratio
+  let scaledCal = match.cal;
+  if (dur && match.duration) scaledCal = Math.round(match.cal * dur / match.duration);
+
+  const distStr = distMatch ? `${distMatch[1]} ${distMatch[2]}s` : match.distance;
+
+  card.innerHTML = `
+    <div class="flex items-start justify-between gap-2 mb-1.5">
+      <div class="flex items-center gap-1.5">
+        <span class="text-green-600">✦</span>
+        <span class="text-xs font-semibold text-gray-800">${match.name}</span>
+      </div>
+      <button onclick="document.getElementById('ex-suggestion-row').classList.add('hidden')" class="text-gray-400 hover:text-gray-600 text-xs shrink-0">✕</button>
+    </div>
+    <div class="text-xs text-gray-600 mb-1.5">
+      ${dur ? dur + ' min' : ''}${distStr ? ' · ' + distStr : ''} · <strong class="text-green-700">~${scaledCal} cal burned</strong>
+    </div>
+    <div class="text-[10px] text-green-700 bg-green-100 rounded-md px-2 py-1 mb-2 flex items-center gap-1">
+      <span>👤</span> Personalized for your stats: 183 lbs, 5'11", 32M
+    </div>
+    <button onclick="applyExerciseSuggestion('${match.name}', ${dur || 1}, '${dur ? 'minutes' : 'each'}', ${scaledCal})"
+      class="flex items-center gap-1.5 px-3 py-1.5 bg-green-600 text-white text-[11px] font-medium rounded-lg hover:bg-green-700">
+      <span>✦</span> Apply
+    </button>`;
+}
+
+function applyExerciseSuggestion(name, qty, uom, cal) {
+  document.getElementById('ex-name').value = name;
+  document.getElementById('ex-qty').value = qty;
+  document.getElementById('ex-uom').value = uom;
+  document.getElementById('ex-cal').value = cal;
+  document.getElementById('ex-suggestion-row').classList.add('hidden');
+
+  // Flash the input row green
+  const row = document.getElementById('ex-add-row');
+  row.classList.add('flash-green');
+  setTimeout(() => row.classList.remove('flash-green'), 700);
+}
+
+function submitExercise() {
+  const name = document.getElementById('ex-name').value.trim();
+  const cal = document.getElementById('ex-cal').value;
+  const qty = document.getElementById('ex-qty').value;
+  const uom = document.getElementById('ex-uom').value;
+  if (!name || !cal) return;
+
+  // Add to table
+  const tbody = document.getElementById('exercise-items');
+  const trigger = document.getElementById('ex-add-trigger');
+  const newRow = document.createElement('tr');
+  newRow.className = 'border-b border-gray-50 flash-green';
+  newRow.innerHTML = `
+    <td class="py-1.5 px-3 text-gray-700">${name}</td>
+    <td class="py-1.5 px-1 text-right text-gray-600">${qty}</td>
+    <td class="py-1.5 px-1 text-gray-400">${uom}</td>
+    <td class="py-1.5 px-1 text-right text-green-600 font-medium">−${cal}</td>
+    <td></td>`;
+  tbody.insertBefore(newRow, trigger);
+
+  totalExerciseCal += parseInt(cal);
+  document.getElementById('exercise-subtotal').textContent = `−${totalExerciseCal} cal`;
+
+  closeExerciseAdd();
+  showToast(`Logged: ${name} · −${cal} cal`);
+}
+
+function tryExercise(desc) {
+  openExerciseAdd();
+  document.getElementById('ex-name').value = desc;
+  handleExerciseInput(desc);
+}
+
+// Modal functions
+function handleModalExerciseInput(val) {
+  // In a real app: debounce → API call → show suggestion
+  // For mockup, we just show/hide the static card
+  if (val.trim().length < 2) {
+    document.getElementById('modal-suggestion').classList.add('hidden');
+  } else {
+    document.getElementById('modal-suggestion').classList.remove('hidden');
+  }
+}
+
+function dismissModalSuggestion() {
+  document.getElementById('modal-suggestion').classList.add('hidden');
+}
+
+function applyModalSuggestion() {
+  document.getElementById('modal-ex-qty').value = 30;
+  document.getElementById('modal-ex-uom').value = 'minutes';
+  document.getElementById('modal-ex-cal').value = 248;
+  document.getElementById('modal-suggestion').classList.add('hidden');
+  showToast('Applied: Treadmill (Moderate) · 30 min · 248 cal');
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), 2500);
+}
+</script>
+</body>
+</html>

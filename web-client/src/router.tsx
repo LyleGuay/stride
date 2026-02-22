@@ -6,6 +6,7 @@ import AppShell from './components/AppShell'
 import CalorieLog from './pages/CalorieLog'
 import Habits from './pages/Habits'
 import Login from './pages/Login'
+import Settings from './pages/Settings'
 
 // RequireAuth redirects to /login if no auth token is present.
 function RequireAuth({ children }: { children: React.ReactNode }) {
@@ -29,6 +30,7 @@ export default function Router() {
           <Route index element={<Navigate to="/calorie-log" replace />} />
           <Route path="calorie-log" element={<CalorieLog />} />
           <Route path="habits" element={<Habits />} />
+          <Route path="settings" element={<Settings />} />
         </Route>
       </Routes>
     </BrowserRouter>

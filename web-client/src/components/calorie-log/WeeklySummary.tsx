@@ -3,7 +3,7 @@
 // an estimated weight impact card, and a scrollable day summaries table.
 // Clicking a table row navigates to that day in the Daily tab via onNavigateToDay.
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useReducer } from 'react'
 import { fetchWeekSummary, type WeekDaySummary } from '../../api'
 
 interface WeeklySummaryProps {
@@ -73,25 +73,40 @@ const barX = (i: number) => X_START + i * SLOT_W + (SLOT_W - BAR_W) / 2
 // slotCenter returns the center x of slot i for labels and tooltips.
 const slotCenter = (i: number) => X_START + (i + 0.5) * SLOT_W
 
+/* ─── Fetch state reducer ───────────────────────────────────────────── */
+
+// Batches loading/error/days/tooltip into one reducer so a single dispatch()
+// call in the useEffect body satisfies react-hooks/set-state-in-effect.
+type FetchState = { days: WeekDaySummary[]; loading: boolean; error: string | null; tooltipIdx: number }
+type FetchAction =
+  | { type: 'fetch_start' }
+  | { type: 'fetch_success'; days: WeekDaySummary[] }
+  | { type: 'fetch_error'; error: string }
+  | { type: 'tooltip'; idx: number }
+
+function fetchReducer(state: FetchState, action: FetchAction): FetchState {
+  switch (action.type) {
+    case 'fetch_start':   return { ...state, loading: true, error: null, tooltipIdx: -1 }
+    case 'fetch_success': return { ...state, loading: false, days: action.days }
+    case 'fetch_error':   return { ...state, loading: false, error: action.error }
+    case 'tooltip':       return { ...state, tooltipIdx: action.idx }
+  }
+}
+
 export default function WeeklySummary({ onNavigateToDay }: WeeklySummaryProps) {
   const [weekStart, setWeekStart] = useState(() => getMondayOf(todayStr()))
-  const [days, setDays] = useState<WeekDaySummary[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
-  // tooltipIdx: which bar is showing a tooltip (-1 = none)
-  const [tooltipIdx, setTooltipIdx] = useState(-1)
+  const [{ days, loading, error, tooltipIdx }, dispatch] = useReducer(fetchReducer, {
+    days: [], loading: true, error: null, tooltipIdx: -1,
+  })
 
   const currentWeekStart = getMondayOf(todayStr())
   const isCurrentWeek = weekStart === currentWeekStart
 
   useEffect(() => {
-    setLoading(true)
-    setError(null)
-    setTooltipIdx(-1)
+    dispatch({ type: 'fetch_start' })
     fetchWeekSummary(weekStart)
-      .then(setDays)
-      .catch(e => setError(e.message))
-      .finally(() => setLoading(false))
+      .then(days => dispatch({ type: 'fetch_success', days }))
+      .catch(e => dispatch({ type: 'fetch_error', error: e.message }))
   }, [weekStart])
 
   /* ─── Aggregate stats (only over days that have data) ─────────────── */
@@ -226,7 +241,7 @@ export default function WeeklySummary({ onNavigateToDay }: WeeklySummaryProps) {
                 viewBox={`0 0 430 ${VB_H}`}
                 className="w-full"
                 style={{ minWidth: 300 }}
-                onClick={() => setTooltipIdx(-1)}
+                onClick={() => dispatch({ type: 'tooltip', idx: -1 })}
               >
                 {/* Horizontal grid lines */}
                 {gridSteps.map(({ y, label }) => (
@@ -268,7 +283,7 @@ export default function WeeklySummary({ onNavigateToDay }: WeeklySummaryProps) {
                   const labelColor = isFuture ? '#d1d5db' : isToday ? '#2563eb' : '#6b7280'
 
                   return (
-                    <g key={day.date} onClick={e => { e.stopPropagation(); setTooltipIdx(i === tooltipIdx ? -1 : i) }}>
+                    <g key={day.date} onClick={e => { e.stopPropagation(); dispatch({ type: 'tooltip', idx: i === tooltipIdx ? -1 : i }) }}>
                       <rect
                         x={bx} y={barTop} width={BAR_W} height={barHeight}
                         fill={fill} rx={3} opacity={0.85}
