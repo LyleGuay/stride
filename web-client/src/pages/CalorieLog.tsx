@@ -1,8 +1,9 @@
-// CalorieLog page — main daily view. Fetches the daily summary (items +
-// settings + computed totals) and renders the date header, summary panel,
-// item table, bottom sheet, FAB, and context menu. Manages state for date
-// navigation, sheet open/close, inline editing, and context menu actions
-// (edit in modal, duplicate, delete).
+// CalorieLog page — main view with Daily and Weekly tabs.
+// Daily tab: fetches the daily summary (items + settings + computed totals)
+// and renders the date header, summary panel, item table, bottom sheet, FAB,
+// and context menu. Manages state for date navigation, sheet open/close,
+// inline editing, and context menu actions (edit in modal, duplicate, delete).
+// Weekly tab: renders WeeklySummary; row clicks switch back to Daily for that date.
 
 import { useState, useEffect, useCallback } from 'react'
 import {
@@ -15,6 +16,7 @@ import ItemTable from '../components/calorie-log/ItemTable'
 import AddItemSheet from '../components/calorie-log/AddItemSheet'
 import FloatingActionButton from '../components/calorie-log/FloatingActionButton'
 import ContextMenu from '../components/calorie-log/ContextMenu'
+import WeeklySummary from '../components/calorie-log/WeeklySummary'
 
 // Returns today's date as a YYYY-MM-DD string in local time.
 // Intentionally avoids toISOString() which returns UTC and would show the
@@ -25,6 +27,9 @@ function today(): string {
 }
 
 export default function CalorieLog() {
+  // Active tab — Daily shows the per-day log; Weekly shows the summary view.
+  const [tab, setTab] = useState<'daily' | 'weekly'>('daily')
+
   const [date, setDate] = useState(today)
   const [summary, setSummary] = useState<DailySummaryData | null>(null)
   const [loading, setLoading] = useState(true)
@@ -174,47 +179,71 @@ export default function CalorieLog() {
 
   /* ─── Render ───────────────────────────────────────────────────────── */
 
-  // Loading state (only on initial load)
-  if (loading && !summary) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-8 text-center text-gray-400 text-sm">
-        Loading...
-      </div>
-    )
-  }
-
-  if (error && !summary) {
-    return (
-      <div className="max-w-3xl mx-auto px-4 py-8 text-center text-red-500 text-sm">
-        {error}
-      </div>
-    )
-  }
-
-  if (!summary) return null
-
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 pb-24">
-      <DateHeader date={date} onDateChange={setDate} />
-      <DailySummary summary={summary} />
-      <ItemTable
-        items={summary.items}
-        netCalories={summary.net_calories}
-        netProtein={summary.protein_g}
-        netCarbs={summary.carbs_g}
-        netFat={summary.fat_g}
-        onInlineAdd={handleInlineAdd}
-        onUpdateItem={handleUpdateItem}
-        onItemAction={handleItemAction}
-      />
-      <AddItemSheet
-        open={sheetOpen}
-        onClose={() => setSheetOpen(false)}
-        onSave={handleSheetSave}
-        editItem={editItem}
-        defaultType={sheetType}
-      />
-      <FloatingActionButton onClick={handleFabClick} />
+
+      {/* Segment control — always visible regardless of tab or load state */}
+      <div className="flex bg-gray-100 rounded-lg p-1 mb-4">
+        {(['daily', 'weekly'] as const).map(t => (
+          <button
+            key={t}
+            onClick={() => setTab(t)}
+            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors
+              ${tab === t ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+          >
+            {t === 'daily' ? 'Daily' : 'Weekly'}
+          </button>
+        ))}
+      </div>
+
+      {/* ── Weekly tab ─────────────────────────────────────────────────── */}
+      {tab === 'weekly' && (
+        <WeeklySummary
+          onNavigateToDay={d => { setDate(d); setTab('daily') }}
+        />
+      )}
+
+      {/* ── Daily tab ──────────────────────────────────────────────────── */}
+      {tab === 'daily' && (
+        <>
+          {/* Loading state (only on initial load before any summary is cached) */}
+          {loading && !summary && (
+            <div className="py-8 text-center text-gray-400 text-sm">Loading...</div>
+          )}
+
+          {error && !summary && (
+            <div className="py-8 text-center text-red-500 text-sm">{error}</div>
+          )}
+
+          {summary && (
+            <>
+              <DateHeader date={date} onDateChange={setDate} />
+              <DailySummary summary={summary} />
+              <ItemTable
+                items={summary.items}
+                netCalories={summary.net_calories}
+                netProtein={summary.protein_g}
+                netCarbs={summary.carbs_g}
+                netFat={summary.fat_g}
+                onInlineAdd={handleInlineAdd}
+                onUpdateItem={handleUpdateItem}
+                onItemAction={handleItemAction}
+              />
+            </>
+          )}
+
+          <AddItemSheet
+            open={sheetOpen}
+            onClose={() => setSheetOpen(false)}
+            onSave={handleSheetSave}
+            editItem={editItem}
+            defaultType={sheetType}
+          />
+
+          {/* FAB only shown on daily tab */}
+          <FloatingActionButton onClick={handleFabClick} />
+        </>
+      )}
 
       {/* Context menu — rendered when an item is right-clicked or "···" is tapped */}
       {ctxMenu && (

@@ -106,6 +106,32 @@ type calorieLogUserSettings struct {
 	SnackBudget     int `json:"snack_budget" db:"snack_budget"`
 }
 
+// weekDayDBRow is the shape of each row returned by the week-summary GROUP BY query.
+// Used only for scanning; the final response uses weekDaySummary.
+type weekDayDBRow struct {
+	Date             DateOnly `db:"date"`
+	CaloriesFood     int      `db:"calories_food"`
+	CaloriesExercise int      `db:"calories_exercise"`
+	ProteinG         float64  `db:"protein_g"`
+	CarbsG           float64  `db:"carbs_g"`
+	FatG             float64  `db:"fat_g"`
+}
+
+// weekDaySummary is one day's entry in the GET /calorie-log/week-summary response.
+// Days with no logged items have HasData=false and zero calorie fields.
+type weekDaySummary struct {
+	Date             DateOnly `json:"date"`
+	CalorieBudget    int      `json:"calorie_budget"`
+	CaloriesFood     int      `json:"calories_food"`
+	CaloriesExercise int      `json:"calories_exercise"`
+	NetCalories      int      `json:"net_calories"`
+	CaloriesLeft     int      `json:"calories_left"`
+	ProteinG         float64  `json:"protein_g"`
+	CarbsG           float64  `json:"carbs_g"`
+	FatG             float64  `json:"fat_g"`
+	HasData          bool     `json:"has_data"`
+}
+
 // dailySummary is the response shape for GET /calorie-log/daily.
 // Includes the day's items, user settings, and computed totals.
 type dailySummary struct {
@@ -281,6 +307,99 @@ func (h *Handler) getDailySummary(c *gin.Context) {
 		Items:            items,
 		Settings:         settings,
 	})
+}
+
+// currentMonday returns the Monday of the current week at midnight UTC.
+func currentMonday() time.Time {
+	now := time.Now().UTC()
+	weekday := int(now.Weekday()) // 0=Sun
+	if weekday == 0 {
+		weekday = 7 // treat Sunday as day 7 so Mon=1..Sun=7
+	}
+	return time.Date(now.Year(), now.Month(), now.Day()-weekday+1, 0, 0, 0, 0, time.UTC)
+}
+
+// getWeekSummary returns per-day calorie totals for the Mon–Sun week containing
+// week_start. Days with no logged items are included with has_data=false.
+// GET /api/calorie-log/week-summary?week_start=YYYY-MM-DD (defaults to current week).
+func (h *Handler) getWeekSummary(c *gin.Context) {
+	userID := c.GetInt("user_id")
+
+	// Parse week_start; default to the current Monday.
+	var weekStart time.Time
+	if s := c.Query("week_start"); s != "" {
+		t, err := time.Parse("2006-01-02", s)
+		if err != nil {
+			apiError(c, http.StatusBadRequest, "invalid week_start, expected YYYY-MM-DD")
+			return
+		}
+		weekStart = t
+	} else {
+		weekStart = currentMonday()
+	}
+	weekEnd := weekStart.AddDate(0, 0, 6)
+
+	// Get the user's calorie budget from settings.
+	settings, err := queryOne[calorieLogUserSettings](h.db, c,
+		"SELECT * FROM calorie_log_user_settings WHERE user_id = @userID",
+		pgx.NamedArgs{"userID": userID})
+	if err != nil {
+		apiError(c, http.StatusInternalServerError, "failed to fetch settings")
+		return
+	}
+
+	// Query per-day totals across the 7-day window. Exercise calories are positive
+	// in the DB; the type column determines direction (food adds, exercise subtracts).
+	rows, err := queryMany[weekDayDBRow](h.db, c,
+		`SELECT
+			date,
+			SUM(CASE WHEN type != 'exercise' THEN calories ELSE 0 END) AS calories_food,
+			SUM(CASE WHEN type  = 'exercise' THEN calories ELSE 0 END) AS calories_exercise,
+			COALESCE(SUM(protein_g), 0) AS protein_g,
+			COALESCE(SUM(carbs_g),   0) AS carbs_g,
+			COALESCE(SUM(fat_g),     0) AS fat_g
+		 FROM calorie_log_items
+		 WHERE user_id = @userID AND date >= @weekStart AND date <= @weekEnd
+		 GROUP BY date`,
+		pgx.NamedArgs{
+			"userID":    userID,
+			"weekStart": weekStart.Format("2006-01-02"),
+			"weekEnd":   weekEnd.Format("2006-01-02"),
+		})
+	if err != nil {
+		apiError(c, http.StatusInternalServerError, "failed to fetch week data")
+		return
+	}
+
+	// Index DB rows by date string for O(1) merge.
+	rowByDate := make(map[string]weekDayDBRow, len(rows))
+	for _, r := range rows {
+		rowByDate[r.Date.Time.Format("2006-01-02")] = r
+	}
+
+	// Build a full 7-day response, filling zeros for days with no data.
+	result := make([]weekDaySummary, 7)
+	for i := 0; i < 7; i++ {
+		d := weekStart.AddDate(0, 0, i)
+		dateStr := d.Format("2006-01-02")
+		day := weekDaySummary{
+			Date:          DateOnly{d},
+			CalorieBudget: settings.CalorieBudget,
+		}
+		if row, ok := rowByDate[dateStr]; ok {
+			day.HasData = true
+			day.CaloriesFood = row.CaloriesFood
+			day.CaloriesExercise = row.CaloriesExercise
+			day.ProteinG = row.ProteinG
+			day.CarbsG = row.CarbsG
+			day.FatG = row.FatG
+		}
+		day.NetCalories = day.CaloriesFood - day.CaloriesExercise
+		day.CaloriesLeft = settings.CalorieBudget - day.NetCalories
+		result[i] = day
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 // createCalorieLogItem inserts a new calorie log entry.
@@ -557,6 +676,7 @@ func main() {
 	api.GET("/habits", handler.getHabits)
 	api.POST("/habits", handler.postHabit)
 	api.GET("/calorie-log/daily", handler.getDailySummary)
+	api.GET("/calorie-log/week-summary", handler.getWeekSummary)
 	api.POST("/calorie-log/items", handler.createCalorieLogItem)
 	api.PUT("/calorie-log/items/:id", handler.updateCalorieLogItem)
 	api.DELETE("/calorie-log/items/:id", handler.deleteCalorieLogItem)

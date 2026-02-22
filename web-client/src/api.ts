@@ -89,6 +89,21 @@ export interface DailySummary {
   settings: CalorieLogUserSettings
 }
 
+// WeekDaySummary is one day's entry in the GET /calorie-log/week-summary response.
+// Days with no logged items have has_data=false and zero calorie fields.
+export interface WeekDaySummary {
+  date: string
+  calorie_budget: number
+  calories_food: number
+  calories_exercise: number
+  net_calories: number
+  calories_left: number
+  protein_g: number
+  carbs_g: number
+  fat_g: number
+  has_data: boolean
+}
+
 /* ─── API functions ───────────────────────────────────────────────── */
 
 export function fetchDailySummary(date: string) {
@@ -111,6 +126,13 @@ export function updateCalorieLogItem(id: number, fields: Partial<Omit<CalorieLog
 
 export function deleteCalorieLogItem(id: number) {
   return request<void>(`/api/calorie-log/items/${id}`, { method: 'DELETE' })
+}
+
+// fetchWeekSummary returns per-day calorie totals for the week starting on
+// weekStart (YYYY-MM-DD, must be a Monday). Returns 7 WeekDaySummary objects
+// ordered Mon–Sun; days with no entries have has_data=false.
+export function fetchWeekSummary(weekStart: string) {
+  return request<WeekDaySummary[]>(`/api/calorie-log/week-summary?week_start=${weekStart}`)
 }
 
 export function fetchUserSettings() {
