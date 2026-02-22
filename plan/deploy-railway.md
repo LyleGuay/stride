@@ -97,7 +97,7 @@ Railway picks up the `Dockerfile` at the repo root automatically.
   All calorie log routes are registered under the `/api` group which applies
   `authMiddleware()`. Unauthenticated requests return 401. No changes needed.
 
-- [ ] **7 — Set up Railway project**
+- [X] **7 — Set up Railway project**
   - Create a new Railway project, connect the GitHub repo.
   - Add environment variable: `DB_URL` (Neon connection string).
   - Railway will detect the `Dockerfile` and build automatically on push to
@@ -105,7 +105,7 @@ Railway picks up the `Dockerfile` at the repo root automatically.
   - Assign a public domain (Railway provides a `.railway.app` subdomain for
     free).
 
-- [ ] **8 — Smoke test production build locally**
+- [X] **8 — Smoke test production build locally**
   Before first Railway deploy, test the Docker build locally:
   ```bash
   docker build -t stride .

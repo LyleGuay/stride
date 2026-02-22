@@ -1,0 +1,614 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stride — Setup</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: { 50:'#eff6ff', 100:'#dbeafe', 200:'#bfdbfe', 500:'#3b82f6', 600:'#2563eb', 700:'#1d4ed8' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    .step { display: none; animation: stepIn 0.2s ease; }
+    .step.active { display: block; }
+    @keyframes stepIn { from { opacity:0; transform:translateX(16px); } to { opacity:1; transform:translateX(0); } }
+    .activity-card { cursor: pointer; transition: all 0.1s; }
+    .activity-card:hover { border-color: #93c5fd; background: #eff6ff; }
+    .activity-card.selected { border-color: #2563eb; background: #eff6ff; }
+    .activity-card.selected .activity-radio { background: #2563eb; border-color: #2563eb; }
+    .activity-card.selected .activity-radio::after { content:''; display:block; width:8px; height:8px; background:white; border-radius:50%; margin:auto; margin-top:3px; }
+    .pace-btn { cursor: pointer; transition: all 0.1s; }
+    .pace-btn:hover { border-color: #93c5fd; }
+    .pace-btn.selected { border-color: #2563eb; background: #eff6ff; color: #1d4ed8; }
+    input[type="number"], input[type="text"], input[type="date"], select {
+      outline: none;
+    }
+    input[type="number"]:focus, input[type="text"]:focus, input[type="date"]:focus, select:focus {
+      border-color: #2563eb !important;
+      ring: 2px #bfdbfe;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+  </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen flex flex-col">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-100 px-4 py-4 flex items-center gap-3">
+    <span class="text-xl font-bold text-stride-600">Stride</span>
+    <span class="text-gray-300 font-light text-xl">·</span>
+    <span class="text-sm text-gray-400">Account setup</span>
+  </header>
+
+  <!-- Progress bar -->
+  <div class="bg-white border-b border-gray-100 px-4 py-3">
+    <div class="max-w-lg mx-auto">
+      <!-- Step labels -->
+      <div class="flex justify-between text-[10px] text-gray-400 mb-2 px-1">
+        <span id="label-1" class="font-medium text-stride-600">About you</span>
+        <span id="label-2">Your body</span>
+        <span id="label-3">Activity</span>
+        <span id="label-4">Your goal</span>
+        <span id="label-5">Your plan</span>
+      </div>
+      <!-- Track -->
+      <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div id="progress-bar" class="h-full bg-stride-600 rounded-full transition-all duration-300" style="width:20%"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Main content -->
+  <main class="flex-1 flex flex-col items-center justify-start px-4 py-8">
+    <div class="w-full max-w-lg">
+
+      <!-- ═══════════════════════════════════════════ -->
+      <!-- STEP 1 — About you                         -->
+      <!-- ═══════════════════════════════════════════ -->
+      <div class="step active" id="step-1">
+        <div class="mb-8">
+          <h1 class="text-2xl font-bold text-gray-900 mb-1">Let's get started</h1>
+          <p class="text-gray-500 text-sm">A few quick questions so we can personalize your experience.</p>
+        </div>
+
+        <div class="space-y-5">
+          <!-- Display name -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Your name</label>
+            <input type="text" value="Lyle" class="w-full border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-base bg-white transition-colors"/>
+          </div>
+
+          <!-- Units -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Units</label>
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="selectUnits(this,'us')" data-units="us"
+                class="units-btn border-2 border-stride-600 bg-stride-50 rounded-xl py-3 text-center transition-all">
+                <div class="text-lg font-bold text-stride-700">🇺🇸 US</div>
+                <div class="text-xs text-stride-600 mt-0.5">lbs · ft / in</div>
+              </button>
+              <button onclick="selectUnits(this,'metric')" data-units="metric"
+                class="units-btn border-2 border-gray-200 bg-white rounded-xl py-3 text-center transition-all hover:border-gray-300">
+                <div class="text-lg font-bold text-gray-600">🌍 Metric</div>
+                <div class="text-xs text-gray-400 mt-0.5">kg · cm</div>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════ -->
+      <!-- STEP 2 — Your body                         -->
+      <!-- ═══════════════════════════════════════════ -->
+      <div class="step" id="step-2">
+        <div class="mb-8">
+          <h1 class="text-2xl font-bold text-gray-900 mb-1">Your body</h1>
+          <p class="text-gray-500 text-sm">Used to calculate your basal metabolic rate (BMR).</p>
+        </div>
+
+        <div class="space-y-5">
+          <!-- Sex -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">
+              Biological sex
+              <span class="text-gray-400 font-normal ml-1">(for BMR formula)</span>
+            </label>
+            <div class="grid grid-cols-2 gap-2">
+              <button onclick="selectSex(this,'male')"
+                class="sex-btn border-2 border-stride-600 bg-stride-50 rounded-xl py-3 text-center transition-all">
+                <div class="text-2xl mb-0.5">♂</div>
+                <div class="text-sm font-semibold text-stride-700">Male</div>
+              </button>
+              <button onclick="selectSex(this,'female')"
+                class="sex-btn border-2 border-gray-200 bg-white rounded-xl py-3 text-center transition-all hover:border-gray-300">
+                <div class="text-2xl mb-0.5">♀</div>
+                <div class="text-sm font-semibold text-gray-600">Female</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Age -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Age</label>
+            <div class="flex items-center gap-2">
+              <input type="number" value="35" min="18" max="100" oninput="recalc()"
+                class="w-28 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-base bg-white text-center"/>
+              <span class="text-sm text-gray-400">years old</span>
+            </div>
+          </div>
+
+          <!-- Height -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Height</label>
+            <div class="flex items-center gap-2">
+              <div class="flex items-center gap-1.5 border border-gray-200 rounded-xl px-3 py-3 bg-white">
+                <select class="bg-transparent text-gray-900 text-base border-none outline-none pr-1" onchange="recalc()">
+                  <option>4</option><option>5</option><option selected>5</option><option>6</option>
+                </select>
+                <span class="text-gray-400 text-sm">ft</span>
+              </div>
+              <div class="flex items-center gap-1.5 border border-gray-200 rounded-xl px-3 py-3 bg-white">
+                <select class="bg-transparent text-gray-900 text-base border-none outline-none pr-1" onchange="recalc()">
+                  <option>0</option><option>1</option><option>2</option><option>3</option>
+                  <option>4</option><option>5</option><option>6</option><option>7</option>
+                  <option>8</option><option>9</option><option>10</option><option selected>11</option>
+                </select>
+                <span class="text-gray-400 text-sm">in</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Current weight -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Current weight</label>
+            <div class="flex items-center gap-2">
+              <input type="number" value="230" min="50" max="700" oninput="recalc()"
+                class="w-28 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-base bg-white text-center"/>
+              <span class="text-sm text-gray-400">lbs</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════ -->
+      <!-- STEP 3 — Activity level                    -->
+      <!-- ═══════════════════════════════════════════ -->
+      <div class="step" id="step-3">
+        <div class="mb-6">
+          <h1 class="text-2xl font-bold text-gray-900 mb-1">How active are you?</h1>
+          <p class="text-gray-500 text-sm">Based on your <strong>daily movement</strong>, not your workouts — you'll log those separately and they'll count automatically.</p>
+        </div>
+
+        <div class="space-y-2">
+          <div onclick="selectActivity(this,'sedentary')"
+            class="activity-card border-2 border-gray-200 rounded-xl p-4 flex items-center gap-4 bg-white">
+            <div class="activity-radio w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
+            <div class="text-2xl flex-shrink-0">🪑</div>
+            <div>
+              <div class="font-semibold text-gray-800 text-sm">Sedentary</div>
+              <div class="text-xs text-gray-400 mt-0.5">Desk job or mostly seated. Little movement outside of logged exercise.</div>
+            </div>
+            <div class="ml-auto text-xs font-medium text-gray-300">×1.2</div>
+          </div>
+
+          <div onclick="selectActivity(this,'light')"
+            class="activity-card selected border-2 border-gray-200 rounded-xl p-4 flex items-center gap-4 bg-white">
+            <div class="activity-radio w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
+            <div class="text-2xl flex-shrink-0">🚶</div>
+            <div>
+              <div class="font-semibold text-gray-800 text-sm">Lightly Active</div>
+              <div class="text-xs text-gray-400 mt-0.5">On your feet some of the day — errands, light walking, standing desk.</div>
+            </div>
+            <div class="ml-auto text-xs font-medium text-gray-300">×1.375</div>
+          </div>
+
+          <div onclick="selectActivity(this,'moderate')"
+            class="activity-card border-2 border-gray-200 rounded-xl p-4 flex items-center gap-4 bg-white">
+            <div class="activity-radio w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
+            <div class="text-2xl flex-shrink-0">🏃</div>
+            <div>
+              <div class="font-semibold text-gray-800 text-sm">Moderately Active</div>
+              <div class="text-xs text-gray-400 mt-0.5">Standing or moving most of the day — retail, service work, active job.</div>
+            </div>
+            <div class="ml-auto text-xs font-medium text-gray-300">×1.55</div>
+          </div>
+
+          <div onclick="selectActivity(this,'active')"
+            class="activity-card border-2 border-gray-200 rounded-xl p-4 flex items-center gap-4 bg-white">
+            <div class="activity-radio w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
+            <div class="text-2xl flex-shrink-0">🏋️</div>
+            <div>
+              <div class="font-semibold text-gray-800 text-sm">Very Active</div>
+              <div class="text-xs text-gray-400 mt-0.5">On your feet all day — construction, warehouse, nursing, physical trade.</div>
+            </div>
+            <div class="ml-auto text-xs font-medium text-gray-300">×1.725</div>
+          </div>
+
+          <div onclick="selectActivity(this,'extra')"
+            class="activity-card border-2 border-gray-200 rounded-xl p-4 flex items-center gap-4 bg-white">
+            <div class="activity-radio w-5 h-5 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
+            <div class="text-2xl flex-shrink-0">⚡</div>
+            <div>
+              <div class="font-semibold text-gray-800 text-sm">Extra Active</div>
+              <div class="text-xs text-gray-400 mt-0.5">Intense physical job plus an active lifestyle. Rare.</div>
+            </div>
+            <div class="ml-auto text-xs font-medium text-gray-300">×1.9</div>
+          </div>
+        </div>
+
+        <p class="mt-3 text-xs text-gray-400 flex items-start gap-1.5">
+          <svg class="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 18h.01M8.228 9a3.75 3.75 0 0 1 7.544 0c0 3-3 4.5-3 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+          If you have a desk job and hit the treadmill daily, pick <strong>Sedentary</strong> and keep logging your workouts. You'll earn those calories back on active days.
+        </p>
+      </div>
+
+      <!-- ═══════════════════════════════════════════ -->
+      <!-- STEP 4 — Your goal                         -->
+      <!-- ═══════════════════════════════════════════ -->
+      <div class="step" id="step-4">
+        <div class="mb-6">
+          <h1 class="text-2xl font-bold text-gray-900 mb-1">Your goal</h1>
+          <p class="text-gray-500 text-sm">Set a target and we'll compute your daily calorie budget.</p>
+        </div>
+
+        <div class="space-y-5">
+          <!-- Target weight -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Goal weight</label>
+            <div class="flex items-center gap-2">
+              <input type="number" id="goal-weight" value="170" min="50" max="700" oninput="recalcGoal()"
+                class="w-28 border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-base bg-white text-center"/>
+              <span class="text-sm text-gray-400">lbs</span>
+              <span class="text-xs text-gray-400 ml-2">(currently 230 lbs, need to lose 60 lbs)</span>
+            </div>
+          </div>
+
+          <!-- Target date -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Target date</label>
+            <input type="date" id="goal-date" value="2027-02-22" oninput="recalcGoal()"
+              class="border border-gray-200 rounded-xl px-4 py-3 text-gray-900 text-base bg-white"/>
+          </div>
+
+          <!-- OR: pace presets -->
+          <div>
+            <div class="flex items-center gap-2 mb-2">
+              <div class="flex-1 h-px bg-gray-100"></div>
+              <span class="text-xs text-gray-400">or set a pace</span>
+              <div class="flex-1 h-px bg-gray-100"></div>
+            </div>
+            <div class="grid grid-cols-4 gap-2">
+              <button onclick="setPace(0.5)" class="pace-btn border-2 border-gray-200 rounded-xl py-2.5 text-center bg-white">
+                <div class="text-sm font-bold text-gray-700">0.5</div>
+                <div class="text-[10px] text-gray-400">lbs/wk</div>
+              </button>
+              <button onclick="setPace(1)" class="pace-btn selected border-2 border-gray-200 rounded-xl py-2.5 text-center bg-white">
+                <div class="text-sm font-bold text-gray-700">1</div>
+                <div class="text-[10px] text-gray-400">lbs/wk</div>
+              </button>
+              <button onclick="setPace(1.5)" class="pace-btn border-2 border-gray-200 rounded-xl py-2.5 text-center bg-white">
+                <div class="text-sm font-bold text-gray-700">1.5</div>
+                <div class="text-[10px] text-gray-400">lbs/wk</div>
+              </button>
+              <button onclick="setPace(2)" class="pace-btn border-2 border-gray-200 rounded-xl py-2.5 text-center bg-white">
+                <div class="text-sm font-bold text-gray-700">2</div>
+                <div class="text-[10px] text-gray-400">lbs/wk</div>
+              </button>
+            </div>
+          </div>
+
+          <!-- Live preview -->
+          <div id="goal-preview" class="bg-stride-50 border border-stride-200 rounded-xl p-4">
+            <div class="text-xs font-semibold text-stride-600 uppercase tracking-wide mb-3">Your estimated budget</div>
+            <div class="grid grid-cols-3 gap-3 text-center">
+              <div>
+                <div class="text-gray-500 text-[11px] mb-0.5">Pace</div>
+                <div id="prev-pace" class="font-bold text-gray-900 text-base">1 lb/wk</div>
+              </div>
+              <div>
+                <div class="text-gray-500 text-[11px] mb-0.5">Daily deficit</div>
+                <div id="prev-deficit" class="font-bold text-gray-900 text-base">−500 cal</div>
+              </div>
+              <div>
+                <div class="text-gray-500 text-[11px] mb-0.5">Budget</div>
+                <div id="prev-budget" class="font-bold text-stride-700 text-xl">2,300</div>
+              </div>
+            </div>
+            <div id="goal-warning" class="hidden mt-2 text-xs text-orange-600 bg-orange-50 rounded-lg px-3 py-2">
+              ⚠️ This pace exceeds the recommended maximum of 2 lbs/week.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ═══════════════════════════════════════════ -->
+      <!-- STEP 5 — Your plan                         -->
+      <!-- ═══════════════════════════════════════════ -->
+      <div class="step" id="step-5">
+        <div class="mb-6">
+          <h1 class="text-2xl font-bold text-gray-900 mb-1">Your personalized plan</h1>
+          <p class="text-gray-500 text-sm">Based on your profile. You can adjust this anytime in Settings.</p>
+        </div>
+
+        <!-- TDEE Breakdown -->
+        <div class="bg-white border border-gray-200 rounded-xl p-5 mb-4 shadow-sm">
+          <h3 class="text-sm font-semibold text-gray-600 mb-3 uppercase tracking-wide text-[11px]">How your budget is calculated</h3>
+
+          <div class="space-y-2.5 text-sm">
+            <!-- BMR line -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-gray-300"></div>
+                <span class="text-gray-500">Base metabolic rate (BMR)</span>
+              </div>
+              <span class="font-semibold text-gray-700">1,991 cal</span>
+            </div>
+            <!-- Activity line -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-gray-300"></div>
+                <span class="text-gray-500">Activity factor (lightly active × 1.375)</span>
+              </div>
+              <span class="font-semibold text-gray-700">+742 cal</span>
+            </div>
+            <!-- Divider -->
+            <div class="border-t border-gray-100 my-1"></div>
+            <!-- TDEE -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-blue-400"></div>
+                <span class="text-gray-700 font-medium">Maintenance (TDEE)</span>
+              </div>
+              <span class="font-bold text-gray-900">2,733 cal/day</span>
+            </div>
+            <!-- Goal deduction -->
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-red-300"></div>
+                <span class="text-gray-500">Goal: 1 lb/week deficit (−500 cal)</span>
+              </div>
+              <span class="font-semibold text-red-600">−500 cal</span>
+            </div>
+            <!-- Divider -->
+            <div class="border-t border-gray-100 my-1"></div>
+            <!-- Budget -->
+            <div class="flex items-center justify-between bg-stride-50 -mx-1 px-1 py-1.5 rounded-lg">
+              <div class="flex items-center gap-2">
+                <div class="w-2 h-2 rounded-full bg-stride-600"></div>
+                <span class="font-bold text-stride-800">Your daily calorie budget</span>
+              </div>
+              <span class="font-bold text-stride-700 text-xl">2,233 cal</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Goal timeline -->
+        <div class="bg-white border border-gray-200 rounded-xl p-5 mb-4 shadow-sm">
+          <h3 class="text-sm font-semibold text-gray-600 mb-4 uppercase tracking-wide text-[11px]">Your timeline</h3>
+
+          <div class="flex items-center justify-between text-sm mb-3">
+            <div class="text-center">
+              <div class="font-semibold text-gray-900">230 lbs</div>
+              <div class="text-xs text-gray-400">Today</div>
+              <div class="text-xs text-gray-400">Feb 2026</div>
+            </div>
+            <div class="flex-1 mx-4 relative">
+              <div class="h-2 bg-gray-100 rounded-full overflow-hidden">
+                <div class="h-full bg-stride-600 rounded-full" style="width:0%"></div>
+              </div>
+              <div class="absolute left-0 -top-1 w-2.5 h-2.5 bg-stride-600 rounded-full border-2 border-white shadow-sm"></div>
+              <div class="text-center mt-1.5 text-[10px] text-gray-400">60 lbs · ~60 weeks</div>
+            </div>
+            <div class="text-center">
+              <div class="font-semibold text-gray-900">170 lbs</div>
+              <div class="text-xs text-gray-400">Goal</div>
+              <div class="text-xs text-gray-400">Feb 2027</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-3 gap-3 text-center text-xs pt-2 border-t border-gray-100">
+            <div>
+              <div class="text-gray-400 mb-0.5">To lose</div>
+              <div class="font-semibold text-gray-800">60 lbs</div>
+            </div>
+            <div>
+              <div class="text-gray-400 mb-0.5">Pace</div>
+              <div class="font-semibold text-gray-800">~1 lb/week</div>
+            </div>
+            <div>
+              <div class="text-gray-400 mb-0.5">Est. date</div>
+              <div class="font-semibold text-gray-800">Feb 2027</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Note about adjusting -->
+        <div class="flex items-start gap-2 text-xs text-gray-400 mb-2">
+          <svg class="w-4 h-4 flex-shrink-0 mt-0.5 text-gray-300" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/>
+          </svg>
+          You can manually override your budget in Settings anytime, or update your weight and goal as you progress.
+        </div>
+      </div>
+
+    </div><!-- /max-w-lg -->
+  </main>
+
+  <!-- Bottom nav buttons -->
+  <div class="sticky bottom-0 bg-white border-t border-gray-100 px-4 py-4">
+    <div class="max-w-lg mx-auto flex items-center gap-3">
+      <button id="btn-back" onclick="prevStep()"
+        class="px-5 py-3 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors hidden">
+        Back
+      </button>
+      <button id="btn-next" onclick="nextStep()"
+        class="flex-1 py-3 rounded-xl bg-stride-600 hover:bg-stride-700 text-white font-semibold text-sm transition-colors active:scale-[0.98]">
+        Continue
+      </button>
+    </div>
+  </div>
+
+  <script>
+    let currentStep = 1
+    const totalSteps = 5
+
+    // TDEE state (default values from step 2 inputs)
+    let profile = {
+      sex: 'male',
+      age: 35,
+      heightCm: 180.3,
+      weightLbs: 230,
+      activity: 1.375,  // light
+      goalWeightLbs: 170,
+      targetDate: new Date('2027-02-22')
+    }
+
+    const activityMultipliers = {
+      sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, extra: 1.9
+    }
+
+    function computeTDEE() {
+      const wKg = profile.weightLbs * 0.453592
+      const bmr = profile.sex === 'male'
+        ? 10*wKg + 6.25*profile.heightCm - 5*profile.age + 5
+        : 10*wKg + 6.25*profile.heightCm - 5*profile.age - 161
+      return Math.round(bmr * profile.activity)
+    }
+
+    function computeBudget() {
+      const tdee = computeTDEE()
+      const lbsToLose = profile.weightLbs - profile.goalWeightLbs
+      const msPerWeek = 7 * 24 * 60 * 60 * 1000
+      const weeksLeft = Math.max(1, (profile.targetDate - new Date()) / msPerWeek)
+      const pacePerWeek = Math.min(2, Math.max(0.25, lbsToLose / weeksLeft))
+      const dailyDeficit = Math.round(pacePerWeek * 500)
+      const budget = tdee - dailyDeficit
+      return { tdee, pacePerWeek, dailyDeficit, budget }
+    }
+
+    function recalcGoal() {
+      const gw = parseFloat(document.getElementById('goal-weight')?.value)
+      const gd = document.getElementById('goal-date')?.value
+      if (gw) profile.goalWeightLbs = gw
+      if (gd) profile.targetDate = new Date(gd)
+
+      const { tdee, pacePerWeek, dailyDeficit, budget } = computeBudget()
+
+      document.getElementById('prev-pace').textContent = pacePerWeek.toFixed(1) + ' lbs/wk'
+      document.getElementById('prev-deficit').textContent = '−' + dailyDeficit.toLocaleString() + ' cal'
+      document.getElementById('prev-budget').textContent = Math.max(1200, budget).toLocaleString()
+
+      const warn = document.getElementById('goal-warning')
+      if (pacePerWeek >= 2) {
+        warn.classList.remove('hidden')
+      } else {
+        warn.classList.add('hidden')
+      }
+
+      // Update pace buttons
+      const snapPace = [0.5, 1, 1.5, 2]
+      const closest = snapPace.reduce((a,b) => Math.abs(b-pacePerWeek) < Math.abs(a-pacePerWeek) ? b : a)
+      document.querySelectorAll('.pace-btn').forEach((btn, i) => {
+        btn.classList.toggle('selected', snapPace[i] === closest)
+      })
+    }
+
+    function recalc() {
+      recalcGoal()
+    }
+
+    function setPace(lbsPerWeek) {
+      const msPerWeek = 7 * 24 * 60 * 60 * 1000
+      const lbsToLose = profile.weightLbs - profile.goalWeightLbs
+      const weeksNeeded = lbsToLose / lbsPerWeek
+      const targetDate = new Date(Date.now() + weeksNeeded * msPerWeek)
+      const yyyy = targetDate.getFullYear()
+      const mm = String(targetDate.getMonth()+1).padStart(2,'0')
+      const dd = String(targetDate.getDate()).padStart(2,'0')
+      const dateStr = `${yyyy}-${mm}-${dd}`
+      const el = document.getElementById('goal-date')
+      if (el) el.value = dateStr
+      profile.targetDate = targetDate
+      recalcGoal()
+    }
+
+    function selectUnits(btn, units) {
+      document.querySelectorAll('.units-btn').forEach(b => {
+        const isThis = b === btn
+        b.classList.toggle('border-stride-600', isThis)
+        b.classList.toggle('bg-stride-50', isThis)
+        b.classList.toggle('border-gray-200', !isThis)
+        b.classList.toggle('bg-white', !isThis)
+      })
+    }
+
+    function selectSex(btn, sex) {
+      profile.sex = sex
+      document.querySelectorAll('.sex-btn').forEach(b => {
+        const isThis = b === btn
+        b.classList.toggle('border-stride-600', isThis)
+        b.classList.toggle('bg-stride-50', isThis)
+        b.classList.toggle('border-gray-200', !isThis)
+        b.classList.toggle('bg-white', !isThis)
+      })
+      recalc()
+    }
+
+    function selectActivity(card, level) {
+      document.querySelectorAll('.activity-card').forEach(c => c.classList.remove('selected'))
+      card.classList.add('selected')
+      profile.activity = activityMultipliers[level]
+      recalc()
+    }
+
+    function showStep(n) {
+      document.querySelectorAll('.step').forEach((el, i) => {
+        el.classList.toggle('active', i+1 === n)
+      })
+      // Progress bar
+      document.getElementById('progress-bar').style.width = ((n/totalSteps)*100) + '%'
+      // Step labels
+      for(let i=1; i<=5; i++) {
+        const lbl = document.getElementById('label-' + i)
+        lbl.classList.toggle('text-stride-600', i === n)
+        lbl.classList.toggle('font-medium', i === n)
+        lbl.classList.toggle('text-gray-400', i !== n)
+      }
+      // Back button
+      document.getElementById('btn-back').classList.toggle('hidden', n === 1)
+      // Next button label
+      const nextBtn = document.getElementById('btn-next')
+      nextBtn.textContent = n === totalSteps ? 'Start Stride →' : 'Continue'
+    }
+
+    function nextStep() {
+      if (currentStep < totalSteps) {
+        currentStep++
+        showStep(currentStep)
+      } else {
+        // Final — would navigate to app
+        alert('Setup complete! 🎉 (In the real app, this saves settings and goes to the calorie log.)')
+      }
+    }
+
+    function prevStep() {
+      if (currentStep > 1) {
+        currentStep--
+        showStep(currentStep)
+      }
+    }
+
+    // Initialize
+    recalcGoal()
+  </script>
+</body>
+</html>

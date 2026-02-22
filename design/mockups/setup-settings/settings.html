@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stride — Settings</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: { 50:'#eff6ff', 100:'#dbeafe', 200:'#bfdbfe', 500:'#3b82f6', 600:'#2563eb', 700:'#1d4ed8' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+
+    .activity-card { cursor: pointer; transition: all 0.12s; }
+    .activity-card:hover { border-color: #93c5fd; background: #f8fbff; }
+    .activity-card.selected { border-color: #2563eb; background: #eff6ff; }
+    .activity-card.selected .radio-dot { background: #2563eb; border-color: #2563eb; }
+    .activity-card.selected .radio-dot::after {
+      content: ''; display: block;
+      width: 7px; height: 7px;
+      background: white; border-radius: 50%;
+      margin: auto; margin-top: 3.5px;
+    }
+
+    input[type="number"], input[type="text"], input[type="date"], select {
+      outline: none;
+      transition: border-color 0.15s, box-shadow 0.15s;
+    }
+    input[type="number"]:focus, input[type="text"]:focus, input[type="date"]:focus, select:focus {
+      border-color: #2563eb !important;
+      box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+    }
+
+    .section-header {
+      font-size: 11px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #6b7280;
+      padding: 0 0 8px 0;
+      border-bottom: 1px solid #f3f4f6;
+      margin-bottom: 16px;
+    }
+
+    /* Toggle switch */
+    .toggle { position: relative; display: inline-block; width: 40px; height: 22px; }
+    .toggle input { opacity: 0; width: 0; height: 0; }
+    .toggle-slider {
+      position: absolute; cursor: pointer; inset: 0;
+      background: #d1d5db; border-radius: 22px;
+      transition: background 0.2s;
+    }
+    .toggle-slider::before {
+      content: ''; position: absolute;
+      height: 16px; width: 16px;
+      left: 3px; bottom: 3px;
+      background: white; border-radius: 50%;
+      transition: transform 0.2s;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .toggle input:checked + .toggle-slider { background: #2563eb; }
+    .toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
+
+    /* Computed plan card pulse animation */
+    @keyframes planPulse {
+      0% { box-shadow: 0 0 0 0 rgba(37,99,235,0.2); }
+      70% { box-shadow: 0 0 0 6px rgba(37,99,235,0); }
+      100% { box-shadow: 0 0 0 0 rgba(37,99,235,0); }
+    }
+    .plan-updated { animation: planPulse 0.4s ease; }
+  </style>
+</head>
+
+<body class="bg-gray-50 min-h-screen">
+
+  <!-- App Shell layout (desktop sidebar + content) -->
+  <div class="flex min-h-screen">
+
+    <!-- Sidebar (desktop) -->
+    <aside class="hidden lg:flex flex-col w-64 bg-white border-r border-gray-200 fixed top-0 left-0 h-full">
+      <div class="p-5 border-b border-gray-100">
+        <h1 class="text-xl font-bold text-stride-600">Stride</h1>
+      </div>
+      <nav class="p-3 flex-1">
+        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:bg-gray-50">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z"/>
+          </svg>
+          Calorie Log
+        </a>
+        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:bg-gray-50 mt-1">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/>
+          </svg>
+          Habits
+        </a>
+      </nav>
+      <div class="p-3 border-t border-gray-100">
+        <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm bg-gray-100 text-gray-700 font-medium">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+          </svg>
+          Settings
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main area -->
+    <div class="flex-1 lg:ml-64 flex flex-col min-h-screen">
+
+      <!-- Top bar -->
+      <header class="sticky top-0 bg-white/90 backdrop-blur border-b border-gray-200 z-30 px-4 py-3 flex items-center gap-3">
+        <button class="p-1 -ml-1 rounded-md hover:bg-gray-100 lg:hidden">
+          <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+          </svg>
+        </button>
+        <span class="font-semibold text-gray-800">Settings</span>
+        <div class="ml-auto">
+          <div class="w-8 h-8 rounded-full bg-stride-600 text-white flex items-center justify-center text-sm font-semibold">L</div>
+        </div>
+      </header>
+
+      <!-- Settings content -->
+      <main class="flex-1 px-4 py-6 pb-32">
+        <div class="max-w-xl mx-auto space-y-6">
+
+          <!-- ─────────────────────────────────────── -->
+          <!-- COMPUTED PLAN SUMMARY CARD             -->
+          <!-- ─────────────────────────────────────── -->
+          <div id="plan-card" class="bg-white border border-stride-200 rounded-2xl p-5 shadow-sm">
+            <div class="flex items-start justify-between mb-4">
+              <div>
+                <h2 class="text-sm font-semibold text-gray-700">Your Calorie Plan</h2>
+                <p class="text-xs text-gray-400 mt-0.5">Updates as you edit settings below</p>
+              </div>
+              <span class="text-[10px] font-semibold text-stride-600 bg-stride-50 px-2 py-1 rounded-full uppercase tracking-wide">Auto</span>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 mb-4">
+              <div class="bg-gray-50 rounded-xl p-3 text-center">
+                <div class="text-[11px] text-gray-400 mb-0.5 uppercase tracking-wide">Maintenance</div>
+                <div id="plan-tdee" class="text-xl font-bold text-gray-900">2,733</div>
+                <div class="text-[10px] text-gray-400">cal/day (TDEE)</div>
+              </div>
+              <div class="bg-stride-50 rounded-xl p-3 text-center border border-stride-100">
+                <div class="text-[11px] text-stride-500 mb-0.5 uppercase tracking-wide">Your Budget</div>
+                <div id="plan-budget" class="text-xl font-bold text-stride-700">2,233</div>
+                <div class="text-[10px] text-stride-400">cal/day</div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-3 gap-2 text-center text-xs">
+              <div>
+                <div class="text-gray-400 mb-0.5">Deficit</div>
+                <div id="plan-deficit" class="font-semibold text-gray-700">−500 cal/day</div>
+              </div>
+              <div>
+                <div class="text-gray-400 mb-0.5">Pace</div>
+                <div id="plan-pace" class="font-semibold text-gray-700">~1.0 lbs/wk</div>
+              </div>
+              <div>
+                <div class="text-gray-400 mb-0.5">Goal date</div>
+                <div id="plan-date" class="font-semibold text-gray-700">Feb 2027</div>
+              </div>
+            </div>
+
+            <!-- TDEE breakdown toggle -->
+            <button onclick="toggleBreakdown()" class="mt-3 text-xs text-stride-600 hover:underline flex items-center gap-1">
+              <span id="breakdown-toggle-label">Show calculation</span>
+              <svg id="breakdown-chevron" class="w-3.5 h-3.5 transition-transform" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/>
+              </svg>
+            </button>
+
+            <!-- Breakdown (hidden by default) -->
+            <div id="breakdown-detail" class="hidden mt-3 pt-3 border-t border-gray-100 text-xs space-y-1.5 text-gray-500">
+              <div class="flex justify-between"><span>BMR (Mifflin-St Jeor, male, 35, 5'11", 230 lbs)</span><span class="font-medium text-gray-700">1,991 cal</span></div>
+              <div class="flex justify-between"><span>× Activity (lightly active, ×1.375)</span><span class="font-medium text-gray-700">+742 cal</span></div>
+              <div class="flex justify-between border-t border-gray-100 pt-1.5"><span class="text-gray-600 font-medium">= Maintenance (TDEE)</span><span class="font-bold text-gray-900">2,733 cal</span></div>
+              <div class="flex justify-between"><span>− Goal deficit (1 lb/wk × 500)</span><span class="font-medium text-red-500">−500 cal</span></div>
+              <div class="flex justify-between border-t border-gray-100 pt-1.5"><span class="font-semibold text-stride-700">= Daily budget</span><span class="font-bold text-stride-700">2,233 cal</span></div>
+            </div>
+          </div>
+
+          <!-- ─────────────────────────────────────── -->
+          <!-- SECTION: PROFILE                       -->
+          <!-- ─────────────────────────────────────── -->
+          <section class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <div class="section-header">Profile</div>
+            <div class="space-y-4">
+
+              <div class="flex items-center justify-between">
+                <label class="text-sm font-medium text-gray-700">Display name</label>
+                <input type="text" value="Lyle"
+                  class="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white w-44 text-right"/>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <label class="text-sm font-medium text-gray-700">Email</label>
+                <span class="text-sm text-gray-400">lyle@example.com</span>
+              </div>
+
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="text-sm font-medium text-gray-700">Units</label>
+                  <p class="text-xs text-gray-400 mt-0.5">Affects displayed values only</p>
+                </div>
+                <div class="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                  <button onclick="selectUnits('us',this)" class="units-btn us px-3 py-1.5 text-xs font-medium rounded-md bg-white shadow-sm text-gray-900">US</button>
+                  <button onclick="selectUnits('metric',this)" class="units-btn metric px-3 py-1.5 text-xs font-medium rounded-md text-gray-500">Metric</button>
+                </div>
+              </div>
+
+            </div>
+          </section>
+
+          <!-- ─────────────────────────────────────── -->
+          <!-- SECTION: BODY METRICS                  -->
+          <!-- ─────────────────────────────────────── -->
+          <section class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <div class="section-header">Body Metrics</div>
+            <div class="space-y-4">
+
+              <!-- Sex -->
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="text-sm font-medium text-gray-700">Biological sex</label>
+                  <p class="text-xs text-gray-400 mt-0.5">Used for BMR calculation</p>
+                </div>
+                <div class="flex gap-1 bg-gray-100 p-1 rounded-lg">
+                  <button onclick="selectSex('male',this)" class="sex-btn male px-3 py-1.5 text-xs font-medium rounded-md bg-white shadow-sm text-gray-900">Male</button>
+                  <button onclick="selectSex('female',this)" class="sex-btn female px-3 py-1.5 text-xs font-medium rounded-md text-gray-500">Female</button>
+                </div>
+              </div>
+
+              <!-- Age -->
+              <div class="flex items-center justify-between">
+                <label class="text-sm font-medium text-gray-700">Age</label>
+                <div class="flex items-center gap-2">
+                  <input type="number" id="s-age" value="35" min="18" max="100" oninput="recalc()"
+                    class="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white w-20 text-center"/>
+                  <span class="text-sm text-gray-400">yrs</span>
+                </div>
+              </div>
+
+              <!-- Height -->
+              <div class="flex items-center justify-between">
+                <label class="text-sm font-medium text-gray-700">Height</label>
+                <div class="flex items-center gap-2">
+                  <div class="flex items-center gap-1 border border-gray-200 rounded-lg px-2 py-2 bg-white">
+                    <select id="s-ft" class="bg-transparent text-sm text-gray-900 outline-none" onchange="recalc()">
+                      <option>4</option><option>5</option><option selected>5</option><option>6</option>
+                    </select>
+                    <span class="text-xs text-gray-400">ft</span>
+                  </div>
+                  <div class="flex items-center gap-1 border border-gray-200 rounded-lg px-2 py-2 bg-white">
+                    <select id="s-in" class="bg-transparent text-sm text-gray-900 outline-none" onchange="recalc()">
+                      <option>0</option><option>1</option><option>2</option><option>3</option>
+                      <option>4</option><option>5</option><option>6</option><option>7</option>
+                      <option>8</option><option>9</option><option>10</option><option selected>11</option>
+                    </select>
+                    <span class="text-xs text-gray-400">in</span>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Current weight -->
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="text-sm font-medium text-gray-700">Current weight</label>
+                  <p class="text-xs text-gray-400 mt-0.5">Also logs to weight history</p>
+                </div>
+                <div class="flex items-center gap-2">
+                  <input type="number" id="s-weight" value="230" min="50" max="700" step="0.1" oninput="recalc()"
+                    class="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white w-20 text-center"/>
+                  <span class="text-sm text-gray-400">lbs</span>
+                </div>
+              </div>
+
+            </div>
+          </section>
+
+          <!-- ─────────────────────────────────────── -->
+          <!-- SECTION: ACTIVITY LEVEL                -->
+          <!-- ─────────────────────────────────────── -->
+          <section class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <div class="section-header">Activity Level</div>
+            <p class="text-xs text-gray-400 mb-3">Based on your <strong class="text-gray-500">daily movement</strong>, not workouts — log exercise in the calorie log and it counts automatically.</p>
+            <div class="space-y-2">
+
+              <div onclick="selectActivity('sedentary',this)"
+                class="activity-card border-2 border-gray-100 rounded-xl p-3.5 flex items-center gap-3 bg-white">
+                <div class="radio-dot w-4 h-4 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
+                <span class="text-lg">🪑</span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-semibold text-gray-800">Sedentary</div>
+                  <div class="text-xs text-gray-400">Desk job or mostly seated. Little movement outside of logged exercise.</div>
+                </div>
+                <div class="text-xs text-gray-300 flex-shrink-0">×1.2</div>
+              </div>
+
+              <div onclick="selectActivity('light',this)"
+                class="activity-card selected border-2 border-gray-100 rounded-xl p-3.5 flex items-center gap-3 bg-white">
+                <div class="radio-dot w-4 h-4 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
+                <span class="text-lg">🚶</span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-semibold text-gray-800">Lightly Active</div>
+                  <div class="text-xs text-gray-400">On your feet some of the day — errands, light walking, standing desk.</div>
+                </div>
+                <div class="text-xs text-gray-300 flex-shrink-0">×1.375</div>
+              </div>
+
+              <div onclick="selectActivity('moderate',this)"
+                class="activity-card border-2 border-gray-100 rounded-xl p-3.5 flex items-center gap-3 bg-white">
+                <div class="radio-dot w-4 h-4 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
+                <span class="text-lg">🏃</span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-semibold text-gray-800">Moderately Active</div>
+                  <div class="text-xs text-gray-400">Standing or moving most of the day — retail, service, active job.</div>
+                </div>
+                <div class="text-xs text-gray-300 flex-shrink-0">×1.55</div>
+              </div>
+
+              <div onclick="selectActivity('active',this)"
+                class="activity-card border-2 border-gray-100 rounded-xl p-3.5 flex items-center gap-3 bg-white">
+                <div class="radio-dot w-4 h-4 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
+                <span class="text-lg">🏋️</span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-semibold text-gray-800">Very Active</div>
+                  <div class="text-xs text-gray-400">On your feet all day — construction, warehouse, nursing, physical trade.</div>
+                </div>
+                <div class="text-xs text-gray-300 flex-shrink-0">×1.725</div>
+              </div>
+
+              <div onclick="selectActivity('extra',this)"
+                class="activity-card border-2 border-gray-100 rounded-xl p-3.5 flex items-center gap-3 bg-white">
+                <div class="radio-dot w-4 h-4 rounded-full border-2 border-gray-300 flex-shrink-0"></div>
+                <span class="text-lg">⚡</span>
+                <div class="flex-1 min-w-0">
+                  <div class="text-sm font-semibold text-gray-800">Extra Active</div>
+                  <div class="text-xs text-gray-400">Intense physical job plus an active lifestyle. Rare.</div>
+                </div>
+                <div class="text-xs text-gray-300 flex-shrink-0">×1.9</div>
+              </div>
+
+            </div>
+          </section>
+
+          <!-- ─────────────────────────────────────── -->
+          <!-- SECTION: GOAL                          -->
+          <!-- ─────────────────────────────────────── -->
+          <section class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <div class="section-header">Weight Loss Goal</div>
+            <div class="space-y-4">
+
+              <!-- Starting weight (read-only, for context) -->
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="text-sm font-medium text-gray-500">Starting weight</label>
+                  <p class="text-xs text-gray-400 mt-0.5">Set at account creation</p>
+                </div>
+                <span class="text-sm text-gray-400">270 lbs</span>
+              </div>
+
+              <!-- Target weight -->
+              <div class="flex items-center justify-between">
+                <label class="text-sm font-medium text-gray-700">Goal weight</label>
+                <div class="flex items-center gap-2">
+                  <input type="number" id="s-goal-weight" value="170" min="50" max="700" step="0.5" oninput="recalc()"
+                    class="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white w-20 text-center"/>
+                  <span class="text-sm text-gray-400">lbs</span>
+                </div>
+              </div>
+
+              <!-- Target date -->
+              <div class="flex items-center justify-between">
+                <label class="text-sm font-medium text-gray-700">Target date</label>
+                <input type="date" id="s-target-date" value="2027-02-22" oninput="recalc()"
+                  class="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white"/>
+              </div>
+
+              <!-- Pace presets row -->
+              <div>
+                <label class="block text-sm text-gray-500 mb-2">Or choose a pace (updates target date)</label>
+                <div class="grid grid-cols-4 gap-2">
+                  <button onclick="setPace(0.5)" class="pace-btn border border-gray-200 rounded-lg py-2 text-center hover:border-stride-300 transition-colors bg-white">
+                    <div class="text-sm font-bold text-gray-700">0.5</div>
+                    <div class="text-[10px] text-gray-400">lbs/wk</div>
+                  </button>
+                  <button onclick="setPace(1)" class="pace-btn selected border border-stride-500 rounded-lg py-2 text-center bg-stride-50 transition-colors">
+                    <div class="text-sm font-bold text-stride-700">1</div>
+                    <div class="text-[10px] text-stride-500">lbs/wk</div>
+                  </button>
+                  <button onclick="setPace(1.5)" class="pace-btn border border-gray-200 rounded-lg py-2 text-center hover:border-stride-300 transition-colors bg-white">
+                    <div class="text-sm font-bold text-gray-700">1.5</div>
+                    <div class="text-[10px] text-gray-400">lbs/wk</div>
+                  </button>
+                  <button onclick="setPace(2)" class="pace-btn border border-gray-200 rounded-lg py-2 text-center hover:border-stride-300 transition-colors bg-white">
+                    <div class="text-sm font-bold text-gray-700">2</div>
+                    <div class="text-[10px] text-gray-400">lbs/wk</div>
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          </section>
+
+          <!-- ─────────────────────────────────────── -->
+          <!-- SECTION: BUDGET OVERRIDE               -->
+          <!-- ─────────────────────────────────────── -->
+          <section class="bg-white rounded-2xl border border-gray-200 p-5 shadow-sm">
+            <div class="section-header">Daily Budget</div>
+            <div class="space-y-4">
+
+              <div class="flex items-center justify-between">
+                <div>
+                  <label class="text-sm font-medium text-gray-700">Auto-compute budget</label>
+                  <p class="text-xs text-gray-400 mt-0.5">Calculated from TDEE and goal pace</p>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" id="auto-toggle" checked onchange="toggleAutobudget(this)">
+                  <span class="toggle-slider"></span>
+                </label>
+              </div>
+
+              <!-- Manual override (shown when auto is off) -->
+              <div id="manual-budget-row" class="hidden flex items-center justify-between">
+                <label class="text-sm font-medium text-gray-700">Manual budget</label>
+                <div class="flex items-center gap-2">
+                  <input type="number" id="s-manual-budget" value="2300" min="1200" max="5000"
+                    class="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white w-24 text-center"/>
+                  <span class="text-sm text-gray-400">cal/day</span>
+                </div>
+              </div>
+
+              <!-- Auto mode: show read-only computed value -->
+              <div id="auto-budget-display" class="flex items-center justify-between">
+                <span class="text-sm text-gray-500">Computed budget</span>
+                <span id="computed-budget-display" class="text-sm font-semibold text-stride-700">2,233 cal/day</span>
+              </div>
+
+            </div>
+          </section>
+
+        </div><!-- /space-y-6 -->
+      </main>
+
+      <!-- Sticky save bar -->
+      <div class="fixed bottom-0 left-0 right-0 lg:left-64 bg-white border-t border-gray-200 px-4 py-4 z-20">
+        <div class="max-w-xl mx-auto flex items-center gap-3">
+          <button onclick="alert('Settings saved! (In the real app, this POSTs to /api/settings)')"
+            class="flex-1 py-3 rounded-xl bg-stride-600 hover:bg-stride-700 text-white font-semibold text-sm transition-colors active:scale-[0.98]">
+            Save Changes
+          </button>
+          <a href="#" class="text-sm text-gray-400 hover:text-gray-600 px-3">Discard</a>
+        </div>
+      </div>
+
+    </div><!-- /main area -->
+  </div><!-- /flex layout -->
+
+  <script>
+    let s = {
+      sex: 'male',
+      age: 35,
+      heightCm: 180.3,
+      weightLbs: 230,
+      activity: 1.375,
+      goalWeightLbs: 170,
+      targetDate: new Date('2027-02-22'),
+      autoBudget: true
+    }
+
+    const actMap = {
+      sedentary: 1.2, light: 1.375, moderate: 1.55, active: 1.725, extra: 1.9
+    }
+
+    function computeAll() {
+      const wKg = s.weightLbs * 0.453592
+      const bmr = s.sex === 'male'
+        ? 10*wKg + 6.25*s.heightCm - 5*s.age + 5
+        : 10*wKg + 6.25*s.heightCm - 5*s.age - 161
+      const tdee = Math.round(bmr * s.activity)
+
+      const lbsToLose = Math.max(0, s.weightLbs - s.goalWeightLbs)
+      const msPerWeek = 7*24*60*60*1000
+      const weeksLeft = Math.max(1, (s.targetDate - new Date()) / msPerWeek)
+      const pace = Math.min(2, Math.max(0.1, lbsToLose / weeksLeft))
+      const deficit = Math.round(pace * 500)
+      const budget = Math.max(1200, tdee - deficit)
+
+      return { tdee, pace, deficit, budget }
+    }
+
+    function updatePlanCard() {
+      const { tdee, pace, deficit, budget } = computeAll()
+      const card = document.getElementById('plan-card')
+
+      document.getElementById('plan-tdee').textContent = tdee.toLocaleString()
+      document.getElementById('plan-budget').textContent = budget.toLocaleString()
+      document.getElementById('plan-deficit').textContent = '−' + deficit.toLocaleString() + ' cal/day'
+      document.getElementById('plan-pace').textContent = '~' + pace.toFixed(1) + ' lbs/wk'
+      document.getElementById('computed-budget-display').textContent = budget.toLocaleString() + ' cal/day'
+
+      // Goal date: estimate from pace
+      const weeksToGoal = Math.max(0, (s.weightLbs - s.goalWeightLbs) / pace
+      )
+      const goalDate = new Date(Date.now() + weeksToGoal * 7 * 24 * 60 * 60 * 1000)
+      document.getElementById('plan-date').textContent = goalDate.toLocaleDateString('en-US', {month:'short', year:'numeric'})
+
+      // Pulse animation
+      card.classList.remove('plan-updated')
+      void card.offsetWidth // reflow
+      card.classList.add('plan-updated')
+    }
+
+    function recalc() {
+      // Read inputs
+      const age = parseInt(document.getElementById('s-age')?.value)
+      if (age) s.age = age
+
+      const ft = parseInt(document.getElementById('s-ft')?.value) || 5
+      const inch = parseInt(document.getElementById('s-in')?.value) || 0
+      s.heightCm = (ft * 12 + inch) * 2.54
+
+      const w = parseFloat(document.getElementById('s-weight')?.value)
+      if (w) s.weightLbs = w
+
+      const gw = parseFloat(document.getElementById('s-goal-weight')?.value)
+      if (gw) s.goalWeightLbs = gw
+
+      const gd = document.getElementById('s-target-date')?.value
+      if (gd) s.targetDate = new Date(gd)
+
+      updatePlanCard()
+    }
+
+    function selectSex(sex, btn) {
+      s.sex = sex
+      document.querySelectorAll('.sex-btn').forEach(b => {
+        const isThis = b === btn
+        b.classList.toggle('bg-white', isThis)
+        b.classList.toggle('shadow-sm', isThis)
+        b.classList.toggle('text-gray-900', isThis)
+        b.classList.toggle('text-gray-500', !isThis)
+      })
+      updatePlanCard()
+    }
+
+    function selectUnits(units, btn) {
+      document.querySelectorAll('.units-btn').forEach(b => {
+        const isThis = b === btn
+        b.classList.toggle('bg-white', isThis)
+        b.classList.toggle('shadow-sm', isThis)
+        b.classList.toggle('text-gray-900', isThis)
+        b.classList.toggle('text-gray-500', !isThis)
+      })
+    }
+
+    function selectActivity(level, card) {
+      document.querySelectorAll('.activity-card').forEach(c => c.classList.remove('selected'))
+      card.classList.add('selected')
+      s.activity = actMap[level]
+      updatePlanCard()
+    }
+
+    function setPace(lbsPerWeek) {
+      const lbsToLose = Math.max(0, s.weightLbs - s.goalWeightLbs)
+      const weeksNeeded = lbsToLose / lbsPerWeek
+      const targetDate = new Date(Date.now() + weeksNeeded * 7 * 24 * 60 * 60 * 1000)
+      const yyyy = targetDate.getFullYear()
+      const mm = String(targetDate.getMonth()+1).padStart(2,'0')
+      const dd = String(targetDate.getDate()).padStart(2,'0')
+      document.getElementById('s-target-date').value = `${yyyy}-${mm}-${dd}`
+      s.targetDate = targetDate
+
+      document.querySelectorAll('.pace-btn').forEach((btn, i) => {
+        const paces = [0.5, 1, 1.5, 2]
+        const isThis = paces[i] === lbsPerWeek
+        btn.classList.toggle('selected', isThis)
+        btn.classList.toggle('border-stride-500', isThis)
+        btn.classList.toggle('bg-stride-50', isThis)
+        btn.classList.toggle('border-gray-200', !isThis)
+        btn.classList.toggle('bg-white', !isThis)
+        const numEl = btn.querySelector('div:first-child')
+        const unitEl = btn.querySelector('div:last-child')
+        if (numEl) { numEl.classList.toggle('text-stride-700', isThis); numEl.classList.toggle('text-gray-700', !isThis) }
+        if (unitEl) { unitEl.classList.toggle('text-stride-500', isThis); unitEl.classList.toggle('text-gray-400', !isThis) }
+      })
+
+      updatePlanCard()
+    }
+
+    function toggleAutobudget(cb) {
+      s.autoBudget = cb.checked
+      document.getElementById('manual-budget-row').classList.toggle('hidden', cb.checked)
+      document.getElementById('auto-budget-display').classList.toggle('hidden', !cb.checked)
+
+      // Also update the plan card "auto" badge
+      const badge = document.querySelector('#plan-card span.uppercase')
+      badge.textContent = cb.checked ? 'Auto' : 'Manual'
+      badge.classList.toggle('text-stride-600', cb.checked)
+      badge.classList.toggle('bg-stride-50', cb.checked)
+      badge.classList.toggle('text-gray-500', !cb.checked)
+      badge.classList.toggle('bg-gray-100', !cb.checked)
+    }
+
+    function toggleBreakdown() {
+      const detail = document.getElementById('breakdown-detail')
+      const label = document.getElementById('breakdown-toggle-label')
+      const chevron = document.getElementById('breakdown-chevron')
+      const hidden = detail.classList.toggle('hidden')
+      label.textContent = hidden ? 'Show calculation' : 'Hide calculation'
+      chevron.style.transform = hidden ? '' : 'rotate(180deg)'
+    }
+
+    // Init
+    updatePlanCard()
+  </script>
+</body>
+</html>
