@@ -131,8 +131,8 @@ Implement the calorie logging daily view as designed in `design/mockups/calorie-
 
 ### Phase G: Polish & Integration Testing
 
-- [ ] **G.1 — End-to-end smoke test**
+- [x] **G.1 — End-to-end smoke test**
   Start the Go API (`go run .` in `go-api/`) and Vite dev server (`npm run dev` in `web-client/`). Verify: page loads with seeded data, date navigation works, inline quick-add creates an item, bottom sheet creates an item with macros, double-click edits a cell, right-click context menu works (edit modal, duplicate, delete), summary ring and macro bars update after changes, profile dropdown shows. Fix any issues found.
 
-- [ ] **G.2 — Build check and lint**
+- [x] **G.2 — Build check and lint**
   Run `npm run build` and `npm run lint` in `web-client/`. Fix any TypeScript errors or lint warnings. Ensure production build works.

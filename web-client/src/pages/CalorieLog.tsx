@@ -16,9 +16,12 @@ import AddItemSheet from '../components/calorie-log/AddItemSheet'
 import FloatingActionButton from '../components/calorie-log/FloatingActionButton'
 import ContextMenu from '../components/calorie-log/ContextMenu'
 
-// Returns today's date as a YYYY-MM-DD string.
+// Returns today's date as a YYYY-MM-DD string in local time.
+// Intentionally avoids toISOString() which returns UTC and would show the
+// wrong date for users east of UTC after midnight.
 function today(): string {
-  return new Date().toISOString().split('T')[0]
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export default function CalorieLog() {

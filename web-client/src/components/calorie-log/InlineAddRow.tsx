@@ -41,18 +41,17 @@ export default function InlineAddRow({ mealType, isOpen, onOpen, onClose, onAdd 
   const [fat, setFat] = useState('')
   const nameRef = useRef<HTMLInputElement>(null)
 
-  // Auto-focus name input when the row opens
+  // Auto-focus name input when the row opens.
   useEffect(() => {
     if (isOpen) nameRef.current?.focus()
   }, [isOpen])
 
-  // Reset all fields when the row closes
-  useEffect(() => {
-    if (!isOpen) {
-      setName(''); setQty('1'); setUom('each')
-      setCalories(''); setProtein(''); setCarbs(''); setFat('')
-    }
-  }, [isOpen])
+  // Reset all fields then delegate to the parent close handler.
+  const handleClose = () => {
+    setName(''); setQty('1'); setUom('each')
+    setCalories(''); setProtein(''); setCarbs(''); setFat('')
+    onClose()
+  }
 
   const handleSubmit = () => {
     if (!name.trim() || !calories) return
@@ -65,13 +64,13 @@ export default function InlineAddRow({ mealType, isOpen, onOpen, onClose, onAdd 
       carbs_g: !isExercise && carbs ? parseFloat(carbs) : null,
       fat_g: !isExercise && fat ? parseFloat(fat) : null,
     })
-    onClose()
+    handleClose()
   }
 
   // Shared keyDown handler — Enter submits, Escape cancels
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === 'Enter') { e.preventDefault(); handleSubmit() }
-    else if (e.key === 'Escape') onClose()
+    else if (e.key === 'Escape') handleClose()
   }
 
   // Collapsed state — simple "+ Add" trigger
@@ -115,7 +114,7 @@ export default function InlineAddRow({ mealType, isOpen, onOpen, onClose, onAdd 
           </button>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             tabIndex={-1}
             className="shrink-0 text-gray-400 hover:text-gray-600 text-xs px-0.5"
             aria-label="Cancel"

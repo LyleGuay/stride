@@ -1,1 +1,9 @@
 node_modules
+
+# Generated frontend build embedded into Go binary — populated by Dockerfile
+go-api/static/*
+!go-api/static/.gitkeep
+
+# Local env files (contain secrets)
+.env
+go-api/.env
