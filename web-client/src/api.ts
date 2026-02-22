@@ -72,6 +72,7 @@ export interface CalorieLogUserSettings {
   lunch_budget: number
   dinner_budget: number
   snack_budget: number
+  exercise_target_calories: number
   // Profile fields — nullable until the user completes setup
   sex: string | null
   date_of_birth: string | null

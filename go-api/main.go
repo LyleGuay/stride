@@ -103,10 +103,11 @@ type calorieLogUserSettings struct {
 	ProteinTargetG  int     `json:"protein_target_g" db:"protein_target_g"`
 	CarbsTargetG    int     `json:"carbs_target_g"   db:"carbs_target_g"`
 	FatTargetG      int     `json:"fat_target_g"     db:"fat_target_g"`
-	BreakfastBudget int     `json:"breakfast_budget" db:"breakfast_budget"`
-	LunchBudget     int     `json:"lunch_budget"     db:"lunch_budget"`
-	DinnerBudget    int     `json:"dinner_budget"    db:"dinner_budget"`
-	SnackBudget     int     `json:"snack_budget"     db:"snack_budget"`
+	BreakfastBudget        int     `json:"breakfast_budget"         db:"breakfast_budget"`
+	LunchBudget            int     `json:"lunch_budget"             db:"lunch_budget"`
+	DinnerBudget           int     `json:"dinner_budget"            db:"dinner_budget"`
+	SnackBudget            int     `json:"snack_budget"             db:"snack_budget"`
+	ExerciseTargetCalories int     `json:"exercise_target_calories" db:"exercise_target_calories"`
 
 	// Profile fields — all nullable; zero-knowledge rows still work.
 	Sex             *string   `json:"sex"              db:"sex"`
@@ -121,10 +122,11 @@ type calorieLogUserSettings struct {
 	SetupComplete   bool      `json:"setup_complete"   db:"setup_complete"`
 
 	// Computed fields — populated server-side from profile; not stored in DB.
-	ComputedBMR    *int     `json:"computed_bmr,omitempty"`
-	ComputedTDEE   *int     `json:"computed_tdee,omitempty"`
-	ComputedBudget *int     `json:"computed_budget,omitempty"`
-	PaceLbsPerWeek *float64 `json:"pace_lbs_per_week,omitempty"`
+	// db:"-" tells RowToStructByName to skip these during scanning.
+	ComputedBMR    *int     `json:"computed_bmr,omitempty"    db:"-"`
+	ComputedTDEE   *int     `json:"computed_tdee,omitempty"   db:"-"`
+	ComputedBudget *int     `json:"computed_budget,omitempty" db:"-"`
+	PaceLbsPerWeek *float64 `json:"pace_lbs_per_week,omitempty" db:"-"`
 }
 
 // weekDayDBRow is the shape of each row returned by the week-summary GROUP BY query.
@@ -371,6 +373,14 @@ func (h *Handler) getDailySummary(c *gin.Context) {
 		if item.FatG != nil {
 			fatG += *item.FatG
 		}
+	}
+
+	// Populate computed TDEE fields so the frontend can show estimated pace.
+	if bmr, tdee, budget, pace, ok := computeTDEE(&settings); ok {
+		settings.ComputedBMR = &bmr
+		settings.ComputedTDEE = &tdee
+		settings.ComputedBudget = &budget
+		settings.PaceLbsPerWeek = &pace
 	}
 
 	// Net = food minus exercise, left = budget minus net
@@ -647,10 +657,11 @@ func (h *Handler) patchUserSettings(c *gin.Context) {
 		ProteinTargetG  *int     `json:"protein_target_g"`
 		CarbsTargetG    *int     `json:"carbs_target_g"`
 		FatTargetG      *int     `json:"fat_target_g"`
-		BreakfastBudget *int     `json:"breakfast_budget"`
-		LunchBudget     *int     `json:"lunch_budget"`
-		DinnerBudget    *int     `json:"dinner_budget"`
-		SnackBudget     *int     `json:"snack_budget"`
+		BreakfastBudget        *int     `json:"breakfast_budget"`
+		LunchBudget            *int     `json:"lunch_budget"`
+		DinnerBudget           *int     `json:"dinner_budget"`
+		SnackBudget            *int     `json:"snack_budget"`
+		ExerciseTargetCalories *int     `json:"exercise_target_calories"`
 		Sex             *string  `json:"sex"`
 		DateOfBirth     *string  `json:"date_of_birth"` // YYYY-MM-DD string, stored as date
 		HeightCM        *float64 `json:"height_cm"`
@@ -702,6 +713,10 @@ func (h *Handler) patchUserSettings(c *gin.Context) {
 	if body.SnackBudget != nil {
 		setClauses = append(setClauses, "snack_budget = @snackBudget")
 		args["snackBudget"] = *body.SnackBudget
+	}
+	if body.ExerciseTargetCalories != nil {
+		setClauses = append(setClauses, "exercise_target_calories = @exerciseTargetCalories")
+		args["exerciseTargetCalories"] = *body.ExerciseTargetCalories
 	}
 	if body.Sex != nil {
 		setClauses = append(setClauses, "sex = @sex")
@@ -807,7 +822,15 @@ func (h *Handler) postHabit(c *gin.Context) {
 // getDBPool creates a connection pool. We use a pool (not a single conn) because
 // Neon closes idle connections after ~5 minutes.
 func getDBPool() *pgxpool.Pool {
-	pool, err := pgxpool.New(context.Background(), os.Getenv("DB_URL"))
+	config, err := pgxpool.ParseConfig(os.Getenv("DB_URL"))
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Unable to parse DB URL: %v\n", err)
+		os.Exit(1)
+	}
+	// Use simple query protocol to avoid "cached plan must not change result type"
+	// errors from Neon's server-side prepared statement cache after schema changes.
+	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Unable to connect to database: %v\n", err)
 		os.Exit(1)

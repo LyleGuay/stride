@@ -18,6 +18,17 @@ function mealCalories(items: CalorieLogItem[]): Record<string, number> {
   return totals
 }
 
+// estimatedPace computes an implied lbs/week rate from today's net calories vs TDEE.
+// Returns a string like "~1.0 lbs/wk loss" or "+0.3 lbs/wk gain", or null if TDEE unknown.
+function estimatedPace(netCalories: number, tdee?: number): { label: string; gaining: boolean } | null {
+  if (!tdee) return null
+  const deficit = tdee - netCalories        // positive = losing, negative = gaining
+  const pace = Math.abs(deficit) / 500      // lbs per week
+  const gaining = deficit < 0
+  const label = `${gaining ? '+' : '-'}${pace.toFixed(1)} lbs/wk`
+  return { label, gaining }
+}
+
 export default function DailySummary({ summary }: Props) {
   const {
     net_calories, calories_left, calories_food, calories_exercise,
@@ -31,6 +42,8 @@ export default function DailySummary({ summary }: Props) {
   const ringColor = net_calories <= calorie_budget ? '#22c55e' : '#ef4444'
 
   const meals = mealCalories(items)
+  const pace = estimatedPace(net_calories, settings.computed_tdee)
+  const exerciseTarget = settings.exercise_target_calories ?? 0
 
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4 flex items-center gap-6">
@@ -52,20 +65,27 @@ export default function DailySummary({ summary }: Props) {
 
       {/* Stats grid */}
       <div className="flex-1 min-w-0">
-        {/* Calorie row */}
+        {/* Calorie row — shows eaten, exercise (actual/target), and net budget */}
         <div className="grid grid-cols-3 gap-x-4 text-xs mb-2">
           <div>
-            <span className="text-gray-400">Eaten</span><br />
+            <div className="text-gray-400 mb-0.5">Eaten</div>
             <span className="font-semibold text-sm">{calories_food.toLocaleString()}</span>
           </div>
           <div>
-            <span className="text-gray-400">Exercise</span><br />
-            <span className="font-semibold text-sm text-emerald-600">
-              {calories_exercise > 0 ? `-${calories_exercise.toLocaleString()}` : '0'}
-            </span>
+            <div className="text-gray-400 mb-0.5">Exercise</div>
+            {exerciseTarget > 0 ? (
+              // Show actual/target when a target is configured
+              <span className="font-semibold text-sm text-emerald-600">
+                {calories_exercise.toLocaleString()} / {exerciseTarget.toLocaleString()}
+              </span>
+            ) : (
+              <span className="font-semibold text-sm text-emerald-600">
+                {calories_exercise > 0 ? calories_exercise.toLocaleString() : '0'}
+              </span>
+            )}
           </div>
           <div>
-            <span className="text-gray-400">Budget</span><br />
+            <div className="text-gray-400 mb-0.5">Budget</div>
             <span className="font-semibold text-sm">{calorie_budget.toLocaleString()}</span>
           </div>
         </div>
@@ -122,8 +142,30 @@ export default function DailySummary({ summary }: Props) {
                 </tr>
               )
             })}
+            {/* Total row — sum of all meal budgets vs food eaten */}
+            {(() => {
+              const totalBudget = settings.breakfast_budget + settings.lunch_budget +
+                settings.dinner_budget + settings.snack_budget
+              const over = calories_food > totalBudget
+              return (
+                <tr className="border-t border-gray-100 font-semibold">
+                  <td className="pr-3 pt-1.5 pb-0.5">Total</td>
+                  <td className={`text-right pr-3 pt-1.5 pb-0.5 ${over ? 'text-red-500' : ''}`}>
+                    {calories_food.toLocaleString()}
+                  </td>
+                  <td className="text-right text-gray-500 pt-1.5 pb-0.5">{totalBudget.toLocaleString()}</td>
+                </tr>
+              )
+            })()}
           </tbody>
         </table>
+
+        {/* Estimated pace — only shown when TDEE is known from profile */}
+        {pace && (
+          <div className={`mt-2 pt-2 border-t border-gray-100 text-xs font-medium ${pace.gaining ? 'text-blue-500' : 'text-emerald-600'}`}>
+            {pace.label} Estimated
+          </div>
+        )}
       </div>
     </div>
   )

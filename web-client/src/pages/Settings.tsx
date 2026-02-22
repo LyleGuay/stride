@@ -12,25 +12,33 @@ import type { CalorieLogUserSettings } from '../api'
 // heights stored as cm (canonical); display inputs are derived from those.
 interface FormState {
   sex: string
-  age: string
+  dateOfBirth: string  // YYYY-MM-DD
   heightFt: string
   heightIn: string
   heightCm: string     // canonical storage
   weightLbs: string    // canonical storage
   weightKg: string
   activityLevel: string
+  exerciseTarget: string   // planned daily exercise burn (calories); adds to food budget
   targetWeightLbs: string  // canonical storage
   targetWeightKg: string
   targetDate: string
   units: 'us' | 'metric'
   budgetAuto: boolean
   manualBudget: string
+  // Meal budgets — auto-split from food budget (net + exercise target) when mealBudgetAuto=true
+  mealBudgetAuto: boolean
+  breakfastBudget: string
+  lunchBudget: string
+  dinnerBudget: string
+  snackBudget: string
 }
 
 interface Preview {
   bmr: number
   tdee: number
-  budget: number
+  budget: number       // net calorie target (TDEE-derived or manual)
+  foodBudget: number   // what to eat = budget + exerciseTarget
   deficit: number
   pace: number
   goalDate: Date | null  // null when not computable (e.g. no target weight set in manual mode)
@@ -42,9 +50,18 @@ interface Preview {
 // - Auto: budget derived from TDEE and goal pace toward target date
 // - Manual: budget taken from form.manualBudget; deficit/pace/goal date derived from it
 function computePreview(form: FormState): Preview | null {
-  const age = parseFloat(form.age)
   const heightCm = parseFloat(form.heightCm)
   const weightLbs = parseFloat(form.weightLbs)
+
+  // Derive age from date of birth
+  let age = NaN
+  if (form.dateOfBirth) {
+    const dob = new Date(form.dateOfBirth)
+    const today = new Date()
+    age = today.getFullYear() - dob.getFullYear()
+    const mDiff = today.getMonth() - dob.getMonth()
+    if (mDiff < 0 || (mDiff === 0 && today.getDate() < dob.getDate())) age--
+  }
 
   // BMR + TDEE required for both modes
   if (!form.sex || isNaN(age) || isNaN(heightCm) || isNaN(weightLbs) || !form.activityLevel) {
@@ -61,6 +78,10 @@ function computePreview(form: FormState): Preview | null {
   const mult = multipliers[form.activityLevel]
   if (!mult) return null
   const tdee = bmr * mult
+
+  // Exercise target adds to food budget on top of net calorie budget.
+  // foodBudget = net budget + exercise target (Formula A).
+  const exerciseTarget = parseInt(form.exerciseTarget) || 0
 
   if (!form.budgetAuto) {
     // Manual mode: budget is given; derive deficit/pace/goal date from it.
@@ -81,7 +102,11 @@ function computePreview(form: FormState): Preview | null {
         goalDate = new Date(Date.now() + weeksNeeded * 7 * 24 * 60 * 60 * 1000)
       }
     }
-    return { bmr: Math.round(bmr), tdee: Math.round(tdee), budget, deficit: Math.round(deficit), pace, goalDate }
+    return {
+      bmr: Math.round(bmr), tdee: Math.round(tdee),
+      budget, foodBudget: budget + exerciseTarget,
+      deficit: Math.round(deficit), pace, goalDate,
+    }
   }
 
   // Auto mode: derive budget from pace toward goal date.
@@ -101,10 +126,11 @@ function computePreview(form: FormState): Preview | null {
   else if (pace < -2) pace = -2
 
   const deficit = pace * 500  // negative when gaining
+  const budget = Math.round(tdee - deficit)
   return {
     bmr: Math.round(bmr), tdee: Math.round(tdee),
-    budget: Math.round(tdee - deficit), deficit: Math.round(deficit),
-    pace, goalDate: null,
+    budget, foodBudget: budget + exerciseTarget,
+    deficit: Math.round(deficit), pace, goalDate: null,
   }
 }
 
@@ -122,16 +148,18 @@ function kgToLbs(kg: number)   { return Math.round(kg * 2.20462 * 10) / 10 }
 
 /* ─── Form initialization ────────────────────────────────────────────── */
 
-function buildFormState(s: CalorieLogUserSettings): FormState {
-  let age = ''
-  if (s.date_of_birth) {
-    const dob = new Date(s.date_of_birth)
-    const today = new Date()
-    let a = today.getFullYear() - dob.getFullYear()
-    const mDiff = today.getMonth() - dob.getMonth()
-    if (mDiff < 0 || (mDiff === 0 && today.getDate() < dob.getDate())) a--
-    age = String(a)
+// autoSplitBudgets divides a total daily food budget into default per-meal allocations.
+// 20% breakfast, 20% lunch, 40% dinner, 20% snack — reflects how most people actually eat.
+function autoSplitBudgets(total: number) {
+  return {
+    breakfast: Math.round(total * 0.20),
+    lunch:     Math.round(total * 0.20),
+    dinner:    Math.round(total * 0.40),
+    snack:     Math.round(total * 0.20),
   }
+}
+
+function buildFormState(s: CalorieLogUserSettings): FormState {
   const units = s.units === 'metric' ? 'metric' : 'us'
   let heightFt = '', heightIn = '', heightCm = ''
   if (s.height_cm != null) {
@@ -147,16 +175,33 @@ function buildFormState(s: CalorieLogUserSettings): FormState {
   if (s.target_weight_lbs != null) {
     targetWeightLbs = String(s.target_weight_lbs); targetWeightKg = String(lbsToKg(s.target_weight_lbs))
   }
+
+  // Determine if meal budgets are auto-split (all equal to total/4) or custom
+  const total = s.calorie_budget
+  const autoSplit = autoSplitBudgets(total)
+  const mealBudgetAuto =
+    s.breakfast_budget === autoSplit.breakfast &&
+    s.lunch_budget === autoSplit.lunch &&
+    s.dinner_budget === autoSplit.dinner &&
+    s.snack_budget === autoSplit.snack
+
   return {
-    sex: s.sex ?? '', age,
+    sex: s.sex ?? '',
+    dateOfBirth: s.date_of_birth ?? '',
     heightFt, heightIn, heightCm,
     weightLbs, weightKg,
     activityLevel: s.activity_level ?? '',
+    exerciseTarget: s.exercise_target_calories > 0 ? String(s.exercise_target_calories) : '',
     targetWeightLbs, targetWeightKg,
     targetDate: s.target_date ?? '',
     units: units as 'us' | 'metric',
     budgetAuto: s.budget_auto,
     manualBudget: String(s.calorie_budget),
+    mealBudgetAuto,
+    breakfastBudget: String(s.breakfast_budget),
+    lunchBudget: String(s.lunch_budget),
+    dinnerBudget: String(s.dinner_budget),
+    snackBudget: String(s.snack_budget),
   }
 }
 
@@ -185,7 +230,7 @@ function SectionHeader({ children }: { children: React.ReactNode }) {
 function Row({ label, sub, children }: { label: string; sub?: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <div className="flex-shrink-0">
+      <div className="min-w-0">
         <div className="text-sm font-medium text-gray-700">{label}</div>
         {sub && <div className="text-xs text-gray-400 mt-0.5">{sub}</div>}
       </div>
@@ -234,10 +279,27 @@ export default function Settings() {
       .catch(() => setLoadError('Failed to load settings. Please refresh.'))
   }, [])
 
+  // Compute preview and effective food budget from current form state (may be null while loading).
+  const preview = form ? computePreview(form) : null
+  // Food budget = net budget + exercise target. Used for meal auto-split.
+  const effectiveFoodBudget = preview?.foodBudget ?? null
+
+  // When meal budgets are set to auto, keep them in sync with the effective food budget.
+  // Must run before conditional returns so it's not a conditional hook call.
+  useEffect(() => {
+    if (!form?.mealBudgetAuto || effectiveFoodBudget == null) return
+    const split = autoSplitBudgets(effectiveFoodBudget)
+    setForm(f => f ? { ...f,
+      breakfastBudget: String(split.breakfast),
+      lunchBudget: String(split.lunch),
+      dinnerBudget: String(split.dinner),
+      snackBudget: String(split.snack),
+    } : f)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [effectiveFoodBudget, form?.mealBudgetAuto])
+
   if (loadError) return <div className="p-6 text-red-600">{loadError}</div>
   if (!form || !settings) return <div className="p-6 text-gray-400">Loading…</div>
-
-  const preview = computePreview(form)
 
   function set<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm(f => f ? { ...f, [key]: value } : f)
@@ -311,24 +373,43 @@ export default function Settings() {
     if (!form) return
     setSaving(true); setSaveError(''); setSaved(false)
     try {
-      let dateOfBirth: string | undefined
-      const age = parseInt(form.age)
-      if (!isNaN(age)) {
-        const dob = new Date()
-        dob.setFullYear(dob.getFullYear() - age)
-        dateOfBirth = dob.toISOString().slice(0, 10)
+      const exerciseTarget = parseInt(form.exerciseTarget) || 0
+
+      // Meal auto-split uses the food budget (net + exercise target), not the net budget alone.
+      // This ensures meal targets reflect what you actually eat, not your net calorie goal.
+      const rawFoodBudget = preview?.foodBudget ?? ((parseInt(form.manualBudget) || 0) + exerciseTarget)
+      const effectiveFoodBudget = rawFoodBudget || undefined
+
+      // Derive meal budgets: auto-split from food budget, or use manual values
+      let breakfastBudget: number | undefined, lunchBudget: number | undefined
+      let dinnerBudget: number | undefined, snackBudget: number | undefined
+      if (form.mealBudgetAuto && effectiveFoodBudget) {
+        const split = autoSplitBudgets(effectiveFoodBudget)
+        breakfastBudget = split.breakfast; lunchBudget = split.lunch
+        dinnerBudget = split.dinner; snackBudget = split.snack
+      } else {
+        breakfastBudget = parseInt(form.breakfastBudget) || undefined
+        lunchBudget     = parseInt(form.lunchBudget) || undefined
+        dinnerBudget    = parseInt(form.dinnerBudget) || undefined
+        snackBudget     = parseInt(form.snackBudget) || undefined
       }
+
       const updated = await patchUserSettings({
         sex: form.sex || undefined,
-        date_of_birth: dateOfBirth,
+        date_of_birth: form.dateOfBirth || undefined,
         height_cm: parseFloat(form.heightCm) || undefined,
         weight_lbs: parseFloat(form.weightLbs) || undefined,
         activity_level: form.activityLevel || undefined,
+        exercise_target_calories: exerciseTarget,
         target_weight_lbs: parseFloat(form.targetWeightLbs) || undefined,
         target_date: form.targetDate || undefined,
         units: form.units,
         budget_auto: form.budgetAuto,
         calorie_budget: form.budgetAuto ? undefined : (parseInt(form.manualBudget) || undefined),
+        breakfast_budget: breakfastBudget,
+        lunch_budget: lunchBudget,
+        dinner_budget: dinnerBudget,
+        snack_budget: snackBudget,
       })
       setSettings(updated)
       setForm(buildFormState(updated))
@@ -370,9 +451,14 @@ export default function Settings() {
                   <div className="text-[10px] text-gray-400">cal/day (TDEE)</div>
                 </div>
                 <div className="bg-stride-50 rounded-xl p-3 text-center border border-stride-100">
-                  <div className="text-[11px] text-stride-500 mb-0.5 uppercase tracking-wide">Your Budget</div>
-                  <div className="text-xl font-bold text-stride-700">{preview.budget.toLocaleString()}</div>
-                  <div className="text-[10px] text-stride-400">cal/day</div>
+                  <div className="text-[11px] text-stride-500 mb-0.5 uppercase tracking-wide">Food Budget</div>
+                  <div className="text-xl font-bold text-stride-700">{preview.foodBudget.toLocaleString()}</div>
+                  {/* Show net separately when exercise target is set */}
+                  <div className="text-[10px] text-stride-400">
+                    {preview.foodBudget !== preview.budget
+                      ? `net ${preview.budget.toLocaleString()} + ${(preview.foodBudget - preview.budget).toLocaleString()} exercise`
+                      : 'cal/day'}
+                  </div>
                 </div>
               </div>
 
@@ -424,7 +510,7 @@ export default function Settings() {
               {showBreakdown && (
                 <div className="mt-3 pt-3 border-t border-gray-100 text-xs space-y-1.5 text-gray-500">
                   <div className="flex justify-between">
-                    <span>BMR ({form.sex}, age {form.age}, {form.heightCm} cm, {form.weightLbs} lbs)</span>
+                    <span>BMR ({form.sex}, DOB {form.dateOfBirth}, {form.heightCm} cm, {form.weightLbs} lbs)</span>
                     <span className="font-medium text-gray-700">{preview.bmr.toLocaleString()} cal</span>
                   </div>
                   <div className="flex justify-between">
@@ -448,8 +534,18 @@ export default function Settings() {
                         </span>
                       </div>
                       <div className="flex justify-between border-t border-gray-100 pt-1.5">
-                        <span className="font-semibold text-stride-700">= Daily budget</span>
-                        <span className="font-bold text-stride-700">{preview.budget.toLocaleString()} cal</span>
+                        <span className="font-semibold text-gray-600">= Net budget</span>
+                        <span className="font-bold text-gray-700">{preview.budget.toLocaleString()} cal</span>
+                      </div>
+                      {preview.foodBudget !== preview.budget && (
+                        <div className="flex justify-between">
+                          <span>+ Exercise target</span>
+                          <span className="font-medium text-gray-700">+{(preview.foodBudget - preview.budget).toLocaleString()} cal</span>
+                        </div>
+                      )}
+                      <div className="flex justify-between border-t border-gray-100 pt-1.5">
+                        <span className="font-semibold text-stride-700">= Food budget</span>
+                        <span className="font-bold text-stride-700">{preview.foodBudget.toLocaleString()} cal</span>
                       </div>
                     </>
                   ) : (
@@ -507,17 +603,13 @@ export default function Settings() {
               />
             </Row>
 
-            <Row label="Age">
-              <div className="flex items-center gap-2">
-                <input
-                  type="number" min={18} max={100}
-                  value={form.age}
-                  onChange={e => set('age', e.target.value)}
-                  placeholder="—"
-                  className={numInputCls}
-                />
-                <span className="text-sm text-gray-400">yrs</span>
-              </div>
+            <Row label="Date of birth">
+              <input
+                type="date"
+                value={form.dateOfBirth}
+                onChange={e => set('dateOfBirth', e.target.value)}
+                className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-900 bg-white cursor-pointer hover:border-gray-400 focus:outline-none focus:border-stride-500 focus:ring-2 focus:ring-stride-500/10"
+              />
             </Row>
 
             <Row label="Height">
@@ -619,6 +711,23 @@ export default function Settings() {
               )
             })}
           </div>
+
+          {/* Exercise target — daily planned workout burn. Added to food budget so
+              net calories stay on target even after logging exercise. */}
+          <div className="mt-4 pt-4 border-t border-gray-100">
+            <Row label="Daily exercise target" sub="Adds to food budget; net stays on track">
+              <div className="flex items-center gap-2">
+                <input
+                  type="number" min={0} max={2000} step={50}
+                  value={form.exerciseTarget}
+                  onChange={e => set('exerciseTarget', e.target.value)}
+                  placeholder="0"
+                  className={numInputCls}
+                />
+                <span className="text-sm text-gray-400">cal/day</span>
+              </div>
+            </Row>
+          </div>
         </section>
 
         {/* ── Weight Loss Goal ───────────────────────────────────────────── */}
@@ -714,9 +823,16 @@ export default function Settings() {
 
             {form.budgetAuto ? (
               <Row label="Computed budget">
-                <span className="text-sm font-semibold text-stride-700">
-                  {preview ? `${preview.budget.toLocaleString()} cal/day` : '—'}
-                </span>
+                <div>
+                  <span className="text-sm font-semibold text-stride-700">
+                    {preview ? `${preview.foodBudget.toLocaleString()} cal/day` : '—'}
+                  </span>
+                  {preview && preview.foodBudget !== preview.budget && (
+                    <div className="text-xs text-gray-400 mt-0.5">
+                      net {preview.budget.toLocaleString()} + {(preview.foodBudget - preview.budget).toLocaleString()} exercise
+                    </div>
+                  )}
+                </div>
               </Row>
             ) : (
               <Row label="Manual budget">
@@ -731,6 +847,92 @@ export default function Settings() {
                 </div>
               </Row>
             )}
+
+            {/* Meal budgets — can be auto-split from the total, or set manually */}
+            <div className="border-t border-gray-100 pt-4 space-y-3">
+              <Row label="Meal budgets" sub="Split your daily budget by meal">
+                <button
+                  role="switch"
+                  aria-checked={form.mealBudgetAuto}
+                  onClick={() => {
+                    const next = !form.mealBudgetAuto
+                    // When switching to auto, recalculate from current effective budget
+                    if (next) {
+                      const total = form.budgetAuto
+                        ? (preview?.budget ?? parseInt(form.manualBudget))
+                        : parseInt(form.manualBudget)
+                      if (!isNaN(total)) {
+                        const split = autoSplitBudgets(total)
+                        setForm(f => f ? { ...f,
+                          mealBudgetAuto: true,
+                          breakfastBudget: String(split.breakfast),
+                          lunchBudget: String(split.lunch),
+                          dinnerBudget: String(split.dinner),
+                          snackBudget: String(split.snack),
+                        } : f)
+                        return
+                      }
+                    }
+                    set('mealBudgetAuto', next)
+                  }}
+                  className={`relative w-10 h-[22px] rounded-full transition-colors flex-shrink-0 cursor-pointer ${
+                    form.mealBudgetAuto ? 'bg-stride-600 hover:bg-stride-700' : 'bg-gray-300 hover:bg-gray-400'
+                  }`}
+                >
+                  <span className={`absolute left-[3px] top-[3px] w-4 h-4 bg-white rounded-full shadow transition-transform duration-200 ${
+                    form.mealBudgetAuto ? 'translate-x-[18px]' : 'translate-x-0'
+                  }`} />
+                </button>
+              </Row>
+
+              {/* 4 meal inputs — read-only when auto, editable when manual */}
+              <div className="grid grid-cols-2 gap-2">
+                {([
+                  { key: 'breakfastBudget', label: 'Breakfast' },
+                  { key: 'lunchBudget',     label: 'Lunch' },
+                  { key: 'dinnerBudget',    label: 'Dinner' },
+                  { key: 'snackBudget',     label: 'Snack' },
+                ] as const).map(({ key, label }) => (
+                  <div key={key} className="bg-gray-50 rounded-xl p-3">
+                    <div className="text-[11px] text-gray-400 mb-1">{label}</div>
+                    {form.mealBudgetAuto ? (
+                      <div className="text-sm font-semibold text-gray-700">{parseInt(form[key]).toLocaleString()} cal</div>
+                    ) : (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number" min={0} max={3000}
+                          value={form[key]}
+                          onChange={e => set(key, e.target.value)}
+                          className="w-16 text-sm font-semibold text-gray-700 bg-transparent outline-none border-b border-gray-200 focus:border-stride-500 pb-0.5"
+                        />
+                        <span className="text-[11px] text-gray-400">cal</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Meal total — shows sum of all 4 budgets vs the food budget */}
+              {(() => {
+                const mealTotal = [form.breakfastBudget, form.lunchBudget, form.dinnerBudget, form.snackBudget]
+                  .reduce((sum, v) => sum + (parseInt(v) || 0), 0)
+                const foodBudget = preview?.foodBudget
+                const diff = foodBudget != null ? mealTotal - foodBudget : null
+                return (
+                  <div className="flex items-center justify-between pt-1 px-1">
+                    <span className="text-xs text-gray-400">Meal total</span>
+                    <span className={`text-sm font-semibold ${diff == null ? 'text-gray-700' : diff === 0 ? 'text-green-600' : diff > 0 ? 'text-red-500' : 'text-amber-500'}`}>
+                      {mealTotal.toLocaleString()} cal
+                      {diff != null && diff !== 0 && (
+                        <span className="text-xs font-normal ml-1">
+                          ({diff > 0 ? '+' : ''}{diff.toLocaleString()} vs food budget)
+                        </span>
+                      )}
+                    </span>
+                  </div>
+                )
+              })()}
+            </div>
 
           </div>
         </section>

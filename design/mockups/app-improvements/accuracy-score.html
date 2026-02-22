@@ -12,7 +12,7 @@ tailwind.config = {
       colors: {
         stride: {
           50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe',
-          300: '#a5b4fc', 400: '#828cf8', 500: '#6366f1',
+          300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1',
           600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81',
         }
       }
@@ -50,10 +50,10 @@ tailwind.config = {
   <div class="flex-1 flex flex-col overflow-hidden">
     <div class="bg-white border-b border-gray-200 px-6 py-3 flex items-center justify-between shrink-0">
       <h1 class="text-base font-semibold text-gray-800">Settings</h1>
-      <div class="w8 h-8 rounded-full bg-stride-100 flex items-center justify-center text-stride-700 text-sm font-semibold">L</div>
+      <div class="w-8 h-8 rounded-full bg-stride-100 flex items-center justify-center text-stride-700 text-sm font-semibold">L</div>
     </div>
 
-    <div class="flex-1 overflow-y-auto p6">
+    <div class="flex-1 overflow-y-auto p-6">
       <div class="max-w-xl mx-auto space-y-5">
 
         <!-- View toggle for mockup -->
@@ -65,10 +65,10 @@ tailwind.config = {
           <button onclick="showView('weekly')" id="btn-weekly"
             class="px-3 py-1.5 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-600">Weekly Summary</button>
           <button onclick="showView('ai')" id="btn-ai"
-            class="px-3 py-1.5 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-600">AI Scgestion</button>
+            class="px-3 py-1.5 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-600">AI Suggestion</button>
         </div>
 
-        <!-- ========== SETTIGNS VIEW ========= -->
+        <!-- ========== SETTINGS VIEW ========== -->
         <div id="view-settings" class="tab-content active space-y-4">
 
           <!-- Body metrics (condensed) -->
@@ -145,18 +145,18 @@ tailwind.config = {
                     <!-- Accuracy arc: 72% of 239 = 172; red-amber-green based on value -->
                     <circle cx="50" cy="50" r="38" fill="none" stroke="#f59e0b" stroke-width="10"
                       stroke-dasharray="239" stroke-dashoffset="124" stroke-linecap="round"
-                      transform="rotate(108 50 50)" class="gaee-ring" id="accuracy-arc"/>
+                      transform="rotate(108 50 50)" class="gauge-ring" id="accuracy-arc"/>
                   </svg>
                   <div class="absolute inset-0 flex flex-col items-center justify-center">
                     <span class="text-2xl font-bold text-gray-800" id="accuracy-pct">72%</span>
                     <span class="text-[9px] text-gray-400 uppercase tracking-wide">accuracy</span>
                   </div>
-              </div>
+                </div>
 
                 <div class="flex-1">
                   <div class="flex items-center gap-2 mb-1">
                     <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-medium rounded-full">
-                      ☦ Under-logging
+                      ⚠ Under-logging
                     </span>
                   </div>
                   <p class="text-xs text-gray-600 leading-relaxed">
@@ -168,7 +168,7 @@ tailwind.config = {
               <!-- The math -->
               <div class="bg-gray-50 rounded-lg p-3 text-xs text-gray-600 space-y-1 mb-4">
                 <div class="font-medium text-gray-700 mb-1.5">How this is calculated (last 30 days)</div>
-                <div class="flex justify-between"><span>Calorie deficit logged</span><span class="font-medium">9450 cal</span></div>
+                <div class="flex justify-between"><span>Calorie deficit logged</span><span class="font-medium">9,450 cal</span></div>
                 <div class="flex justify-between"><span>Expected weight loss</span><span class="font-medium">2.70 lbs</span></div>
                 <div class="flex justify-between"><span>Actual weight loss</span><span class="font-medium text-green-600">1.95 lbs</span></div>
                 <div class="border-t border-gray-200 pt-1 flex justify-between"><span>Accuracy</span><span class="font-semibold text-amber-600">72%</span></div>
@@ -200,7 +200,7 @@ tailwind.config = {
               </div>
 
               <div id="autocorrect-note" class="mt-2 p-2.5 bg-stride-50 rounded-lg text-[11px] text-stride-700">
-                AI suggestions will be <strong>adjusted +39%</strong> to account for your under-logging pattern. You'll see a badge on each suggestion explaining this.
+                AI suggestions will be <strong>adjusted +39%</strong> to account for your under-logging pattern. You'll see a badge on each suggestion explaining this.
               </div>
             </div>
           </div>
@@ -221,7 +221,7 @@ tailwind.config = {
                   <span class="text-[9px] text-gray-400">Nov</span>
                 </div>
                 <div class="flex flex-col items-center gap-1 flex-1">
-                  <div class= w-full bg-amber-400 rounded-t" style="height:56px" title="Dec: 72%"></div>
+                  <div class="w-full bg-amber-400 rounded-t" style="height:56px" title="Dec: 72%"></div>
                   <span class="text-[9px] text-gray-400">Dec</span>
                 </div>
                 <div class="flex flex-col items-center gap-1 flex-1">
@@ -238,7 +238,7 @@ tailwind.config = {
           </div>
         </div>
 
-        <!-- ========= DAFILR�T��U�========= -->
+        <!-- ========== DAILY VIEW ========== -->
         <div id="view-daily" class="tab-content space-y-4">
           <div class="bg-white rounded-xl border border-gray-100 p-4">
             <div class="flex items-center justify-between mb-1">
@@ -285,14 +285,14 @@ tailwind.config = {
               <p class="text-[11px] text-gray-400">30-day rolling average</p>
             </div>
             <div class="flex items-center gap-2">
-              <div class="w4 h-2 rounded-full bg-amber-400"></div>
+              <div class="w-2 h-2 rounded-full bg-amber-400"></div>
               <span class="text-sm font-bold text-amber-600">72%</span>
               <button class="text-[11px] text-gray-400 hover:text-gray-600">Details →</button>
             </div>
           </div>
         </div>
 
-        <!-- ========= WEEKLY SUMMARY ========= -->
+        <!-- ========== WEEKLY SUMMARY ========== -->
         <div id="view-weekly" class="tab-content">
           <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
             <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
@@ -317,9 +317,9 @@ tailwind.config = {
               </div>
               <!-- Accuracy indicator inline -->
               <div class="bg-amber-50 border border-amber-200 rounded-lg px-3 py-2.5 flex items-start gap-2">
-                <span class="text-amber-500 mt-0.5">☦</span>
+                <span class="text-amber-500 mt-0.5">⚠</span>
                 <div>
-                  <div class="text-xs font-medium text-amber-800">Accuracy: 72% — May be underestimating</div>
+                  <div class="text-xs font-medium text-amber-800">Accuracy: 72% — may be underestimating</div>
                   <div class="text-[11px] text-amber-700 mt-0.5">
                     Actual expected loss is closer to <strong>0.38 lbs</strong> based on your logging accuracy.
                     <a href="#" class="underline ml-1">Improve accuracy →</a>
@@ -330,7 +330,7 @@ tailwind.config = {
           </div>
         </div>
 
-        <!-- ========= AI SUGGESTION WITH ACCURACY BAGGE -->
+        <!-- ========== AI SUGGESTION WITH ACCURACY BADGE ========== -->
         <div id="view-ai" class="tab-content">
           <div class="bg-white rounded-xl border border-gray-100 overflow-hidden">
             <div class="px-4 py-3 bg-gray-50 border-b border-gray-100">
@@ -340,4 +340,151 @@ tailwind.config = {
               <div>
                 <label class="block text-xs font-medium text-gray-700 mb-1">Item name</label>
                 <input type="text" value="3 scrambled eggs with butter" readonly
-                
+                  class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-gray-50" />
+              </div>
+
+              <!-- Suggestion card with accuracy badge -->
+              <div class="border border-stride-200 bg-stride-50/50 rounded-xl p-3">
+                <div class="flex items-start justify-between gap-2 mb-2">
+                  <div class="flex items-center gap-2">
+                    <span class="text-stride-500 text-base">✦</span>
+                    <span class="text-sm font-semibold text-gray-800">Scrambled Eggs with Butter</span>
+                  </div>
+                  <span class="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-100 text-amber-700 text-[10px] font-medium rounded-full whitespace-nowrap shrink-0">
+                    ↑ Adjusted +39%
+                  </span>
+                </div>
+                <div class="text-xs text-gray-600 mb-2">3 × Each · 418 cal · 21g P · 3g C · 35g F</div>
+                <div class="text-[11px] text-amber-700 bg-amber-50 rounded-lg px-2.5 py-1.5 mb-3">
+                  AI estimated 301 cal. Adjusted upward by <strong>+39%</strong> based on your 72% logging accuracy.
+                  <button class="ml-1 underline text-amber-600">Turn off adjustment</button>
+                </div>
+                <div class="flex items-center gap-2">
+                  <button class="flex items-center gap-1.5 px-3 py-1.5 bg-stride-600 text-white text-xs font-medium rounded-lg hover:bg-stride-700">
+                    <span>✦</span> Apply
+                  </button>
+                  <button class="text-xs text-gray-400 hover:text-gray-600">Dismiss</button>
+                  <button class="text-xs text-stride-500 hover:text-stride-700 ml-auto">Use original (301 cal)</button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 gap-3">
+                <div>
+                  <label class="block text-xs font-medium text-gray-700 mb-1">Quantity</label>
+                  <input type="number" value="3" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm [appearance:textfield]" />
+                </div>
+                <div>
+                  <label class="block text-xs font-medium text-gray-700 mb-1">Unit</label>
+                  <select class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white">
+                    <option>each</option><option>g</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <label class="block text-xs font-medium text-gray-700 mb-1">Calories</label>
+                <input type="number" value="418" class="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm [appearance:textfield]" />
+              </div>
+              <button class="w-full bg-stride-600 text-white py-3 rounded-xl font-medium text-sm hover:bg-stride-700">Save Item</button>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="hidden fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-4 py-2 rounded-full shadow-lg z-50"></div>
+
+<script>
+let autocorrectOn = true;
+
+function showView(name) {
+  ['settings','daily','weekly','ai'].forEach(v => {
+    document.getElementById('view-' + v).classList.remove('active');
+    document.getElementById('btn-' + v).className = 'px-3 py-1.5 text-xs font-medium rounded-lg bg-white border border-gray-200 text-gray-600';
+  });
+  document.getElementById('view-' + name).classList.add('active');
+  document.getElementById('btn-' + name).className = 'px-3 py-1.5 text-xs font-medium rounded-lg bg-stride-600 text-white';
+}
+
+function updateAccuracy(val) {
+  const pct = parseInt(val);
+  document.getElementById('slider-label').textContent = pct + '%';
+  document.getElementById('accuracy-pct').textContent = pct + '%';
+
+  // Update arc color and dashoffset
+  const arc = document.getElementById('accuracy-arc');
+  const maxArc = 239 - 60; // usable arc
+  const filled = (pct / 120) * maxArc;
+  arc.setAttribute('stroke-dashoffset', Math.max(0, 239 - filled));
+
+  if (pct >= 90) {
+    arc.setAttribute('stroke', '#22c55e');
+  } else if (pct >= 70) {
+    arc.setAttribute('stroke', '#f59e0b');
+  } else {
+    arc.setAttribute('stroke', '#ef4444');
+  }
+
+  // Update note
+  const note = document.getElementById('autocorrect-note');
+  if (pct < 100) {
+    const adj = Math.round((1 / (pct / 100) - 1) * 100);
+    note.textContent = `AI suggestions will be adjusted +${adj}% to account for your under-logging pattern.`;
+  } else if (pct > 100) {
+    const adj = Math.round((1 - 100 / pct) * 100);
+    note.textContent = `AI suggestions will be adjusted −${adj}% to account for slight over-logging.`;
+  } else {
+    note.textContent = 'Your logging is accurate — AI suggestions will not be adjusted.';
+  }
+}
+
+function toggleAutoCorrect() {
+  autocorrectOn = !autocorrectOn;
+  const toggle = document.getElementById('autocorrect-toggle');
+  const knob = document.getElementById('autocorrect-knob');
+  const note = document.getElementById('autocorrect-note');
+  if (autocorrectOn) {
+    toggle.classList.remove('bg-gray-300');
+    toggle.classList.add('bg-stride-600');
+    knob.classList.remove('left-1');
+    knob.classList.add('right-1');
+    note.classList.remove('hidden');
+  } else {
+    toggle.classList.add('bg-gray-300');
+    toggle.classList.remove('bg-stride-600');
+    knob.classList.add('left-1');
+    knob.classList.remove('right-1');
+    note.classList.add('hidden');
+  }
+}
+
+function logWeight() {
+  showToast('Weight logged: 183.2 lbs');
+}
+
+function showWeightInput() {
+  document.getElementById('weight-input-area').classList.remove('hidden');
+}
+
+function hideWeightInput() {
+  document.getElementById('weight-input-area').classList.add('hidden');
+}
+
+function saveWeight() {
+  const val = document.getElementById('weight-val').value;
+  hideWeightInput();
+  showToast(`Weight logged: ${val} lbs`);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  setTimeout(() => t.classList.add('hidden'), 2500);
+}
+</script>
+</body>
+</html>
