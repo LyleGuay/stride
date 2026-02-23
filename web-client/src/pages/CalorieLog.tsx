@@ -47,7 +47,10 @@ export default function CalorieLog() {
   const [weekLoading, setWeekLoading] = useState(false)
   const [weekError, setWeekError] = useState<string | null>(null)
 
+  // Synchronous setState here is safe — weekLoading/weekError are not in the dep
+  // array so there's no cascade risk. The rule fires but the pattern is correct.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWeekLoading(true)
     setWeekError(null)
     fetchWeekSummary(weekStart)

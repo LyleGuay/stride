@@ -295,7 +295,6 @@ export default function Settings() {
       dinnerBudget: String(split.dinner),
       snackBudget: String(split.snack),
     } : f)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectiveFoodBudget, form?.mealBudgetAuto])
 
   if (loadError) return <div className="p-6 text-red-600">{loadError}</div>

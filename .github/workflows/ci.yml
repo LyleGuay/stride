@@ -13,6 +13,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version-file: go-api/go.mod
+      - run: cd go-api && go vet ./...
       - run: cd go-api && go test ./...
 
   web-test:
@@ -25,7 +26,7 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: web-client/package-lock.json
-      - run: cd web-client && npm ci && npm test
+      - run: cd web-client && npm ci && npm run lint && npm test
 
   e2e:
     name: E2E tests

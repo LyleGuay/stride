@@ -28,9 +28,9 @@ test.describe('Authentication', () => {
     await page.fill('#password', 'wrong-password')
     await page.click('button[type="submit"]')
 
-    // Should remain on login and show error
-    await page.waitForURL('**/login')
+    // No waitForURL needed: a failed login never navigates away from /login.
     await expect(page.getByText('Invalid username or password')).toBeVisible()
+    expect(page.url()).toContain('/login')
   })
 
   test('unauthenticated access to /calorie-log redirects to /login', async ({ page }) => {

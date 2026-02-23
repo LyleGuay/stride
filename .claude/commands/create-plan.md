@@ -62,3 +62,8 @@ Write a `{name}-plan.md` file to the `plan/` directory with this structure:
 - Do not include generic steps like "write tests" or "add error handling" as standalone tasks — fold them into the task they belong to.
 - Be specific. "Update the handler" is bad. "Add a `POST /api/calories` route to `go-api/main.go` that inserts a calorie log item" is good.
 - If a task requires a new file, say so and suggest the path.
+- **Every feature or bug fix must include tests.** Explicitly scope out what tests are needed and include them as tasks in the same phase as the code they cover — not a separate phase at the end. Use the right layer:
+  - Go unit tests for pure functions and business logic (e.g. `tdee_test.go`)
+  - Vitest tests for web-client hooks and utilities (e.g. `useDailySummary.test.ts`)
+  - Vitest component tests for components with non-trivial logic — form validation, mode switching, keyboard navigation, computed display thresholds. Skip purely presentational components.
+  - Playwright E2E tests for new critical user flows (e.g. a new page or primary action)

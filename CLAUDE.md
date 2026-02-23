@@ -98,6 +98,7 @@ This is not optional. Outdated docs actively mislead, so treat doc updates as pa
 - Run the relevant linter/typecheck after making changes. Fix issues before moving on.
 - Run relevant tests after changes. Do not mark work as done if tests fail.
 - Do not modify test expectations to make tests pass unless the test was wrong. If a test fails, fix the code.
+- **Every feature or bug fix should include corresponding tests.** When building a plan, explicitly scope out what tests are needed — Go unit tests for pure logic, Vitest tests for hooks/utilities, E2E tests for new critical user flows. Test tasks belong in the same phase as the code they cover, not a separate phase at the end.
 
 ## Testing Strategy
 
@@ -125,10 +126,11 @@ Coverage percentage is not a goal. A test is worth writing if it would catch a r
 
 **What to test:**
 - Pure utility functions: date helpers (`today`, `getMondayOf`, `shiftWeek`), any extracted business logic (TDEE equivalent in Settings).
-- Custom hooks once extracted (e.g. `useDailySummary`): does it set loading correctly, handle errors, refetch on date change?
-- Complex component logic where bugs are non-obvious: form validation, inline edit keyboard navigation.
+- Custom hooks (e.g. `useDailySummary`): does it set loading correctly, handle errors, refetch on date change?
+- Components with non-trivial logic where bugs are non-obvious and faster to catch than via E2E. Good candidates: form validation, create vs edit mode behaviour, type/unit relationships (`AddItemSheet`), keyboard navigation (`InlineAddRow`), computed display logic like budget bar thresholds (`DailySummary`). Ask: *"Could this component behave incorrectly in a way that's hard to spot manually?"* If yes, write a component test.
 
 **What to skip:**
+- Purely presentational components — if it just renders props into JSX, E2E covers what matters.
 - Snapshot tests — high maintenance, low signal.
 - Tests that only verify a component renders without crashing.
 - Tests that verify CSS classes or visual appearance.
@@ -148,6 +150,10 @@ When introducing tests to an existing codebase:
 1. Write E2E tests first — they become the safety net for structural refactoring.
 2. Do structural refactoring (extract utilities, lift data fetching, split files).
 3. Add unit/hook tests for the newly extracted, well-shaped code.
+
+## Linear
+
+All Linear issues must be added to the **Stride** project (`939cc8a9-92ac-4ece-917a-82dbb67c3ada`). When creating issues, always pass `project: "Stride"` or the project ID.
 
 ## Communication
 

@@ -2,10 +2,12 @@
 // Checks the migrations table to skip already-applied files.
 // Wraps each migration + record insert in a single transaction.
 // Usage: go run ./cmd/migrate (from go-api/)
+// DB_URL is read from .env if present, otherwise from the environment.
 package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -18,7 +20,8 @@ import (
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
+	// Load .env if it exists; missing file is fine (CI injects env vars directly).
+	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
 		fmt.Fprintf(os.Stderr, "Error loading .env: %v\n", err)
 		os.Exit(1)
 	}

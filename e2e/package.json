@@ -6,15 +6,18 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "playwright test",
-    "test:ui": "playwright test --ui",
-    "test:headed": "playwright test --headed"
+    "db:up": "docker compose -f ../docker-compose.test.yml up -d --wait",
+    "db:down": "docker compose -f ../docker-compose.test.yml down -v",
+    "test": "npm run db:up && playwright test; npm run db:down",
+    "test:ui": "npm run db:up && playwright test --ui; npm run db:down",
+    "test:headed": "npm run db:up && playwright test --headed; npm run db:down"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "description": "",
   "devDependencies": {
-    "@playwright/test": "^1.58.2"
+    "@playwright/test": "^1.58.2",
+    "@types/node": "^25.3.0"
   }
 }

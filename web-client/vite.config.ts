@@ -8,7 +8,9 @@ export default defineConfig({
   server: {
     proxy: {
       '/api': {
-        target: 'http://localhost:3000',
+        // API_PORT can be overridden by E2E tests to point at the test go-api
+        // running on a separate port, avoiding reuse of a local dev server.
+        target: `http://localhost:${process.env.API_PORT ?? '3000'}`,
         changeOrigin: true,
       },
     },

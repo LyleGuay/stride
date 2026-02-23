@@ -1,1 +1,7 @@
 .env
+
+# Compiled binaries (go build / go run artifacts)
+migrate
+create-user
+stride-api
+daily-habit-go-api

@@ -2,6 +2,10 @@ import { defineConfig, devices } from '@playwright/test'
 
 const TEST_DB_URL = 'postgresql://stride:stride@localhost:5433/stride_test'
 
+// Use a dedicated port for the test go-api so it never conflicts with or reuses
+// a local dev server on 3000 (which would point at the wrong database).
+const TEST_API_PORT = '3099'
+
 export default defineConfig({
   testDir: './tests',
   globalSetup: './global-setup.ts',
@@ -13,19 +17,19 @@ export default defineConfig({
     // Solo app — chromium only for now
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
-  // Start both the Go API (with test DB) and the Vite dev server before running tests.
-  // Vite's existing /api proxy points to localhost:3000 where the test API runs.
   webServer: [
     {
-      command: `DB_URL=${TEST_DB_URL} go run .`,
+      // Run go-api on TEST_API_PORT with the test DB — separate from any dev server.
+      command: `PORT=${TEST_API_PORT} DB_URL=${TEST_DB_URL} go run .`,
       cwd: '../go-api',
-      url: 'http://localhost:3000',
+      url: `http://localhost:${TEST_API_PORT}`,
       reuseExistingServer: !process.env.CI,
       timeout: 60_000,
     },
     {
-      // Alternate port so E2E tests don't clash with a running dev server on 5173
-      command: 'npm run dev -- --port 5174',
+      // Alternate port so E2E tests don't clash with a running dev server on 5173.
+      // API_PORT tells Vite's proxy to forward /api to the test go-api port.
+      command: `API_PORT=${TEST_API_PORT} npm run dev -- --port 5174`,
       cwd: '../web-client',
       url: 'http://localhost:5174',
       reuseExistingServer: !process.env.CI,

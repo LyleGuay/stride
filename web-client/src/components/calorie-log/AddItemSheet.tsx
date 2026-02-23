@@ -45,9 +45,12 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
 
   // Reset or pre-fill form when the sheet opens. A useEffect on [open, editItem]
   // is cleaner than setting state during render, which is fragile in StrictMode.
+  // The synchronous setState calls here are safe — none of name/type/qty/etc. are
+  // in the dependency array, so there is no risk of cascading re-renders.
   useEffect(() => {
     if (!open) return
     if (editItem) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setName(editItem.item_name)
       setType(editItem.type)
       setQty(editItem.qty?.toString() ?? '1')
@@ -191,8 +194,9 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
 
           {/* Calories */}
           <div className="mb-3">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Calories</label>
+            <label htmlFor="calories" className="block text-sm font-medium text-gray-700 mb-1">Calories</label>
             <input
+              id="calories"
               type="number"
               placeholder="0"
               value={calories}

@@ -19,14 +19,13 @@ export default async function globalSetup() {
   })
 
   console.log('[e2e setup] Creating e2e test user...')
-  // Pipe username, email, password to the interactive create-user CLI.
-  // Ignore errors — user may already exist from a prior run.
+  // Pass credentials as flags to avoid interactive stdin. Ignore errors — user
+  // may already exist from a prior run.
   try {
-    execSync('go run ./cmd/create-user', {
+    execSync('go run ./cmd/create-user --username e2e_user --email e2e@test.com --password password123', {
       cwd: GO_API_DIR,
       env,
-      input: 'e2e_user\ne2e@test.com\npassword123\n',
-      stdio: ['pipe', 'inherit', 'pipe'],
+      stdio: 'inherit',
     })
   } catch {
     console.log('[e2e setup] User already exists or creation skipped.')

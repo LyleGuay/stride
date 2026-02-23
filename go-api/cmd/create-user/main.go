@@ -1,10 +1,17 @@
 // CLI tool to create a user with bcrypt-hashed password and default calorie log settings.
 // Usage: go run ./cmd/create-user (from go-api/)
+//
+// Fields can be supplied as flags or entered interactively:
+//   --username, --email, --password
+//
+// DB_URL is read from .env if present, otherwise from the environment.
 package main
 
 import (
 	"bufio"
 	"context"
+	"errors"
+	"flag"
 	"fmt"
 	"os"
 	"strings"
@@ -16,10 +23,18 @@ import (
 )
 
 func main() {
-	if err := godotenv.Load(); err != nil {
+	// Load .env if it exists; missing file is fine (CI injects env vars directly).
+	if err := godotenv.Load(); err != nil && !errors.Is(err, os.ErrNotExist) {
 		fmt.Fprintf(os.Stderr, "Error loading .env file: %v\n", err)
 		os.Exit(1)
 	}
+
+	// Flags allow non-interactive use (e.g. CI, global-setup.ts).
+	var flagUsername, flagEmail, flagPassword string
+	flag.StringVar(&flagUsername, "username", "", "Username")
+	flag.StringVar(&flagEmail, "email", "", "Email")
+	flag.StringVar(&flagPassword, "password", "", "Password")
+	flag.Parse()
 
 	conn, err := pgx.Connect(context.Background(), os.Getenv("DB_URL"))
 	if err != nil {
@@ -30,29 +45,39 @@ func main() {
 
 	reader := bufio.NewReader(os.Stdin)
 
-	fmt.Print("Username: ")
-	username, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading username: %v\n", err)
-		os.Exit(1)
+	// Prompt for any fields not supplied via flags.
+	username := flagUsername
+	if username == "" {
+		fmt.Print("Username: ")
+		username, err = reader.ReadString('\n')
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading username: %v\n", err)
+			os.Exit(1)
+		}
+		username = strings.TrimSpace(username)
 	}
-	username = strings.TrimSpace(username)
 
-	fmt.Print("Email: ")
-	email, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading email: %v\n", err)
-		os.Exit(1)
+	email := flagEmail
+	if email == "" {
+		fmt.Print("Email: ")
+		email, err = reader.ReadString('\n')
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading email: %v\n", err)
+			os.Exit(1)
+		}
+		email = strings.TrimSpace(email)
 	}
-	email = strings.TrimSpace(email)
 
-	fmt.Print("Password: ")
-	password, err := reader.ReadString('\n')
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error reading password: %v\n", err)
-		os.Exit(1)
+	password := flagPassword
+	if password == "" {
+		fmt.Print("Password: ")
+		password, err = reader.ReadString('\n')
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error reading password: %v\n", err)
+			os.Exit(1)
+		}
+		password = strings.TrimSpace(password)
 	}
-	password = strings.TrimSpace(password)
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {

@@ -12,7 +12,9 @@ function getToken(): string | null {
 
 // request is the base fetch wrapper. Attaches Bearer token, handles 401
 // by clearing the token and redirecting to login, and extracts error messages.
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+// Pass redirect401: false to suppress the redirect (e.g. the login endpoint
+// itself returns 401 for bad credentials — the caller handles that).
+async function request<T>(path: string, options: RequestInit = {}, redirect401 = true): Promise<T> {
   const token = getToken()
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -23,8 +25,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const res = await fetch(path, { ...options, headers })
 
   if (res.status === 401) {
-    localStorage.removeItem('token')
-    window.location.href = '/login'
+    if (redirect401) {
+      localStorage.removeItem('token')
+      window.location.href = '/login'
+    }
     throw new Error('Unauthorized')
   }
 
@@ -37,12 +41,13 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   return res.json()
 }
 
-// Auth
+// Auth — pass redirect401=false so a 401 (wrong password) throws instead of
+// redirecting, allowing Login.tsx to display the error message.
 export function login(username: string, password: string) {
   return request<{ token: string; user_id: number }>('/api/login', {
     method: 'POST',
     body: JSON.stringify({ username, password }),
-  })
+  }, false)
 }
 
 /* ─── API functions ───────────────────────────────────────────────── */
