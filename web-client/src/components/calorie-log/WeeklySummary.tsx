@@ -2,56 +2,19 @@
 // Shows a week navigator, aggregate stats cards, a net-calories SVG bar chart,
 // an estimated weight impact card, and a scrollable day summaries table.
 // Clicking a table row navigates to that day in the Daily tab via onNavigateToDay.
+// Data is fetched by the parent (CalorieLog) and passed as props.
 
-import { useState, useEffect, useReducer } from 'react'
-import { fetchWeekSummary, type WeekDaySummary } from '../../api'
+import { useState } from 'react'
+import type { WeekDaySummary } from '../../types'
+import { todayString, getMondayOf, shiftWeek, formatWeekRange, dayLabel, dayNumber } from '../../utils/dates'
 
 interface WeeklySummaryProps {
+  days: WeekDaySummary[]
+  loading: boolean
+  error: string | null
+  weekStart: string
+  onWeekChange: (weekStart: string) => void
   onNavigateToDay: (date: string) => void
-}
-
-/* ─── Date helpers ─────────────────────────────────────────────────── */
-
-// todayStr returns today's date as "YYYY-MM-DD" in local time.
-// Avoids toISOString() which returns UTC and can shift the date for users east of UTC.
-function todayStr(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-// getMondayOf returns the Monday of the week containing the given YYYY-MM-DD date.
-function getMondayOf(date: string): string {
-  const d = new Date(date + 'T00:00:00')
-  const day = d.getDay() // 0=Sun, 1=Mon, ..., 6=Sat
-  const diff = day === 0 ? -6 : 1 - day
-  d.setDate(d.getDate() + diff)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-// shiftWeek returns a Monday YYYY-MM-DD shifted by offsetWeeks (±).
-function shiftWeek(mondayStr: string, offsetWeeks: number): string {
-  const d = new Date(mondayStr + 'T00:00:00')
-  d.setDate(d.getDate() + offsetWeeks * 7)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-// formatWeekRange formats "Feb 9 – Feb 15" from a Monday YYYY-MM-DD string.
-function formatWeekRange(mondayStr: string): string {
-  const start = new Date(mondayStr + 'T00:00:00')
-  const end = new Date(mondayStr + 'T00:00:00')
-  end.setDate(start.getDate() + 6)
-  const fmt = (d: Date) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
-  return `${fmt(start)} – ${fmt(end)}`
-}
-
-// dayLabel returns the 3-letter weekday abbreviation for a YYYY-MM-DD string.
-function dayLabel(dateStr: string): string {
-  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })
-}
-
-// dayNumber returns the day-of-month number for a YYYY-MM-DD string.
-function dayNumber(dateStr: string): number {
-  return new Date(dateStr + 'T00:00:00').getDate()
 }
 
 /* ─── SVG chart layout constants ───────────────────────────────────── */
@@ -73,41 +36,11 @@ const barX = (i: number) => X_START + i * SLOT_W + (SLOT_W - BAR_W) / 2
 // slotCenter returns the center x of slot i for labels and tooltips.
 const slotCenter = (i: number) => X_START + (i + 0.5) * SLOT_W
 
-/* ─── Fetch state reducer ───────────────────────────────────────────── */
+export default function WeeklySummary({ days, loading, error, weekStart, onWeekChange, onNavigateToDay }: WeeklySummaryProps) {
+  const [tooltipIdx, setTooltipIdx] = useState(-1)
 
-// Batches loading/error/days/tooltip into one reducer so a single dispatch()
-// call in the useEffect body satisfies react-hooks/set-state-in-effect.
-type FetchState = { days: WeekDaySummary[]; loading: boolean; error: string | null; tooltipIdx: number }
-type FetchAction =
-  | { type: 'fetch_start' }
-  | { type: 'fetch_success'; days: WeekDaySummary[] }
-  | { type: 'fetch_error'; error: string }
-  | { type: 'tooltip'; idx: number }
-
-function fetchReducer(state: FetchState, action: FetchAction): FetchState {
-  switch (action.type) {
-    case 'fetch_start':   return { ...state, loading: true, error: null, tooltipIdx: -1 }
-    case 'fetch_success': return { ...state, loading: false, days: action.days }
-    case 'fetch_error':   return { ...state, loading: false, error: action.error }
-    case 'tooltip':       return { ...state, tooltipIdx: action.idx }
-  }
-}
-
-export default function WeeklySummary({ onNavigateToDay }: WeeklySummaryProps) {
-  const [weekStart, setWeekStart] = useState(() => getMondayOf(todayStr()))
-  const [{ days, loading, error, tooltipIdx }, dispatch] = useReducer(fetchReducer, {
-    days: [], loading: true, error: null, tooltipIdx: -1,
-  })
-
-  const currentWeekStart = getMondayOf(todayStr())
+  const currentWeekStart = getMondayOf(todayString())
   const isCurrentWeek = weekStart === currentWeekStart
-
-  useEffect(() => {
-    dispatch({ type: 'fetch_start' })
-    fetchWeekSummary(weekStart)
-      .then(days => dispatch({ type: 'fetch_success', days }))
-      .catch(e => dispatch({ type: 'fetch_error', error: e.message }))
-  }, [weekStart])
 
   /* ─── Aggregate stats (only over days that have data) ─────────────── */
 
@@ -153,7 +86,7 @@ export default function WeeklySummary({ onNavigateToDay }: WeeklySummaryProps) {
       {/* ── Week navigator ─────────────────────────────────────────────── */}
       <div className="flex items-center justify-between mb-4">
         <button
-          onClick={() => setWeekStart(s => shiftWeek(s, -1))}
+          onClick={() => onWeekChange(shiftWeek(weekStart, -1))}
           className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 active:bg-gray-200"
           aria-label="Previous week"
         >
@@ -169,7 +102,7 @@ export default function WeeklySummary({ onNavigateToDay }: WeeklySummaryProps) {
           }
         </div>
         <button
-          onClick={() => setWeekStart(s => shiftWeek(s, 1))}
+          onClick={() => onWeekChange(shiftWeek(weekStart, 1))}
           disabled={isCurrentWeek}
           className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 active:bg-gray-200 disabled:text-gray-200 disabled:cursor-not-allowed"
           aria-label="Next week"
@@ -192,7 +125,7 @@ export default function WeeklySummary({ onNavigateToDay }: WeeklySummaryProps) {
         <div className="text-center py-8 text-red-500 text-sm">
           <p>Failed to load summary data</p>
           <button
-            onClick={() => setWeekStart(w => shiftWeek(shiftWeek(w, 1), -1))}
+            onClick={() => onWeekChange(shiftWeek(shiftWeek(weekStart, 1), -1))}
             className="mt-2 underline text-xs"
           >
             Retry
@@ -241,7 +174,7 @@ export default function WeeklySummary({ onNavigateToDay }: WeeklySummaryProps) {
                 viewBox={`0 0 430 ${VB_H}`}
                 className="w-full"
                 style={{ minWidth: 300 }}
-                onClick={() => dispatch({ type: 'tooltip', idx: -1 })}
+                onClick={() => setTooltipIdx(-1)}
               >
                 {/* Horizontal grid lines */}
                 {gridSteps.map(({ y, label }) => (
@@ -269,8 +202,8 @@ export default function WeeklySummary({ onNavigateToDay }: WeeklySummaryProps) {
 
                 {/* Bars + day labels */}
                 {days.map((day, i) => {
-                  const isToday = day.date === todayStr()
-                  const isFuture = day.date > todayStr()
+                  const isToday = day.date === todayString()
+                  const isFuture = day.date > todayString()
                   const cx = slotCenter(i)
                   const bx = barX(i)
 
@@ -283,7 +216,7 @@ export default function WeeklySummary({ onNavigateToDay }: WeeklySummaryProps) {
                   const labelColor = isFuture ? '#d1d5db' : isToday ? '#2563eb' : '#6b7280'
 
                   return (
-                    <g key={day.date} onClick={e => { e.stopPropagation(); dispatch({ type: 'tooltip', idx: i === tooltipIdx ? -1 : i }) }}>
+                    <g key={day.date} onClick={e => { e.stopPropagation(); setTooltipIdx(i === tooltipIdx ? -1 : i) }}>
                       <rect
                         x={bx} y={barTop} width={BAR_W} height={barHeight}
                         fill={fill} rx={3} opacity={0.85}
@@ -444,8 +377,8 @@ export default function WeeklySummary({ onNavigateToDay }: WeeklySummaryProps) {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {days.map(day => {
-                    const isToday  = day.date === todayStr()
-                    const isFuture = day.date > todayStr()
+                    const isToday  = day.date === todayString()
+                    const isFuture = day.date > todayString()
                     const stickyBg = isToday ? 'bg-blue-50/40' : 'bg-white'
 
                     return (

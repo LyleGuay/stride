@@ -45,7 +45,10 @@ func main() {
 	if err == nil {
 		for rows.Next() {
 			var name string
-			rows.Scan(&name)
+			if err := rows.Scan(&name); err != nil {
+				fmt.Fprintf(os.Stderr, "Error scanning migration row: %v\n", err)
+				os.Exit(1)
+			}
 			applied[name] = true
 		}
 		rows.Close()

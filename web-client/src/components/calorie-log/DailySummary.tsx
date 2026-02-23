@@ -8,8 +8,8 @@ interface Props {
 }
 
 // Compute per-meal calorie totals from items.
-function mealCalories(items: CalorieLogItem[]): Record<string, number> {
-  const totals: Record<string, number> = {
+function mealCalories(items: CalorieLogItem[]): Record<CalorieLogItem['type'], number> {
+  const totals: Record<CalorieLogItem['type'], number> = {
     breakfast: 0, lunch: 0, dinner: 0, snack: 0, exercise: 0,
   }
   for (const item of items) {

@@ -5,9 +5,8 @@
 // Enter submits, Escape cancels.
 
 import { useState, useRef, useEffect } from 'react'
+import { ALL_UNITS, EXERCISE_UNITS } from '../../constants'
 
-const ALL_UNITS = ['each', 'g', 'miles', 'km', 'minutes'] as const
-const EXERCISE_UNITS = ['each', 'minutes', 'miles', 'km'] as const
 const UNIT_LABELS: Record<string, string> = {
   each: 'Each', g: 'g', miles: 'Miles', km: 'km', minutes: 'Minutes',
 }

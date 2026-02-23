@@ -31,15 +31,27 @@ func main() {
 	reader := bufio.NewReader(os.Stdin)
 
 	fmt.Print("Username: ")
-	username, _ := reader.ReadString('\n')
+	username, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading username: %v\n", err)
+		os.Exit(1)
+	}
 	username = strings.TrimSpace(username)
 
 	fmt.Print("Email: ")
-	email, _ := reader.ReadString('\n')
+	email, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading email: %v\n", err)
+		os.Exit(1)
+	}
 	email = strings.TrimSpace(email)
 
 	fmt.Print("Password: ")
-	password, _ := reader.ReadString('\n')
+	password, err := reader.ReadString('\n')
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error reading password: %v\n", err)
+		os.Exit(1)
+	}
 	password = strings.TrimSpace(password)
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)

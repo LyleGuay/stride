@@ -3,12 +3,11 @@
 // with scale-in animation. Supports "Log Item" (create) and "Edit Item"
 // (pre-filled) modes. Type selector uses segmented buttons.
 
-import { useState, type FormEvent } from 'react'
+import { useState, useEffect, type FormEvent } from 'react'
 import type { CalorieLogItem } from '../../api'
+import { ALL_UNITS, EXERCISE_UNITS } from '../../constants'
 
 const TYPES = ['breakfast', 'lunch', 'dinner', 'snack', 'exercise'] as const
-const ALL_UNITS = ['each', 'g', 'miles', 'km', 'minutes'] as const
-const EXERCISE_UNITS = ['each', 'minutes', 'miles', 'km'] as const
 
 // Unit display labels (DB stores lowercase).
 const UNIT_LABELS: Record<string, string> = {
@@ -43,12 +42,11 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
   const [protein, setProtein] = useState('')
   const [carbs, setCarbs] = useState('')
   const [fat, setFat] = useState('')
-  const [prevOpen, setPrevOpen] = useState(false)
 
-  // Reset or pre-fill form when the sheet transitions from closed to open.
-  // Uses the "adjust state during render" pattern instead of useEffect.
-  if (open && !prevOpen) {
-    setPrevOpen(true)
+  // Reset or pre-fill form when the sheet opens. A useEffect on [open, editItem]
+  // is cleaner than setting state during render, which is fragile in StrictMode.
+  useEffect(() => {
+    if (!open) return
     if (editItem) {
       setName(editItem.item_name)
       setType(editItem.type)
@@ -68,10 +66,7 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
       setCarbs('')
       setFat('')
     }
-  }
-  if (!open && prevOpen) {
-    setPrevOpen(false)
-  }
+  }, [open, editItem, defaultType])
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()

@@ -99,6 +99,56 @@ This is not optional. Outdated docs actively mislead, so treat doc updates as pa
 - Run relevant tests after changes. Do not mark work as done if tests fail.
 - Do not modify test expectations to make tests pass unless the test was wrong. If a test fails, fix the code.
 
+## Testing Strategy
+
+### Philosophy
+
+Coverage percentage is not a goal. A test is worth writing if it would catch a real bug or if breaking the logic would break the test. If renaming a variable causes a test to fail, that test is testing implementation — it should be deleted.
+
+**Test behaviour, not implementation.** Before writing a test, ask: *"Could this code be wrong in a way that's non-obvious and hard to spot manually?"* Pure business logic with real edge cases — yes. A component rendering without crashing — no.
+
+### Go API (`go-api/`)
+
+**Tools:** Go's built-in `testing` package. No third-party test framework.
+
+**What to test:**
+- Pure functions with meaningful logic: `computeTDEE`, `currentMonday`, any extracted validation helpers. These have clear inputs/outputs and real edge cases.
+- Handler integration tests (when written): use `net/http/httptest` against a real test PostgreSQL database, not mocks. Tests the real SQL, catches constraint violations.
+
+**What to skip:**
+- Handlers that are a straight pass-through to the DB — that's testing pgx and PostgreSQL, not our code.
+- Anything that would only fail if a library is broken.
+
+### Web Client (`web-client/`)
+
+**Tools:** Vitest (Vite-native, fast). `@testing-library/react` with `renderHook` for hooks. `msw` (Mock Service Worker) for mocking network calls in hook tests — intercepts at the network level so real hook logic runs.
+
+**What to test:**
+- Pure utility functions: date helpers (`today`, `getMondayOf`, `shiftWeek`), any extracted business logic (TDEE equivalent in Settings).
+- Custom hooks once extracted (e.g. `useDailySummary`): does it set loading correctly, handle errors, refetch on date change?
+- Complex component logic where bugs are non-obvious: form validation, inline edit keyboard navigation.
+
+**What to skip:**
+- Snapshot tests — high maintenance, low signal.
+- Tests that only verify a component renders without crashing.
+- Tests that verify CSS classes or visual appearance.
+
+### E2E (`playwright`)
+
+Covers critical user flows only — happy paths that verify the app works end-to-end with a real browser, real API, and real database. Not for edge cases (unit tests cover those).
+
+**Flows worth covering:**
+- Login → add an item → verify totals update
+- Edit an item inline → verify change persists on reload
+- Settings save → verify calorie budget updates
+
+### CI Order of Operations
+
+When introducing tests to an existing codebase:
+1. Write E2E tests first — they become the safety net for structural refactoring.
+2. Do structural refactoring (extract utilities, lift data fetching, split files).
+3. Add unit/hook tests for the newly extracted, well-shaped code.
+
 ## Communication
 
 - When starting a task, briefly state your approach before writing code.

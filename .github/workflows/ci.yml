@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  go-test:
+    name: Go unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go-api/go.mod
+      - run: cd go-api && go test ./...
+
+  web-test:
+    name: Web unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web-client/package-lock.json
+      - run: cd web-client && npm ci && npm test
+
+  e2e:
+    name: E2E tests
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: stride_test
+          POSTGRES_USER: stride
+          POSTGRES_PASSWORD: stride
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 2s
+          --health-retries 10
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go-api/go.mod
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: |
+            web-client/package-lock.json
+            e2e/package-lock.json
+
+      - name: Install web-client dependencies
+        run: cd web-client && npm ci
+
+      - name: Install e2e dependencies + Playwright browsers
+        run: cd e2e && npm ci && npx playwright install chromium --with-deps
+
+      - name: Run Playwright tests
+        run: cd e2e && npx playwright test
+        env:
+          CI: true
+          DB_URL: postgresql://stride:stride@localhost:5433/stride_test
+
+      - name: Upload Playwright report on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: e2e/playwright-report/
+          retention-days: 7

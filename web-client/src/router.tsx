@@ -7,13 +7,7 @@ import CalorieLog from './pages/CalorieLog'
 import Habits from './pages/Habits'
 import Login from './pages/Login'
 import Settings from './pages/Settings'
-
-// RequireAuth redirects to /login if no auth token is present.
-function RequireAuth({ children }: { children: React.ReactNode }) {
-  const token = localStorage.getItem('token')
-  if (!token) return <Navigate to="/login" replace />
-  return children
-}
+import RequireAuth from './components/RequireAuth'
 
 export default function Router() {
   return (

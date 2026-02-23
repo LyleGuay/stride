@@ -5,11 +5,14 @@
 // inline editing, and context menu actions (edit in modal, duplicate, delete).
 // Weekly tab: renders WeeklySummary; row clicks switch back to Daily for that date.
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import {
-  fetchDailySummary, createCalorieLogItem, updateCalorieLogItem, deleteCalorieLogItem,
-  type DailySummary as DailySummaryData, type CalorieLogItem,
+  fetchWeekSummary, createCalorieLogItem, updateCalorieLogItem, deleteCalorieLogItem,
+  type WeekDaySummary, type CalorieLogItem,
 } from '../api'
+import { useDailySummary } from '../hooks/useDailySummary'
+import { todayString, getMondayOf } from '../utils/dates'
+import { ITEM_TYPES } from '../constants'
 import DateHeader from '../components/calorie-log/DateHeader'
 import DailySummary from '../components/calorie-log/DailySummary'
 import ItemTable from '../components/calorie-log/ItemTable'
@@ -18,21 +21,12 @@ import FloatingActionButton from '../components/calorie-log/FloatingActionButton
 import ContextMenu from '../components/calorie-log/ContextMenu'
 import WeeklySummary from '../components/calorie-log/WeeklySummary'
 
-// Returns today's date as a YYYY-MM-DD string in local time.
-// Intentionally avoids toISOString() which returns UTC and would show the
-// wrong date for users east of UTC after midnight.
-function today(): string {
-  const d = new Date()
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
 export default function CalorieLog() {
   // Active tab — Daily shows the per-day log; Weekly shows the summary view.
   const [tab, setTab] = useState<'daily' | 'weekly'>('daily')
 
-  const [date, setDate] = useState(today)
-  const [summary, setSummary] = useState<DailySummaryData | null>(null)
-  const [loading, setLoading] = useState(true)
+  const [date, setDate] = useState(todayString)
+  const { summary, loading, reload: loadSummary } = useDailySummary(date)
   const [error, setError] = useState('')
 
   // Bottom sheet state
@@ -47,21 +41,19 @@ export default function CalorieLog() {
     y: number
   } | null>(null)
 
-  // Fetch the daily summary whenever the date changes.
-  const loadSummary = useCallback(async () => {
-    setLoading(true)
-    setError('')
-    try {
-      const data = await fetchDailySummary(date)
-      setSummary(data)
-    } catch {
-      setError('Failed to load data')
-    } finally {
-      setLoading(false)
-    }
-  }, [date])
+  // Week data — fetched here so WeeklySummary can be a pure presentational component
+  const [weekStart, setWeekStart] = useState(() => getMondayOf(todayString()))
+  const [weekData, setWeekData] = useState<WeekDaySummary[]>([])
+  const [weekLoading, setWeekLoading] = useState(false)
+  const [weekError, setWeekError] = useState<string | null>(null)
 
-  useEffect(() => { loadSummary() }, [loadSummary])
+  useEffect(() => {
+    setWeekLoading(true)
+    setWeekError(null)
+    fetchWeekSummary(weekStart)
+      .then(data => { setWeekData(data); setWeekLoading(false) })
+      .catch((e: Error) => { setWeekError(e.message); setWeekLoading(false) })
+  }, [weekStart])
 
   /* ─── Item creation (inline add + bottom sheet) ────────────────────── */
 
@@ -70,6 +62,11 @@ export default function CalorieLog() {
     name: string; qty: number | null; uom: string | null; calories: number
     protein_g: number | null; carbs_g: number | null; fat_g: number | null
   }) => {
+    // Validate type to prevent silent cast of invalid values to the union type.
+    if (!ITEM_TYPES.includes(type as CalorieLogItem['type'])) {
+      setError('Invalid item type')
+      return
+    }
     try {
       await createCalorieLogItem({
         date, item_name: fields.name, type: type as CalorieLogItem['type'],
@@ -199,6 +196,11 @@ export default function CalorieLog() {
       {/* ── Weekly tab ─────────────────────────────────────────────────── */}
       {tab === 'weekly' && (
         <WeeklySummary
+          days={weekData}
+          loading={weekLoading}
+          error={weekError}
+          weekStart={weekStart}
+          onWeekChange={setWeekStart}
           onNavigateToDay={d => { setDate(d); setTab('daily') }}
         />
       )}
