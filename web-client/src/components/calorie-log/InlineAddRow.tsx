@@ -47,8 +47,9 @@ export default function InlineAddRow({ mealType, isOpen, onOpen, onClose, onAdd 
   const [fat, setFat] = useState('')
   const nameRef = useRef<HTMLInputElement>(null)
 
-  // Track which fields the user has manually edited so Apply doesn't overwrite them
-  const dirtyFields = useRef(new Set<string>())
+  // Track which fields the user has manually edited so Apply doesn't overwrite them.
+  // State (not ref) because dirty fields affect rendered displaySuggestion output.
+  const [dirtyFields, setDirtyFields] = useState<Set<string>>(new Set())
 
   const { state: suggestionState, dismiss: dismissSuggestion, markApplied } = useSuggestion(name, mealType)
 
@@ -60,18 +61,17 @@ export default function InlineAddRow({ mealType, isOpen, onOpen, onClose, onAdd 
   let displaySuggestion: AISuggestion | undefined
   if (suggestionState.status === 'success') {
     const ai = suggestionState.suggestion
-    const dirty = dirtyFields.current
-    const userCal = dirty.has('calories') ? (parseInt(calories) || 0) : ai.calories
+    const userCal = dirtyFields.has('calories') ? (parseInt(calories) || 0) : ai.calories
     // Scale macros proportionally when the user overrides calories but not the individual macro
-    const scale = (ai.calories > 0 && dirty.has('calories')) ? userCal / ai.calories : 1
+    const scale = (ai.calories > 0 && dirtyFields.has('calories')) ? userCal / ai.calories : 1
     displaySuggestion = {
       item_name: ai.item_name,
-      qty: dirty.has('qty') ? (parseFloat(qty) || 0) : ai.qty,
-      uom: dirty.has('uom') ? uom : ai.uom,
+      qty: dirtyFields.has('qty') ? (parseFloat(qty) || 0) : ai.qty,
+      uom: dirtyFields.has('uom') ? uom : ai.uom,
       calories: userCal,
-      protein_g: dirty.has('protein') ? (parseFloat(protein) || 0) : Math.round(ai.protein_g * scale),
-      carbs_g: dirty.has('carbs') ? (parseFloat(carbs) || 0) : Math.round(ai.carbs_g * scale),
-      fat_g: dirty.has('fat') ? (parseFloat(fat) || 0) : Math.round(ai.fat_g * scale),
+      protein_g: dirtyFields.has('protein') ? (parseFloat(protein) || 0) : Math.round(ai.protein_g * scale),
+      carbs_g: dirtyFields.has('carbs') ? (parseFloat(carbs) || 0) : Math.round(ai.carbs_g * scale),
+      fat_g: dirtyFields.has('fat') ? (parseFloat(fat) || 0) : Math.round(ai.fat_g * scale),
       confidence: ai.confidence,
     }
   }
@@ -85,7 +85,7 @@ export default function InlineAddRow({ mealType, isOpen, onOpen, onClose, onAdd 
   const handleClose = () => {
     setName(''); setQty('1'); setUom('each')
     setCalories(''); setProtein(''); setCarbs(''); setFat('')
-    dirtyFields.current.clear()
+    setDirtyFields(new Set())
     onClose()
   }
 
@@ -107,20 +107,25 @@ export default function InlineAddRow({ mealType, isOpen, onOpen, onClose, onAdd 
   // Uses markApplied to prevent the name change from re-triggering a fetch.
   const applySuggestion = (suggestion: AISuggestion) => {
     setName(suggestion.item_name)
-    if (!dirtyFields.current.has('qty')) setQty(suggestion.qty.toString())
-    if (!dirtyFields.current.has('uom')) setUom(suggestion.uom)
-    if (!dirtyFields.current.has('calories')) setCalories(suggestion.calories.toString())
+    if (!dirtyFields.has('qty')) setQty(suggestion.qty.toString())
+    if (!dirtyFields.has('uom')) setUom(suggestion.uom)
+    if (!dirtyFields.has('calories')) setCalories(suggestion.calories.toString())
     if (!isExercise) {
-      if (!dirtyFields.current.has('protein')) setProtein(suggestion.protein_g.toString())
-      if (!dirtyFields.current.has('carbs')) setCarbs(suggestion.carbs_g.toString())
-      if (!dirtyFields.current.has('fat')) setFat(suggestion.fat_g.toString())
+      if (!dirtyFields.has('protein')) setProtein(suggestion.protein_g.toString())
+      if (!dirtyFields.has('carbs')) setCarbs(suggestion.carbs_g.toString())
+      if (!dirtyFields.has('fat')) setFat(suggestion.fat_g.toString())
     }
     markApplied(suggestion.item_name)
   }
 
   // Mark a field as dirty when the user manually edits it
   const markDirty = (field: string) => {
-    dirtyFields.current.add(field)
+    setDirtyFields(prev => {
+      if (prev.has(field)) return prev
+      const next = new Set(prev)
+      next.add(field)
+      return next
+    })
   }
 
   // Shared keyDown handler — Enter submits, Escape cancels

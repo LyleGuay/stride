@@ -50,9 +50,8 @@ export function useSuggestion(description: string, type: string): UseSuggestionR
   useEffect(() => {
     const trimmed = description.trim()
 
-    // Reset when input is too short
+    // Reset refs when input is too short — idle state is derived below
     if (trimmed.length < MIN_CHARS) {
-      setState({ status: 'idle' })
       lastAppliedRef.current = ''
       return
     }
@@ -94,5 +93,10 @@ export function useSuggestion(description: string, type: string): UseSuggestionR
     }
   }, [description, type])
 
-  return { state, dismiss, markApplied }
+  // Derive idle when description is below the minimum — avoids synchronous
+  // setState during render or inside the effect body for this case.
+  const effectiveState: SuggestionState =
+    description.trim().length < MIN_CHARS ? { status: 'idle' } : state
+
+  return { state: effectiveState, dismiss, markApplied }
 }
