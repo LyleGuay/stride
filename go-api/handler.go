@@ -11,9 +11,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Handler holds shared dependencies (db pool) for all route handlers.
+// Handler holds shared dependencies (db pool, config) for all route handlers.
 type Handler struct {
-	db *pgxpool.Pool
+	db            *pgxpool.Pool
+	openAIBaseURL string // Base URL for OpenAI API (overridable for tests)
 }
 
 /* ─── Database helpers ────────────────────────────────────────────────── */
@@ -89,4 +90,5 @@ func (h *Handler) registerRoutes(router *gin.Engine) {
 	api.DELETE("/calorie-log/items/:id", h.deleteCalorieLogItem)
 	api.GET("/calorie-log/user-settings", h.getUserSettings)
 	api.PATCH("/calorie-log/user-settings", h.patchUserSettings)
+	api.POST("/calorie-log/suggest", h.suggestCalorieLogItem)
 }

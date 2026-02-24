@@ -37,7 +37,13 @@ func main() {
 
 	pool := getDBPool()
 	defer pool.Close()
-	handler := Handler{db: pool}
+
+	// OPENAI_BASE_URL can be overridden for testing/proxying; defaults to OpenAI.
+	openAIBaseURL := os.Getenv("OPENAI_BASE_URL")
+	if openAIBaseURL == "" {
+		openAIBaseURL = "https://api.openai.com"
+	}
+	handler := Handler{db: pool, openAIBaseURL: openAIBaseURL}
 
 	router := gin.Default()
 	router.SetTrustedProxies(nil)

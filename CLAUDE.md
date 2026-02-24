@@ -197,7 +197,9 @@ npm run preview   # Preview production build
 
 ### Go API
 
-Uses Gin framework with a `Handler` struct that holds a `*pgxpool.Pool` connection pool. Routes are registered in `main.go`. PostgreSQL queries use `queryOne[T]` / `queryMany[T]` generic helpers with `pgx.NamedArgs` and `RowToStructByName` for scanning into Go structs. Migrations are plain SQL files in `db/` (pure DDL, no guard checks). Naming: `YYYY-MM-DD-SEQ-name.sql` (e.g. `2026-01-31-001-schema-versions.sql`). The migrate CLI tool handles transaction wrapping and tracking.
+Uses Gin framework with a `Handler` struct that holds a `*pgxpool.Pool` connection pool and an `openAIBaseURL` string (overridable for tests). Routes are registered in `main.go`. PostgreSQL queries use `queryOne[T]` / `queryMany[T]` generic helpers with `pgx.NamedArgs` and `RowToStructByName` for scanning into Go structs. Migrations are plain SQL files in `db/` (pure DDL, no guard checks). Naming: `YYYY-MM-DD-SEQ-name.sql` (e.g. `2026-01-31-001-schema-versions.sql`). The migrate CLI tool handles transaction wrapping and tracking.
+
+`POST /api/calorie-log/suggest` — AI-powered nutrition/exercise calorie estimation. Accepts `{ description, type }`, calls OpenAI GPT-4o-mini, and returns structured nutrition data (`item_name`, `qty`, `uom`, `calories`, `protein_g`, `carbs_g`, `fat_g`). For exercise entries, loads the user's body stats from DB to improve calorie-burn estimates. Returns `{"error": "unrecognized"}` (200) for unparseable input or `{"error": "openai request failed"}` (500) on API errors. Implementation in `go-api/suggest.go`.
 
 ### Web Client
 
@@ -212,3 +214,5 @@ PostgreSQL (hosted on Neon). Current tables: `users`, `calorie_log_items`, `calo
 ### Go API (`go-api/.env`)
 
 - `DB_URL` — PostgreSQL connection string
+- `OPENAI_API_KEY` — OpenAI API key for AI calorie/macro suggestions
+- `OPENAI_BASE_URL` — OpenAI API base URL (default: `https://api.openai.com`; override for testing/proxying)

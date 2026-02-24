@@ -2,10 +2,15 @@
 // Mobile: slides up as a bottom sheet. Desktop (sm+): centered modal dialog
 // with scale-in animation. Supports "Log Item" (create) and "Edit Item"
 // (pre-filled) modes. Type selector uses segmented buttons.
+// In create mode, an AI suggestion strip appears below the name input
+// after a 600ms debounce, offering to auto-fill nutrition fields.
 
-import { useState, useEffect, type FormEvent } from 'react'
+import { useState, useEffect, useRef, type FormEvent } from 'react'
 import type { CalorieLogItem } from '../../api'
 import { ALL_UNITS, EXERCISE_UNITS } from '../../constants'
+import { useSuggestion } from '../../hooks/useSuggestion'
+import type { AISuggestion } from '../../types'
+import SuggestionStrip from './SuggestionStrip'
 
 const TYPES = ['breakfast', 'lunch', 'dinner', 'snack', 'exercise'] as const
 
@@ -43,12 +48,22 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
   const [carbs, setCarbs] = useState('')
   const [fat, setFat] = useState('')
 
+  const isEditMode = !!editItem
+
+  // Track which fields the user has manually edited so Apply doesn't overwrite them
+  const dirtyFields = useRef(new Set<string>())
+
+  // Only fetch suggestions in create mode when the sheet is open
+  const suggestionInput = (!isEditMode && open) ? name : ''
+  const { state: suggestionState, dismiss: dismissSuggestion, markApplied } = useSuggestion(suggestionInput, type)
+
   // Reset or pre-fill form when the sheet opens. A useEffect on [open, editItem]
   // is cleaner than setting state during render, which is fragile in StrictMode.
   // The synchronous setState calls here are safe — none of name/type/qty/etc. are
   // in the dependency array, so there is no risk of cascading re-renders.
   useEffect(() => {
     if (!open) return
+    dirtyFields.current.clear()
     if (editItem) {
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setName(editItem.item_name)
@@ -70,6 +85,25 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
       setFat('')
     }
   }, [open, editItem, defaultType])
+
+  // Apply AI suggestion — populates non-dirty fields, always replaces name
+  const applySuggestion = (suggestion: AISuggestion) => {
+    setName(suggestion.item_name)
+    if (!dirtyFields.current.has('qty')) setQty(suggestion.qty.toString())
+    if (!dirtyFields.current.has('uom')) setUom(suggestion.uom)
+    if (!dirtyFields.current.has('calories')) setCalories(suggestion.calories.toString())
+    if (type !== 'exercise') {
+      if (!dirtyFields.current.has('protein')) setProtein(suggestion.protein_g.toString())
+      if (!dirtyFields.current.has('carbs')) setCarbs(suggestion.carbs_g.toString())
+      if (!dirtyFields.current.has('fat')) setFat(suggestion.fat_g.toString())
+    }
+    markApplied(suggestion.item_name)
+  }
+
+  // Mark a field as dirty when the user manually edits it
+  const markDirty = (field: string) => {
+    dirtyFields.current.add(field)
+  }
 
   const handleSubmit = (e: FormEvent) => {
     e.preventDefault()
@@ -140,6 +174,16 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
             />
           </div>
 
+          {/* AI suggestion strip — appears between name and type selector in create mode */}
+          {!isEditMode && (
+            <SuggestionStrip
+              state={suggestionState}
+              onApply={applySuggestion}
+              onDismiss={dismissSuggestion}
+              variant="card"
+            />
+          )}
+
           {/* Type selector — segmented buttons */}
           <div className="mb-3">
             <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
@@ -172,7 +216,7 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
               <input
                 type="number"
                 value={qty}
-                onChange={e => setQty(e.target.value)}
+                onChange={e => { markDirty('qty'); setQty(e.target.value) }}
                 min="0"
                 step="0.25"
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent"
@@ -182,7 +226,7 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
               <label className="block text-sm font-medium text-gray-700 mb-1">Unit</label>
               <select
                 value={uom}
-                onChange={e => setUom(e.target.value)}
+                onChange={e => { markDirty('uom'); setUom(e.target.value) }}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent"
               >
                 {(type === 'exercise' ? EXERCISE_UNITS : ALL_UNITS).map(u => (
@@ -200,7 +244,7 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
               type="number"
               placeholder="0"
               value={calories}
-              onChange={e => setCalories(e.target.value)}
+              onChange={e => { markDirty('calories'); setCalories(e.target.value) }}
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent"
             />
           </div>
@@ -211,7 +255,7 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
               <label className="block text-sm font-medium text-gray-700 mb-1">Protein (g)</label>
               <input
                 type="number" placeholder="—" value={protein}
-                onChange={e => setProtein(e.target.value)}
+                onChange={e => { markDirty('protein'); setProtein(e.target.value) }}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent"
               />
             </div>
@@ -219,7 +263,7 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
               <label className="block text-sm font-medium text-gray-700 mb-1">Carbs (g)</label>
               <input
                 type="number" placeholder="—" value={carbs}
-                onChange={e => setCarbs(e.target.value)}
+                onChange={e => { markDirty('carbs'); setCarbs(e.target.value) }}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent"
               />
             </div>
@@ -227,7 +271,7 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
               <label className="block text-sm font-medium text-gray-700 mb-1">Fat (g)</label>
               <input
                 type="number" placeholder="—" value={fat}
-                onChange={e => setFat(e.target.value)}
+                onChange={e => { markDirty('fat'); setFat(e.target.value) }}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent"
               />
             </div>

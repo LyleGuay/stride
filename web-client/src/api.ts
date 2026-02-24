@@ -1,10 +1,10 @@
 // API service layer — all backend calls go through request() which handles
 // auth headers, 401 redirects, and consistent error extraction.
 
-import type { CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary } from './types'
+import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary } from './types'
 
 // Re-export types so existing imports from api.ts keep working.
-export type { CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary }
+export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary }
 
 function getToken(): string | null {
   return localStorage.getItem('token')
@@ -90,4 +90,37 @@ export function patchUserSettings(settings: Partial<Omit<CalorieLogUserSettings,
     method: 'PATCH',
     body: JSON.stringify(settings),
   })
+}
+
+// fetchSuggestion asks the AI to parse a food/exercise description into structured
+// nutrition data. Returns the suggestion, or null if the food was unrecognized.
+// Throws on server errors. Supports AbortSignal for cancellation.
+export async function fetchSuggestion(description: string, type: string, signal?: AbortSignal): Promise<AISuggestion | null> {
+  const token = getToken()
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (token) headers['Authorization'] = `Bearer ${token}`
+
+  const res = await fetch('/api/calorie-log/suggest', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ description, type }),
+    signal,
+  })
+
+  if (res.status === 401) {
+    localStorage.removeItem('token')
+    window.location.href = '/login'
+    throw new Error('Unauthorized')
+  }
+
+  const body = await res.json()
+
+  if (!res.ok) {
+    throw new Error(body.error || `Request failed: ${res.status}`)
+  }
+
+  // The API returns {"error": "unrecognized"} for foods it can't parse
+  if (body.error === 'unrecognized') return null
+
+  return body as AISuggestion
 }

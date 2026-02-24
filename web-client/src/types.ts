@@ -66,6 +66,20 @@ export interface DailySummary {
   settings: CalorieLogUserSettings
 }
 
+// AISuggestion is the structured nutrition data returned by POST /api/calorie-log/suggest.
+// For exercise entries, only item_name and calories are meaningful (macros are 0).
+// Confidence is 1-5 indicating how accurate the AI's estimate is.
+export interface AISuggestion {
+  item_name: string
+  qty: number
+  uom: string
+  calories: number
+  protein_g: number
+  carbs_g: number
+  fat_g: number
+  confidence: number
+}
+
 // WeekDaySummary is one day's entry in the GET /calorie-log/week-summary response.
 // Days with no logged items have has_data=false and zero calorie fields.
 export interface WeekDaySummary {
