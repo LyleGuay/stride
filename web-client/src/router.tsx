@@ -6,7 +6,7 @@ import AppShell from './components/AppShell'
 import CalorieLog from './pages/CalorieLog'
 import Habits from './pages/Habits'
 import Login from './pages/Login'
-import Settings from './pages/Settings'
+import Settings from './pages/settings'
 import RequireAuth from './components/RequireAuth'
 
 export default function Router() {
