@@ -44,6 +44,8 @@ Write a `{name}-plan.md` file to the `plan/` directory with this structure:
 
 - [ ] **A.1 — {Task title}**
   {What to do and why. Reference specific files: `path/to/file.go`, `path/to/other.ts`.}
+  - **Unit tests:** {describe what to test, e.g. "Add `handler_test.go` covering the success and error cases"}
+  - **Manual tests:** {list any steps requiring visual/UX verification, e.g. "Verify spinner shows during load, modal closes on Escape"}
 
 - [ ] **A.2 — {Task title}**
   {What to do and why.}
@@ -52,6 +54,7 @@ Write a `{name}-plan.md` file to the `plan/` directory with this structure:
 
 - [ ] **B.1 — {Task title}**
   {What to do and why.}
+  - **E2E tests:** {describe the Playwright flow to add or update}
 ```
 
 ## Rules for the plan content
@@ -65,5 +68,7 @@ Write a `{name}-plan.md` file to the `plan/` directory with this structure:
 - **Every feature or bug fix must include tests.** Explicitly scope out what tests are needed and include them as tasks in the same phase as the code they cover — not a separate phase at the end. Use the right layer:
   - Go unit tests for pure functions and business logic (e.g. `tdee_test.go`)
   - Vitest tests for web-client hooks and utilities (e.g. `useDailySummary.test.ts`)
-  - Vitest component tests for components with non-trivial logic — form validation, mode switching, keyboard navigation, computed display thresholds. Skip purely presentational components.
-  - Playwright E2E tests for new critical user flows (e.g. a new page or primary action)
+  - Vitest component tests for web-client components with non-trivial logic — form validation, mode switching, keyboard navigation, computed display thresholds. Skip purely presentational components.
+  - Jest/React Native Testing Library tests for mobile-client components and hooks with non-trivial logic (e.g. `MyComponent.test.tsx` in `mobile-client/`)
+  - Playwright E2E tests for new critical web-client user flows (e.g. a new page or primary action)
+  - Manual test steps for any flow that is hard to automate or requires visual/UX verification — list these as a checklist inside the task they belong to. For mobile, specify the platform (iOS simulator, Android emulator, or physical device). E.g. "Manually verify on iOS: modal closes on swipe-down, spinner shows during load"

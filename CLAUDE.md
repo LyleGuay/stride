@@ -98,7 +98,7 @@ This is not optional. Outdated docs actively mislead, so treat doc updates as pa
 - Run the relevant linter/typecheck after making changes. Fix issues before moving on.
 - Run relevant tests after changes. Do not mark work as done if tests fail.
 - Do not modify test expectations to make tests pass unless the test was wrong. If a test fails, fix the code.
-- **Every feature or bug fix should include corresponding tests.** When building a plan, explicitly scope out what tests are needed — Go unit tests for pure logic, Vitest tests for hooks/utilities, E2E tests for new critical user flows. Test tasks belong in the same phase as the code they cover, not a separate phase at the end.
+- **Every feature or bug fix should include corresponding tests.** When building a plan, explicitly scope out what tests are needed — Go unit tests for pure logic, Vitest tests for web-client hooks/utilities, Jest/RNTL tests for mobile-client logic, Playwright E2E for new critical web flows, and manual test steps for mobile UX flows. Test tasks belong in the same phase as the code they cover, not a separate phase at the end.
 
 ## Testing Strategy
 
@@ -143,6 +143,22 @@ Covers critical user flows only — happy paths that verify the app works end-to
 - Login → add an item → verify totals update
 - Edit an item inline → verify change persists on reload
 - Settings save → verify calorie budget updates
+
+### Mobile Client (`mobile-client/`)
+
+**Tools:** Jest + React Native Testing Library (via Expo's default Jest preset).
+
+**What to test:**
+- Pure utility functions and business logic (same rule as web-client — if there are real edge cases, test them).
+- Custom hooks with non-trivial state or side-effect logic.
+- Components with complex conditional logic that would be hard to catch manually (e.g. multi-step flows, form validation).
+
+**What to skip:**
+- Purely presentational components — manual device testing covers what matters.
+- Navigation flows — too tied to the RN/Expo runtime to be worth mocking.
+- Anything that requires the native layer (camera, sensors, etc.) — test those manually.
+
+**Manual testing:** For UI/UX flows and anything touching native APIs, test manually on a device or simulator. When writing tasks, specify the platform: iOS simulator, Android emulator, or physical device.
 
 ### CI Order of Operations
 
