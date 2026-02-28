@@ -16,8 +16,8 @@ jobs:
       - run: cd go-api && go vet ./...
       - run: cd go-api && go test ./...
 
-  web-test:
-    name: Web unit tests
+  js-test:
+    name: JS typecheck, lint, test
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -29,9 +29,26 @@ jobs:
           node-version: 22
           cache: pnpm
       - run: pnpm install
-      - run: pnpm --filter @stride/shared run typecheck && pnpm --filter @stride/shared run lint && pnpm --filter @stride/shared run test
-      - run: pnpm --filter stride-client run typecheck
-      - run: pnpm --filter stride-client run lint && pnpm --filter stride-client run test
+      - name: Shared — typecheck
+        run: pnpm --filter @stride/shared run typecheck
+      - name: Shared — lint
+        run: pnpm --filter @stride/shared run lint
+      - name: Shared — test
+        run: pnpm --filter @stride/shared run test
+
+      - name: Web — typecheck
+        run: pnpm --filter stride-client run typecheck
+      - name: Web — lint
+        run: pnpm --filter stride-client run lint
+      - name: Web — test
+        run: pnpm --filter stride-client run test
+        
+      - name: Mobile — typecheck
+        run: pnpm --filter mobile-client run typecheck
+      - name: Mobile — lint
+        run: pnpm --filter mobile-client run lint
+      - name: Mobile — test
+        run: pnpm --filter mobile-client run test
 
   e2e:
     name: E2E tests

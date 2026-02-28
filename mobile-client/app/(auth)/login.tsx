@@ -1,7 +1,7 @@
 /* Login screen — submits username/password to the API and stores the token on success. */
 
 import { useState } from 'react'
-import { View, Text, TextInput, TouchableOpacity, ActivityIndicator } from 'react-native'
+import { View, Text, TextInput, TouchableOpacity, ActivityIndicator, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { auth } from '../../src/auth'
 
@@ -41,11 +41,11 @@ export default function LoginScreen() {
   }
 
   return (
-    <View className="flex-1 justify-center px-6 bg-white">
-      <Text className="text-2xl font-bold mb-8 text-center">Stride</Text>
+    <View style={styles.container}>
+      <Text style={styles.title}>Stride</Text>
 
       <TextInput
-        className="border border-gray-300 rounded-lg px-4 py-3 mb-4 text-base"
+        style={styles.input}
         placeholder="Username"
         autoCapitalize="none"
         autoCorrect={false}
@@ -54,28 +54,75 @@ export default function LoginScreen() {
       />
 
       <TextInput
-        className="border border-gray-300 rounded-lg px-4 py-3 mb-4 text-base"
+        style={styles.input}
         placeholder="Password"
         secureTextEntry
         value={password}
         onChangeText={setPassword}
       />
 
-      {error && (
-        <Text className="text-red-500 mb-4 text-sm text-center">{error}</Text>
-      )}
+      {error && <Text style={styles.error}>{error}</Text>}
+
+      <Text style={styles.debug}>API: {API_URL}/api/login</Text>
 
       <TouchableOpacity
-        className="bg-blue-600 rounded-lg py-3 items-center"
+        style={styles.button}
         onPress={handleLogin}
         disabled={loading}
       >
         {loading ? (
           <ActivityIndicator color="#fff" />
         ) : (
-          <Text className="text-white font-semibold text-base">Sign In</Text>
+          <Text style={styles.buttonText}>Sign In</Text>
         )}
       </TouchableOpacity>
     </View>
   )
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 24,
+    backgroundColor: '#fff',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    marginBottom: 32,
+    textAlign: 'center',
+  },
+  input: {
+    borderWidth: 1,
+    borderColor: '#d1d5db',
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginBottom: 16,
+    fontSize: 16,
+  },
+  error: {
+    color: '#ef4444',
+    marginBottom: 16,
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  button: {
+    backgroundColor: '#2563eb',
+    borderRadius: 8,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  buttonText: {
+    color: '#fff',
+    fontWeight: '600',
+    fontSize: 16,
+  },
+  debug: {
+    marginTop: 16,
+    fontSize: 11,
+    color: '#9ca3af',
+    textAlign: 'center',
+  },
+})

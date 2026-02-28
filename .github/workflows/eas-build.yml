@@ -1,12 +1,9 @@
 name: EAS Build (Android)
 
-# Only run when mobile or shared code changes — avoids wasting free-tier EAS build credits.
+# Manual trigger only — preserves free-tier EAS build credits.
+# Run this when you want a distributable APK, not on every push.
 on:
-  push:
-    branches: [master]
-    paths:
-      - 'mobile-client/**'
-      - 'packages/shared/**'
+  workflow_dispatch:
 
 jobs:
   build:
@@ -25,15 +22,17 @@ jobs:
 
       - run: pnpm install
 
-      - name: Shared — typecheck, lint, test
-        run: pnpm --filter @stride/shared run typecheck && pnpm --filter @stride/shared run lint && pnpm --filter @stride/shared run test
+      - name: Shared — typecheck
+        run: pnpm --filter @stride/shared run typecheck
+      - name: Shared — lint
+        run: pnpm --filter @stride/shared run lint
+      - name: Shared — test
+        run: pnpm --filter @stride/shared run test
 
       - name: Mobile — typecheck
         run: pnpm --filter mobile-client run typecheck
-
       - name: Mobile — lint
         run: pnpm --filter mobile-client run lint
-
       - name: Mobile — test
         run: pnpm --filter mobile-client run test
 

@@ -5,6 +5,8 @@
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
+    "android:usb:local-api": "bash scripts/android-local.sh",
+    "android:usb:live-api": "adb reverse tcp:8081 tcp:8081 && EXPO_PUBLIC_API_URL=https://stride.lyleguay.com/api expo start --android --localhost",
     "ios": "expo start --ios",
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
