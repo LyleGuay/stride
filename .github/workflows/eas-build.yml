@@ -1,0 +1,47 @@
+name: EAS Build (Android)
+
+# Only run when mobile or shared code changes — avoids wasting free-tier EAS build credits.
+on:
+  push:
+    branches: [master]
+    paths:
+      - 'mobile-client/**'
+      - 'packages/shared/**'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - run: pnpm install
+
+      - name: Shared — typecheck, lint, test
+        run: pnpm --filter @stride/shared run typecheck && pnpm --filter @stride/shared run lint && pnpm --filter @stride/shared run test
+
+      - name: Mobile — typecheck
+        run: pnpm --filter mobile-client run typecheck
+
+      - name: Mobile — lint
+        run: pnpm --filter mobile-client run lint
+
+      - name: Mobile — test
+        run: pnpm --filter mobile-client run test
+
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          # EXPO_TOKEN must be added as a GitHub Actions secret (generate at expo.dev).
+          token: ${{ secrets.EXPO_TOKEN }}
+
+      - run: eas build -p android --profile preview --non-interactive
+        working-directory: mobile-client
