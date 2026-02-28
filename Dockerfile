@@ -1,9 +1,19 @@
 # Stage 1: build the React frontend
 FROM node:22-alpine AS frontend
+RUN corepack enable
+WORKDIR /app
+
+# Copy workspace manifests first for layer caching
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY packages/shared/package.json ./packages/shared/
+COPY web-client/package.json ./web-client/
+
+RUN pnpm install --frozen-lockfile
+
+# Copy source and build
+COPY packages/shared/ ./packages/shared/
+COPY web-client/ ./web-client/
 WORKDIR /app/web-client
-COPY web-client/package*.json ./
-RUN npm ci
-COPY web-client/ ./
 RUN npm run build
 
 # Stage 2: build the Go binary with the frontend embedded
