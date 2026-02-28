@@ -19,6 +19,8 @@ export default function Login() {
     try {
       const { token } = await login(username, password)
       localStorage.setItem('token', token)
+      // Store username so the avatar initials can be derived without an extra API call.
+      localStorage.setItem('username', username)
       navigate('/calorie-log')
     } catch {
       setError('Invalid username or password')

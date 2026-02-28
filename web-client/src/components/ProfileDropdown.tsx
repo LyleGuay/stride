@@ -1,11 +1,21 @@
 import { useState, useRef, useEffect } from 'react'
 import { useNavigate } from 'react-router'
 
+// Derives up to 2 uppercase initials from a username.
+// Single word → first letter. Two+ words → first letter of each of the first two.
+function initials(username: string): string {
+  const parts = username.trim().split(/\s+/)
+  if (parts.length >= 2) return (parts[0][0] + parts[1][0]).toUpperCase()
+  return (username[0] ?? 'U').toUpperCase()
+}
+
 // Avatar button with dropdown for settings and sign out.
 export default function ProfileDropdown() {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const username = localStorage.getItem('username') ?? ''
+  const avatar = initials(username)
 
   // Close on click outside
   useEffect(() => {
@@ -19,6 +29,7 @@ export default function ProfileDropdown() {
 
   const signOut = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('username')
     navigate('/login')
   }
 
@@ -28,7 +39,7 @@ export default function ProfileDropdown() {
         onClick={() => setOpen(!open)}
         className="w-8 h-8 rounded-full bg-stride-600 text-white flex items-center justify-center text-sm font-medium hover:bg-stride-700 transition-colors"
       >
-        U
+        {avatar}
       </button>
 
       {open && (

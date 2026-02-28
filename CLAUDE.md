@@ -170,8 +170,11 @@ Stride is a life & productivity dashboard — habits, tasks, goals, calorie logg
 ## Modules
 
 - **`go-api/`** — Go backend (Gin + PostgreSQL via pgx). This is the active backend.
-- **`web-client/`** — React frontend (Vite + Tailwind CSS + PWA).
-- **`api/`** — Deprecated TypeScript Express API. Not in use.
+- **`web-client/`** — React frontend (Vite + Tailwind CSS + PWA). **Desktop only** — no mobile support, no responsive layout work.
+- **`mobile-client/`** — Expo React Native app. **Mobile only** — no tablet/desktop support.
+- **`packages/shared/`** — Shared TypeScript types and pure utilities consumed by both clients.
+
+Each client is intentionally scoped to its platform. Do not add responsive breakpoints or mobile-specific hacks to `web-client`, and do not attempt to make `mobile-client` work on desktop. Features are built separately for each platform to keep each codebase simple and optimized for its target.
 
 ## Commands
 
