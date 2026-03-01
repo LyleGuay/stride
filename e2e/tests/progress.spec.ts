@@ -17,32 +17,35 @@ test.describe('Progress tab', () => {
     // Click the "Progress" tab button in the segment control
     await page.getByRole('button', { name: 'Progress' }).click()
 
-    // Range selector should appear with "This Month" selected by default
-    await expect(page.getByRole('button', { name: 'This Month' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'This Year' })).toBeVisible()
-    await expect(page.getByRole('button', { name: 'All Time' })).toBeVisible()
+    // Period Summary card should appear with all five range pills
+    await expect(page.getByText('Period Summary')).toBeVisible()
+    await expect(page.getByRole('button', { name: '1M' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '6M' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'YTD' })).toBeVisible()
+    await expect(page.getByRole('button', { name: '1Y' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'All' })).toBeVisible()
   })
 
   test('switching range updates the selector', async ({ page }) => {
     await page.getByRole('button', { name: 'Progress' }).click()
 
-    // Wait for range selector to be visible
-    await expect(page.getByRole('button', { name: 'This Month' })).toBeVisible()
+    // Wait for Period Summary card to be visible
+    await expect(page.getByText('Period Summary')).toBeVisible()
 
-    // Click "This Year" — selector should update
-    await page.getByRole('button', { name: 'This Year' }).click()
+    // Click "YTD" — selector should update
+    await page.getByRole('button', { name: 'YTD' }).click()
 
     // The Calories card should still render (chart or no-data placeholder)
     await expect(page.getByText('Calories')).toBeVisible()
 
-    // Click "All Time"
-    await page.getByRole('button', { name: 'All Time' }).click()
+    // Click "All"
+    await page.getByRole('button', { name: 'All' }).click()
     await expect(page.getByText('Calories')).toBeVisible()
   })
 
   test('FAB opens log-weight modal with today pre-filled', async ({ page }) => {
     await page.getByRole('button', { name: 'Progress' }).click()
-    await expect(page.getByRole('button', { name: 'This Month' })).toBeVisible()
+    await expect(page.getByText('Period Summary')).toBeVisible()
 
     // Click the FAB (fixed bottom-right button)
     await page.locator('button.fixed.bottom-6.right-6').click()
@@ -58,7 +61,7 @@ test.describe('Progress tab', () => {
 
   test('log a weight entry — entry appears in weight table', async ({ page }) => {
     await page.getByRole('button', { name: 'Progress' }).click()
-    await expect(page.getByRole('button', { name: 'This Month' })).toBeVisible()
+    await expect(page.getByText('Period Summary')).toBeVisible()
 
     // Open the log-weight modal
     await page.locator('button.fixed.bottom-6.right-6').click()
@@ -76,6 +79,6 @@ test.describe('Progress tab', () => {
 
     // Switch weight card to "Table" view and verify the entry is listed
     await page.getByRole('button', { name: /table/i }).click()
-    await expect(page.getByText(testWeight)).toBeVisible()
+    await expect(page.getByRole('cell', { name: testWeight })).toBeVisible()
   })
 })

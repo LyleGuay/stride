@@ -1,19 +1,24 @@
 // ProgressView — the Progress tab content for the CalorieLog page.
-// Shows a range selector (This Month / This Year / All Time), a net-calorie
-// bar chart that groups bars by day/week/month based on range, a weight trend
-// chart with a Graph/Table toggle, a stats summary panel, and a FAB that opens
-// the log-weight modal. All data is fetched by the parent and passed as props.
+// Layout order (top to bottom):
+//   1. Period Summary card — range selector lives in its header; calorie stats
+//      row; weight stats row (start/end/delta); estimated weight impact footer.
+//   2. Weight card — line chart or table, with Graph/Table toggle and + Log button.
+//   3. Calories card — net-calorie bar chart grouped by day/week/month.
+//   4. FAB (fixed) + LogWeightSheet modal.
+//
+// Period Summary always renders so the range selector stays accessible during
+// loading. The stats body is hidden until data is ready.
 
 import { useState } from 'react'
 import type { ProgressResponse, WeightEntry } from '../../types'
-import { groupDays } from '../../utils/progressGrouping'
+import { groupDays, type ProgressRange } from '../../utils/progressGrouping'
 import LogWeightSheet from './LogWeightSheet'
 
 /* ─── Props ─────────────────────────────────────────────────────────────── */
 
 export interface ProgressViewProps {
-  range: 'month' | 'year' | 'all'
-  onRangeChange: (r: 'month' | 'year' | 'all') => void
+  range: ProgressRange
+  onRangeChange: (r: ProgressRange) => void
   progressData: ProgressResponse | null
   weightEntries: WeightEntry[]
   loading: boolean
@@ -65,6 +70,17 @@ function weightUnitLabel(units: string): string {
   return units === 'metric' ? 'kg' : 'lbs'
 }
 
+/* ─── Range labels ───────────────────────────────────────────────────────── */
+
+// Maps each ProgressRange to its compact pill label.
+const RANGE_LABELS: Record<ProgressRange, string> = {
+  month: '1M',
+  '6months': '6M',
+  ytd: 'YTD',
+  lastyear: '1Y',
+  all: 'All',
+}
+
 /* ─── Component ─────────────────────────────────────────────────────────── */
 
 export default function ProgressView({
@@ -106,6 +122,18 @@ export default function ProgressView({
 
   const weightInRange = weightEntries.filter(e => e.date >= rangeStart && e.date <= rangeEnd)
   const sortedWeight  = [...weightInRange].sort((a, b) => a.date.localeCompare(b.date))
+
+  /* ─── Weight stats for Period Summary ───────────────────────────────── */
+
+  // First and last entries by date within the visible range — used for delta row.
+  const periodWeights = [...weightEntries]
+    .filter(e => e.date >= rangeStart && e.date <= rangeEnd)
+    .sort((a, b) => a.date.localeCompare(b.date))
+  const startEntry = periodWeights[0] ?? null
+  const endEntry   = periodWeights[periodWeights.length - 1] ?? null
+  const weightDelta = (startEntry && endEntry && startEntry.id !== endEntry.id)
+    ? lbsForDisplay(endEntry.weight_lbs, units) - lbsForDisplay(startEntry.weight_lbs, units)
+    : null
 
   /* ─── Weight SVG chart ───────────────────────────────────────────────── */
 
@@ -206,20 +234,6 @@ export default function ProgressView({
   return (
     <div className="space-y-4" onClick={() => setTooltipIdx(-1)}>
 
-      {/* ── Range selector ─────────────────────────────────────────────── */}
-      <div className="flex bg-gray-100 rounded-lg p-1">
-        {(['month', 'year', 'all'] as const).map(r => (
-          <button
-            key={r}
-            onClick={e => { e.stopPropagation(); onRangeChange(r) }}
-            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors
-              ${range === r ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
-          >
-            {r === 'month' ? 'This Month' : r === 'year' ? 'This Year' : 'All Time'}
-          </button>
-        ))}
-      </div>
-
       {/* ── Loading ─────────────────────────────────────────────────────── */}
       {loading && (
         <div className="flex justify-center py-12">
@@ -234,114 +248,108 @@ export default function ProgressView({
         </div>
       )}
 
+      {/* ── Period Summary — always rendered so range selector stays accessible */}
+      <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+        {/* Card header: title + range pills */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100">
+          <h3 className="text-sm font-semibold text-gray-800">Period Summary</h3>
+          <div className="flex items-center gap-1">
+            {(Object.keys(RANGE_LABELS) as ProgressRange[]).map(r => (
+              <button
+                key={r}
+                onClick={e => { e.stopPropagation(); onRangeChange(r) }}
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors
+                  ${range === r ? 'bg-gray-800 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
+              >
+                {RANGE_LABELS[r]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Stats body — hidden during loading/error */}
+        {!loading && !error && (
+          <>
+            {!stats || stats.days_tracked === 0 ? (
+              <div className="py-4 text-center text-gray-400 text-sm">No data for this period</div>
+            ) : (
+              <>
+                {/* Calorie stats row */}
+                <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
+                  <div className="px-4 py-3">
+                    <div className="text-xs text-gray-500 mb-0.5">Avg Daily Net</div>
+                    <div className="text-lg font-semibold text-gray-900">{stats.avg_net_calories.toLocaleString()}</div>
+                    <div className="text-xs text-gray-400">cal / day</div>
+                  </div>
+                  <div className="px-4 py-3">
+                    <div className="text-xs text-gray-500 mb-0.5">Days Tracked</div>
+                    <div className="text-lg font-semibold text-gray-900">{stats.days_tracked}</div>
+                    <div className="text-xs text-gray-400">days logged</div>
+                  </div>
+                  <div className="px-4 py-3">
+                    <div className="text-xs text-gray-500 mb-0.5">Days on Budget</div>
+                    <div className="text-lg font-semibold text-gray-900">{stats.days_on_budget}</div>
+                    <div className="text-xs text-gray-400">
+                      {Math.round((stats.days_on_budget / stats.days_tracked) * 100)}% of tracked
+                    </div>
+                  </div>
+                </div>
+
+                {/* Weight stats row */}
+                <div className="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
+                  <div className="px-4 py-3">
+                    <div className="text-xs text-gray-500 mb-0.5">Weight Change</div>
+                    {weightDelta !== null
+                      ? <>
+                          <div className={`text-lg font-semibold ${weightDelta <= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                            {weightDelta > 0 ? '+' : ''}{weightDelta.toFixed(1)} {weightUnitLabel(units)}
+                          </div>
+                          <div className="text-xs text-gray-400">over period</div>
+                        </>
+                      : <div className="text-sm text-gray-400">—</div>
+                    }
+                  </div>
+                  <div className="px-4 py-3">
+                    <div className="text-xs text-gray-500 mb-0.5">Start Weight</div>
+                    {startEntry
+                      ? <>
+                          <div className="text-lg font-semibold text-gray-900">{lbsForDisplay(startEntry.weight_lbs, units).toFixed(1)}</div>
+                          <div className="text-xs text-gray-400">
+                            {weightUnitLabel(units)} · {new Date(startEntry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </div>
+                        </>
+                      : <div className="text-sm text-gray-400">—</div>
+                    }
+                  </div>
+                  <div className="px-4 py-3">
+                    <div className="text-xs text-gray-500 mb-0.5">End Weight</div>
+                    {endEntry && endEntry.id !== startEntry?.id
+                      ? <>
+                          <div className="text-lg font-semibold text-gray-900">{lbsForDisplay(endEntry.weight_lbs, units).toFixed(1)}</div>
+                          <div className="text-xs text-gray-400">
+                            {weightUnitLabel(units)} · {new Date(endEntry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                          </div>
+                        </>
+                      : <div className="text-sm text-gray-400">—</div>
+                    }
+                  </div>
+                </div>
+
+                {/* Estimated weight impact footer */}
+                <div className="px-4 py-3 flex items-center justify-between">
+                  <span className="text-xs text-gray-500">Estimated weight impact from calorie deficit</span>
+                  <span className={`text-sm font-semibold ${weightImpact >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                    {weightImpact >= 0 ? '+' : ''}{weightImpact.toFixed(2)} lbs
+                  </span>
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </div>
+
       {!loading && !error && (
         <>
-          {/* ── Calorie bar chart ─────────────────────────────────────────── */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-gray-700">Calories</h3>
-              {stats && stats.days_tracked > 0 && (
-                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap
-                  ${stats.total_calories_left >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
-                  {stats.total_calories_left >= 0
-                    ? `${Math.abs(stats.total_calories_left).toLocaleString()} under budget`
-                    : `${Math.abs(stats.total_calories_left).toLocaleString()} over budget`}
-                </span>
-              )}
-            </div>
-
-            {bars.length === 0 ? (
-              <div className="py-8 text-center text-gray-400 text-sm">No data for this period</div>
-            ) : (
-              <div className="w-full overflow-x-auto -mx-1 px-1">
-                <svg
-                  viewBox={`0 0 ${totalW} ${VB_H}`}
-                  style={{ width: totalW, display: 'block' }}
-                  onClick={e => e.stopPropagation()}
-                >
-                  {/* Horizontal grid lines */}
-                  {gridSteps.map(({ y, label }) => (
-                    <g key={label}>
-                      <line x1={X_START} y1={y} x2={totalW - 15} y2={y} stroke="#f3f4f6" strokeWidth={1} />
-                      <text x={X_START - 3} y={y + 3} textAnchor="end" fontSize={8} fill="#d1d5db">{label}</text>
-                    </g>
-                  ))}
-                  {/* Baseline */}
-                  <line x1={X_START} y1={Y_BOT} x2={totalW - 15} y2={Y_BOT} stroke="#e5e7eb" strokeWidth={1} />
-
-                  {/* Bars */}
-                  {bars.map((bar, i) => {
-                    const bx       = barX(i, slotW, barW)
-                    const cx       = slotCenter(i, slotW)
-                    const hasData  = bar.trackedDays > 0
-                    const isOver   = bar.netCalories > bar.budget
-                    const barHeight = hasData ? Math.max(3, scaleY(bar.netCalories)) : 6
-                    const barTop   = Y_BOT - barHeight
-                    const fill     = !hasData ? '#f3f4f6' : isOver ? '#ef4444' : '#22c55e'
-                    const showLabel = (i % labelStep === 0)
-
-                    return (
-                      <g
-                        key={i}
-                        onClick={e => { e.stopPropagation(); setTooltipIdx(i === tooltipIdx ? -1 : i) }}
-                      >
-                        <rect
-                          x={bx} y={barTop} width={barW} height={barHeight}
-                          fill={fill} rx={2} opacity={0.85}
-                          className={hasData ? 'cursor-pointer hover:opacity-100' : ''}
-                        />
-                        {/* Label below baseline */}
-                        {showLabel && (
-                          <text x={cx} y={LBL_Y} textAnchor="middle" fontSize={7.5} fill="#9ca3af">
-                            {bar.label}
-                          </text>
-                        )}
-                      </g>
-                    )
-                  })}
-
-                  {/* Tooltip — dark callout above clicked bar */}
-                  {tooltipIdx >= 0 && tooltipIdx < bars.length && (() => {
-                    const bar = bars[tooltipIdx]
-                    const cx  = slotCenter(tooltipIdx, slotW)
-                    const barHeight = bar.trackedDays > 0 ? Math.max(3, scaleY(bar.netCalories)) : 6
-                    const tipY = Math.max(8, Y_BOT - barHeight - 56)
-                    const tx   = Math.min(Math.max(cx, X_START + 55), totalW - 70)
-                    const delta = bar.budget - bar.netCalories  // positive = under budget
-                    return (
-                      <g>
-                        <rect x={tx - 55} y={tipY} width={110} height={48} rx={5} fill="#1f2937" />
-                        <text x={tx - 47} y={tipY + 14} fontSize={9} fill="#9ca3af">{bar.label}</text>
-                        <text x={tx - 47} y={tipY + 27} fontSize={9} fill="#9ca3af">Net calories</text>
-                        <text x={tx + 47} y={tipY + 27} fontSize={9} fill="white" textAnchor="end" fontWeight="600">
-                          {bar.netCalories.toLocaleString()}
-                        </text>
-                        <text x={tx - 47} y={tipY + 40} fontSize={9} fill="#9ca3af">vs. budget</text>
-                        <text x={tx + 47} y={tipY + 40} fontSize={9} textAnchor="end" fontWeight="600"
-                          fill={delta >= 0 ? '#22c55e' : '#ef4444'}>
-                          {delta >= 0 ? `+${delta.toLocaleString()}` : delta.toLocaleString()}
-                        </text>
-                      </g>
-                    )
-                  })()}
-                </svg>
-              </div>
-            )}
-
-            {/* Legend */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[11px] text-gray-500">
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded bg-green-500 opacity-85" />Under budget
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded bg-red-500 opacity-85" />Over budget
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2.5 h-2.5 rounded bg-gray-200" />No data
-              </div>
-            </div>
-          </div>
-
           {/* ── Weight card ───────────────────────────────────────────────── */}
           <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
             <div className="flex items-center justify-between mb-3">
@@ -447,51 +455,110 @@ export default function ProgressView({
             )}
           </div>
 
-          {/* ── Stats panel ───────────────────────────────────────────────── */}
+          {/* ── Calorie bar chart ─────────────────────────────────────────── */}
           <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Period Summary</h3>
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-gray-700">Calories</h3>
+              {stats && stats.days_tracked > 0 && (
+                <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap
+                  ${stats.total_calories_left >= 0 ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                  {stats.total_calories_left >= 0
+                    ? `${Math.abs(stats.total_calories_left).toLocaleString()} under budget`
+                    : `${Math.abs(stats.total_calories_left).toLocaleString()} over budget`}
+                </span>
+              )}
+            </div>
 
-            {!stats || stats.days_tracked === 0 ? (
-              <div className="py-4 text-center text-gray-400 text-sm">No data for this period</div>
+            {bars.length === 0 ? (
+              <div className="py-8 text-center text-gray-400 text-sm">No data for this period</div>
             ) : (
-              <>
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <div className="text-[11px] text-gray-400 mb-1 font-medium uppercase tracking-wide">Avg Daily Net</div>
-                    <div className="text-xl font-bold text-gray-900 leading-tight">{stats.avg_net_calories.toLocaleString()}</div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">cal / day</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <div className="text-[11px] text-gray-400 mb-1 font-medium uppercase tracking-wide">Days Tracked</div>
-                    <div className="text-xl font-bold text-gray-900 leading-tight">{stats.days_tracked}</div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">days logged</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-3 text-center">
-                    <div className="text-[11px] text-gray-400 mb-1 font-medium uppercase tracking-wide">On Budget</div>
-                    <div className="text-xl font-bold text-gray-900 leading-tight">
-                      {stats.days_on_budget}
-                      <span className="text-sm font-normal text-gray-400"> / {stats.days_tracked}</span>
-                    </div>
-                    <div className="text-[10px] text-gray-400 mt-0.5">
-                      {Math.round((stats.days_on_budget / stats.days_tracked) * 100)}% on pace
-                    </div>
-                  </div>
-                </div>
+              <div className="w-full overflow-x-auto -mx-1 px-1">
+                <svg
+                  viewBox={`0 0 ${totalW} ${VB_H}`}
+                  style={{ width: totalW, display: 'block' }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  {/* Horizontal grid lines */}
+                  {gridSteps.map(({ y, label }) => (
+                    <g key={label}>
+                      <line x1={X_START} y1={y} x2={totalW - 15} y2={y} stroke="#f3f4f6" strokeWidth={1} />
+                      <text x={X_START - 3} y={y + 3} textAnchor="end" fontSize={8} fill="#d1d5db">{label}</text>
+                    </g>
+                  ))}
+                  {/* Baseline */}
+                  <line x1={X_START} y1={Y_BOT} x2={totalW - 15} y2={Y_BOT} stroke="#e5e7eb" strokeWidth={1} />
 
-                {/* Estimated Weight Impact */}
-                <div className="pt-3 border-t border-gray-100 flex items-center justify-between">
-                  <div>
-                    <div className="text-sm font-medium text-gray-700">Estimated Weight Impact</div>
-                    <div className="text-[11px] text-gray-400 mt-0.5">
-                      {Math.abs(stats.total_calories_left).toLocaleString()} cal {stats.total_calories_left >= 0 ? 'under' : 'over'} budget ÷ 3,500 cal/lb
-                    </div>
-                  </div>
-                  <div className={`text-xl font-bold ${weightImpact >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                    {weightImpact >= 0 ? '+' : ''}{weightImpact.toFixed(2)} lbs
-                  </div>
-                </div>
-              </>
+                  {/* Bars */}
+                  {bars.map((bar, i) => {
+                    const bx       = barX(i, slotW, barW)
+                    const cx       = slotCenter(i, slotW)
+                    const hasData  = bar.trackedDays > 0
+                    const isOver   = bar.netCalories > bar.budget
+                    const barHeight = hasData ? Math.max(3, scaleY(bar.netCalories)) : 6
+                    const barTop   = Y_BOT - barHeight
+                    const fill     = !hasData ? '#f3f4f6' : isOver ? '#ef4444' : '#22c55e'
+                    const showLabel = (i % labelStep === 0)
+
+                    return (
+                      <g
+                        key={i}
+                        onClick={e => { e.stopPropagation(); setTooltipIdx(i === tooltipIdx ? -1 : i) }}
+                      >
+                        <rect
+                          x={bx} y={barTop} width={barW} height={barHeight}
+                          fill={fill} rx={2} opacity={0.85}
+                          className={hasData ? 'cursor-pointer hover:opacity-100' : ''}
+                        />
+                        {/* Label below baseline */}
+                        {showLabel && (
+                          <text x={cx} y={LBL_Y} textAnchor="middle" fontSize={7.5} fill="#9ca3af">
+                            {bar.label}
+                          </text>
+                        )}
+                      </g>
+                    )
+                  })}
+
+                  {/* Tooltip — dark callout above clicked bar */}
+                  {tooltipIdx >= 0 && tooltipIdx < bars.length && (() => {
+                    const bar = bars[tooltipIdx]
+                    const cx  = slotCenter(tooltipIdx, slotW)
+                    const barHeight = bar.trackedDays > 0 ? Math.max(3, scaleY(bar.netCalories)) : 6
+                    const tipY = Math.max(8, Y_BOT - barHeight - 56)
+                    const tx   = Math.min(Math.max(cx, X_START + 55), totalW - 70)
+                    const delta = bar.budget - bar.netCalories  // positive = under budget
+                    return (
+                      <g>
+                        <rect x={tx - 55} y={tipY} width={110} height={48} rx={5} fill="#1f2937" />
+                        <text x={tx - 47} y={tipY + 14} fontSize={9} fill="#9ca3af">{bar.label}</text>
+                        <text x={tx - 47} y={tipY + 27} fontSize={9} fill="#9ca3af">Net calories</text>
+                        <text x={tx + 47} y={tipY + 27} fontSize={9} fill="white" textAnchor="end" fontWeight="600">
+                          {bar.netCalories.toLocaleString()}
+                        </text>
+                        <text x={tx - 47} y={tipY + 40} fontSize={9} fill="#9ca3af">vs. budget</text>
+                        <text x={tx + 47} y={tipY + 40} fontSize={9} textAnchor="end" fontWeight="600"
+                          fill={delta >= 0 ? '#22c55e' : '#ef4444'}>
+                          {delta >= 0 ? `+${delta.toLocaleString()}` : delta.toLocaleString()}
+                        </text>
+                      </g>
+                    )
+                  })()}
+                </svg>
+              </div>
             )}
+
+            {/* Legend */}
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[11px] text-gray-500">
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded bg-green-500 opacity-85" />Under budget
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded bg-red-500 opacity-85" />Over budget
+              </div>
+              <div className="flex items-center gap-1.5">
+                <div className="w-2.5 h-2.5 rounded bg-gray-200" />No data
+              </div>
+            </div>
           </div>
         </>
       )}

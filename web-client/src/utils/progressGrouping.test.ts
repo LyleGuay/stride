@@ -76,18 +76,18 @@ describe('groupDays — month range', () => {
   })
 })
 
-/* ─── groupDays: year range ──────────────────────────────────────────────── */
+/* ─── groupDays: ytd range ───────────────────────────────────────────────── */
 
-describe('groupDays — year range', () => {
+describe('groupDays — ytd range', () => {
   it('produces approximately 52-53 week bars for a full year', () => {
-    const bars = groupDays([], 'year', '2026-01-01', '2026-12-31')
+    const bars = groupDays([], 'ytd', '2026-01-01', '2026-12-31')
     // ISO 2026 has 52 weeks, but the year spans parts of week 53/1 at the edges
     expect(bars.length).toBeGreaterThanOrEqual(52)
     expect(bars.length).toBeLessThanOrEqual(54)
   })
 
   it('labels week bars with "Wk N"', () => {
-    const bars = groupDays([], 'year', '2026-01-01', '2026-01-31')
+    const bars = groupDays([], 'ytd', '2026-01-01', '2026-01-31')
     for (const bar of bars) {
       expect(bar.label).toMatch(/^Wk \d+$/)
     }
@@ -100,7 +100,7 @@ describe('groupDays — year range', () => {
       makeDay('2026-03-03', { calories_food: 1200, calories_exercise: 200, net_calories: 1000, calorie_budget: 2000 }),
       makeDay('2026-03-04', { calories_food: 800,  calories_exercise: 0,   net_calories: 800,  calorie_budget: 2000 }),
     ]
-    const bars = groupDays(days, 'year', '2026-01-01', '2026-12-31')
+    const bars = groupDays(days, 'ytd', '2026-01-01', '2026-12-31')
     // Find the bar that covers week 10 (Mar 2–8 is week 10 in ISO 2026)
     const wk10 = bars.find(b => b.label === 'Wk 10')
     expect(wk10).toBeDefined()
@@ -112,7 +112,7 @@ describe('groupDays — year range', () => {
   })
 
   it('produces bars with trackedDays=0 for empty weeks', () => {
-    const bars = groupDays([], 'year', '2026-01-01', '2026-12-31')
+    const bars = groupDays([], 'ytd', '2026-01-01', '2026-12-31')
     for (const bar of bars) {
       expect(bar.trackedDays).toBe(0)
       expect(bar.netCalories).toBe(0)
@@ -121,7 +121,7 @@ describe('groupDays — year range', () => {
 
   it('each week bar totalDays reflects actual calendar days in range', () => {
     // A full year — most weeks have 7 days; first/last may have fewer
-    const bars = groupDays([], 'year', '2026-01-01', '2026-12-31')
+    const bars = groupDays([], 'ytd', '2026-01-01', '2026-12-31')
     const totalDays = bars.reduce((s, b) => s + b.totalDays, 0)
     expect(totalDays).toBe(365)  // 2026 is not a leap year
   })
@@ -189,9 +189,21 @@ describe('getRangeDates', () => {
     expect(end).toBe('2026-03-31')    // last day of March 2026
   })
 
-  it("'year' returns Jan 1 of the current year through today", () => {
-    const { start, end } = getRangeDates('year')
+  it("'6months' returns 6 calendar months ago through today", () => {
+    const { start, end } = getRangeDates('6months')
+    expect(start).toBe('2025-09-01')  // 6 months before March 2026
+    expect(end).toBe('2026-03-01')
+  })
+
+  it("'ytd' returns Jan 1 of the current year through today", () => {
+    const { start, end } = getRangeDates('ytd')
     expect(start).toBe('2026-01-01')
+    expect(end).toBe('2026-03-01')
+  })
+
+  it("'lastyear' returns 365 days ago through today", () => {
+    const { start, end } = getRangeDates('lastyear')
+    expect(start).toBe('2025-03-01')  // 365 days before March 1, 2026
     expect(end).toBe('2026-03-01')
   })
 
@@ -213,7 +225,7 @@ describe('getRangeDates', () => {
 
   it('all returned dates are valid YYYY-MM-DD strings', () => {
     const isoPattern = /^\d{4}-\d{2}-\d{2}$/
-    for (const range of ['month', 'year', 'all'] as const) {
+    for (const range of ['month', '6months', 'ytd', 'lastyear', 'all'] as const) {
       const { start, end } = getRangeDates(range)
       expect(start).toMatch(isoPattern)
       expect(end).toMatch(isoPattern)

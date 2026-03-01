@@ -37,7 +37,7 @@ const mockProgressData: ProgressResponse = {
 function defaultProps(overrides: Partial<ProgressViewProps> = {}): ProgressViewProps {
   return {
     range: 'month',
-    onRangeChange: noop as unknown as (r: 'month' | 'year' | 'all') => void,
+    onRangeChange: noop as unknown as (r: ProgressViewProps['range']) => void,
     progressData: mockProgressData,
     weightEntries: [],
     loading: false,
@@ -56,46 +56,70 @@ function defaultProps(overrides: Partial<ProgressViewProps> = {}): ProgressViewP
 
 describe('ProgressView', () => {
   describe('range selector', () => {
-    it('renders all three range buttons', () => {
+    it('renders all five range buttons', () => {
       render(<ProgressView {...defaultProps()} />)
-      expect(screen.getByRole('button', { name: 'This Month' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'This Year' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'All Time' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '1M' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '6M' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'YTD' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: '1Y' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument()
     })
 
-    it('calls onRangeChange with "year" when "This Year" is clicked', () => {
+    it('calls onRangeChange with "ytd" when "YTD" is clicked', () => {
       const onRangeChange = vi.fn()
       render(<ProgressView {...defaultProps({ onRangeChange })} />)
-      fireEvent.click(screen.getByRole('button', { name: 'This Year' }))
-      expect(onRangeChange).toHaveBeenCalledWith('year')
+      fireEvent.click(screen.getByRole('button', { name: 'YTD' }))
+      expect(onRangeChange).toHaveBeenCalledWith('ytd')
     })
 
-    it('calls onRangeChange with "all" when "All Time" is clicked', () => {
+    it('calls onRangeChange with "all" when "All" is clicked', () => {
       const onRangeChange = vi.fn()
       render(<ProgressView {...defaultProps({ onRangeChange })} />)
-      fireEvent.click(screen.getByRole('button', { name: 'All Time' }))
+      fireEvent.click(screen.getByRole('button', { name: 'All' }))
       expect(onRangeChange).toHaveBeenCalledWith('all')
     })
 
-    it('calls onRangeChange with "month" when "This Month" is clicked', () => {
+    it('calls onRangeChange with "month" when "1M" is clicked', () => {
       const onRangeChange = vi.fn()
-      render(<ProgressView {...defaultProps({ range: 'year', onRangeChange })} />)
-      fireEvent.click(screen.getByRole('button', { name: 'This Month' }))
+      render(<ProgressView {...defaultProps({ range: 'ytd', onRangeChange })} />)
+      fireEvent.click(screen.getByRole('button', { name: '1M' }))
       expect(onRangeChange).toHaveBeenCalledWith('month')
+    })
+
+    it('calls onRangeChange with "6months" when "6M" is clicked', () => {
+      const onRangeChange = vi.fn()
+      render(<ProgressView {...defaultProps({ onRangeChange })} />)
+      fireEvent.click(screen.getByRole('button', { name: '6M' }))
+      expect(onRangeChange).toHaveBeenCalledWith('6months')
+    })
+
+    it('calls onRangeChange with "lastyear" when "1Y" is clicked', () => {
+      const onRangeChange = vi.fn()
+      render(<ProgressView {...defaultProps({ onRangeChange })} />)
+      fireEvent.click(screen.getByRole('button', { name: '1Y' }))
+      expect(onRangeChange).toHaveBeenCalledWith('lastyear')
     })
   })
 
   describe('loading state', () => {
     it('renders a spinner when loading=true', () => {
       render(<ProgressView {...defaultProps({ loading: true })} />)
-      // The spinner has animate-spin class; check by role or aria isn't available,
-      // so check that the chart content is absent
+      // Chart content is absent but Period Summary card is still rendered
       expect(screen.queryByText('Calories')).not.toBeInTheDocument()
     })
 
-    it('does not render chart cards when loading', () => {
+    it('Period Summary card (with range selector) is visible during loading', () => {
       render(<ProgressView {...defaultProps({ loading: true })} />)
-      expect(screen.queryByText('Period Summary')).not.toBeInTheDocument()
+      expect(screen.getByText('Period Summary')).toBeInTheDocument()
+      // Range pills still accessible
+      expect(screen.getByRole('button', { name: '1M' })).toBeInTheDocument()
+    })
+
+    it('does not render stats body or chart cards when loading', () => {
+      render(<ProgressView {...defaultProps({ loading: true })} />)
+      expect(screen.queryByText('Avg Daily Net')).not.toBeInTheDocument()
+      expect(screen.queryByText('Calories')).not.toBeInTheDocument()
+      expect(screen.queryByText('Weight')).not.toBeInTheDocument()
     })
   })
 
@@ -105,9 +129,16 @@ describe('ProgressView', () => {
       expect(screen.getByText('Failed to load progress data')).toBeInTheDocument()
     })
 
-    it('does not render chart cards when in error state', () => {
+    it('Period Summary card (with range selector) is visible during error', () => {
       render(<ProgressView {...defaultProps({ error: 'oops' })} />)
-      expect(screen.queryByText('Period Summary')).not.toBeInTheDocument()
+      expect(screen.getByText('Period Summary')).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'YTD' })).toBeInTheDocument()
+    })
+
+    it('does not render stats body or chart cards when in error state', () => {
+      render(<ProgressView {...defaultProps({ error: 'oops' })} />)
+      expect(screen.queryByText('Avg Daily Net')).not.toBeInTheDocument()
+      expect(screen.queryByText('Calories')).not.toBeInTheDocument()
     })
   })
 
@@ -123,7 +154,6 @@ describe('ProgressView', () => {
 
     it('shows stats placeholder when progressData is null', () => {
       render(<ProgressView {...defaultProps({ progressData: null })} />)
-      // Chart card renders, but stats card shows placeholder
       const placeholders = screen.getAllByText('No data for this period')
       expect(placeholders.length).toBeGreaterThanOrEqual(1)
     })
@@ -135,11 +165,18 @@ describe('ProgressView', () => {
       expect(screen.getByText('Calories')).toBeInTheDocument()
     })
 
-    it('renders the Period Summary card with stats', () => {
+    it('renders the Period Summary card with calorie stats', () => {
       render(<ProgressView {...defaultProps()} />)
       expect(screen.getByText('Period Summary')).toBeInTheDocument()
       expect(screen.getByText('Avg Daily Net')).toBeInTheDocument()
       expect(screen.getByText('Days Tracked')).toBeInTheDocument()
+    })
+
+    it('renders the Weight Change / Start / End stat labels', () => {
+      render(<ProgressView {...defaultProps()} />)
+      expect(screen.getByText('Weight Change')).toBeInTheDocument()
+      expect(screen.getByText('Start Weight')).toBeInTheDocument()
+      expect(screen.getByText('End Weight')).toBeInTheDocument()
     })
 
     it('renders the Weight card with Graph/Table toggle', () => {

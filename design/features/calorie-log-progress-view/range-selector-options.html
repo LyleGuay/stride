@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stride — Progress Range Selector Options</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50 py-10 px-6">
+
+  <h1 class="text-xl font-semibold text-gray-900 mb-1">Progress Range Selector — Design Options</h1>
+  <p class="text-sm text-gray-500 mb-10">Each option shown in context with the tab bar above it. Active selection: <strong>Last 6 Mo</strong>.</p>
+
+  <!-- ═══════════════════════════════════════════════════════════════
+       SHARED CHROME — tab bar shown above every option for context
+       ═══════════════════════════════════════════════════════════════ -->
+
+  <!-- ─── OPTION A: Floating pills (minimal) ─────────────────────── -->
+  <section class="mb-12">
+    <div class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Option A — Floating Pills</div>
+    <p class="text-sm text-gray-500 mb-4 max-w-xl">Auto-width rounded pills, no container box. Distinct from the tab bar above. Clean, minimal.</p>
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 max-w-2xl">
+      <!-- Tab bar for context -->
+      <div class="flex bg-gray-100 rounded-lg p-1 mb-5">
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Daily</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Weekly</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md bg-white text-gray-800 shadow-sm">Progress</button>
+      </div>
+      <!-- Range selector -->
+      <div class="flex gap-2 flex-wrap mb-6">
+        <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">This Month</button>
+        <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-800 text-white transition-colors">Last 6 Mo</button>
+        <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">YTD</button>
+        <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Last Year</button>
+        <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">All Time</button>
+      </div>
+      <!-- Placeholder chart area -->
+      <div class="bg-gray-50 rounded-xl border border-gray-100 h-28 flex items-center justify-center text-xs text-gray-400">chart</div>
+    </div>
+  </section>
+
+  <!-- ─── OPTION B: Underline tabs ────────────────────────────────── -->
+  <section class="mb-12">
+    <div class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Option B — Underline Tabs</div>
+    <p class="text-sm text-gray-500 mb-4 max-w-xl">Text-only with a colored underline. Common in analytics dashboards (Google Analytics, Notion). Very lightweight — no boxes at all.</p>
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 max-w-2xl">
+      <!-- Tab bar for context -->
+      <div class="flex bg-gray-100 rounded-lg p-1 mb-5">
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Daily</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Weekly</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md bg-white text-gray-800 shadow-sm">Progress</button>
+      </div>
+      <!-- Range selector -->
+      <div class="flex gap-5 border-b border-gray-200 mb-6">
+        <button class="pb-2 text-sm font-medium text-gray-400 border-b-2 border-transparent -mb-px">This Month</button>
+        <button class="pb-2 text-sm font-medium text-gray-900 border-b-2 border-gray-900 -mb-px">Last 6 Mo</button>
+        <button class="pb-2 text-sm font-medium text-gray-400 border-b-2 border-transparent -mb-px">YTD</button>
+        <button class="pb-2 text-sm font-medium text-gray-400 border-b-2 border-transparent -mb-px">Last Year</button>
+        <button class="pb-2 text-sm font-medium text-gray-400 border-b-2 border-transparent -mb-px">All Time</button>
+      </div>
+      <!-- Placeholder chart area -->
+      <div class="bg-gray-50 rounded-xl border border-gray-100 h-28 flex items-center justify-center text-xs text-gray-400">chart</div>
+    </div>
+  </section>
+
+  <!-- ─── OPTION C: Accent color pills ────────────────────────────── -->
+  <section class="mb-12">
+    <div class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Option C — Accent Pills (stride color)</div>
+    <p class="text-sm text-gray-500 mb-4 max-w-xl">Same pill shape as Option A but uses the app's indigo accent color for the active state. More visually prominent.</p>
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 max-w-2xl">
+      <!-- Tab bar for context -->
+      <div class="flex bg-gray-100 rounded-lg p-1 mb-5">
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Daily</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Weekly</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md bg-white text-gray-800 shadow-sm">Progress</button>
+      </div>
+      <!-- Range selector -->
+      <div class="flex gap-2 flex-wrap mb-6">
+        <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 transition-colors">This Month</button>
+        <button class="px-3 py-1 rounded-full text-sm font-medium bg-indigo-600 text-white transition-colors">Last 6 Mo</button>
+        <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 transition-colors">YTD</button>
+        <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 transition-colors">Last Year</button>
+        <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 transition-colors">All Time</button>
+      </div>
+      <!-- Placeholder chart area -->
+      <div class="bg-gray-50 rounded-xl border border-gray-100 h-28 flex items-center justify-center text-xs text-gray-400">chart</div>
+    </div>
+  </section>
+
+  <!-- ─── OPTION D: Compact dropdown ──────────────────────────────── -->
+  <section class="mb-12">
+    <div class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Option D — Dropdown</div>
+    <p class="text-sm text-gray-500 mb-4 max-w-xl">Keeps the UI clean by tucking the selector into a single compact control. Leaves max space for the chart. Good if options ever grow further.</p>
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 max-w-2xl">
+      <!-- Tab bar for context -->
+      <div class="flex bg-gray-100 rounded-lg p-1 mb-5">
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Daily</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Weekly</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md bg-white text-gray-800 shadow-sm">Progress</button>
+      </div>
+      <!-- Range selector -->
+      <div class="flex items-center gap-2 mb-6">
+        <span class="text-sm text-gray-500 font-medium">Showing</span>
+        <div class="relative inline-block">
+          <select class="appearance-none pl-3 pr-8 py-1.5 text-sm font-semibold text-gray-800 bg-gray-100 rounded-lg border-none focus:ring-2 focus:ring-indigo-500 cursor-pointer">
+            <option>This Month</option>
+            <option selected>Last 6 Months</option>
+            <option>YTD</option>
+            <option>Last Year</option>
+            <option>All Time</option>
+          </select>
+          <svg class="absolute right-2 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500 pointer-events-none" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/>
+          </svg>
+        </div>
+      </div>
+      <!-- Placeholder chart area -->
+      <div class="bg-gray-50 rounded-xl border border-gray-100 h-28 flex items-center justify-center text-xs text-gray-400">chart</div>
+    </div>
+  </section>
+
+  <!-- ─── OPTION E: Granularity hint pills ────────────────────────── -->
+  <section class="mb-12">
+    <div class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Option E — Pills with Granularity Hint</div>
+    <p class="text-sm text-gray-500 mb-4 max-w-xl">Each pill shows a tiny sub-label indicating bar granularity (days / weeks / months). Gives the user a preview of what the chart will look like before clicking.</p>
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 max-w-2xl">
+      <!-- Tab bar for context -->
+      <div class="flex bg-gray-100 rounded-lg p-1 mb-5">
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Daily</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Weekly</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md bg-white text-gray-800 shadow-sm">Progress</button>
+      </div>
+      <!-- Range selector -->
+      <div class="flex gap-2 flex-wrap mb-6">
+        <button class="flex flex-col items-center px-3 py-1.5 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors leading-tight">
+          <span>This Month</span>
+          <span class="text-[10px] font-normal text-gray-400">by day</span>
+        </button>
+        <button class="flex flex-col items-center px-3 py-1.5 rounded-xl text-sm font-medium bg-gray-800 text-white transition-colors leading-tight">
+          <span>Last 6 Mo</span>
+          <span class="text-[10px] font-normal text-gray-300">by week</span>
+        </button>
+        <button class="flex flex-col items-center px-3 py-1.5 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors leading-tight">
+          <span>YTD</span>
+          <span class="text-[10px] font-normal text-gray-400">by week</span>
+        </button>
+        <button class="flex flex-col items-center px-3 py-1.5 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors leading-tight">
+          <span>Last Year</span>
+          <span class="text-[10px] font-normal text-gray-400">by week</span>
+        </button>
+        <button class="flex flex-col items-center px-3 py-1.5 rounded-xl text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors leading-tight">
+          <span>All Time</span>
+          <span class="text-[10px] font-normal text-gray-400">by month</span>
+        </button>
+      </div>
+      <!-- Placeholder chart area -->
+      <div class="bg-gray-50 rounded-xl border border-gray-100 h-28 flex items-center justify-center text-xs text-gray-400">chart</div>
+    </div>
+  </section>
+
+  <!-- ─── OPTION F: Grouped pill clusters ─────────────────────────── -->
+  <section class="mb-12">
+    <div class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Option F — Grouped Clusters (short-term / long-term)</div>
+    <p class="text-sm text-gray-500 mb-4 max-w-xl">Two pill clusters separated by a divider, making the short-term vs. long-term grouping explicit. Labels above each cluster.</p>
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 max-w-2xl">
+      <!-- Tab bar for context -->
+      <div class="flex bg-gray-100 rounded-lg p-1 mb-5">
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Daily</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Weekly</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md bg-white text-gray-800 shadow-sm">Progress</button>
+      </div>
+      <!-- Range selector -->
+      <div class="flex items-center gap-3 mb-6">
+        <!-- Short-term group -->
+        <div class="flex gap-1.5">
+          <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">1M</button>
+          <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-800 text-white transition-colors">6M</button>
+          <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">YTD</button>
+        </div>
+        <!-- Divider -->
+        <div class="w-px h-5 bg-gray-200"></div>
+        <!-- Long-term group -->
+        <div class="flex gap-1.5">
+          <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">1Y</button>
+          <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">All</button>
+        </div>
+      </div>
+      <!-- Placeholder chart area -->
+      <div class="bg-gray-50 rounded-xl border border-gray-100 h-28 flex items-center justify-center text-xs text-gray-400">chart</div>
+    </div>
+  </section>
+
+  <!-- ─── OPTION G: Right-aligned beside chart title ───────────────── -->
+  <section class="mb-12">
+    <div class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Option G — Inline with Chart Header</div>
+    <p class="text-sm text-gray-500 mb-4 max-w-xl">The range selector moves inside the chart card header, right-aligned next to "Calories". No separate row at all — saves vertical space.</p>
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 max-w-2xl">
+      <!-- Tab bar for context -->
+      <div class="flex bg-gray-100 rounded-lg p-1 mb-5">
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Daily</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Weekly</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md bg-white text-gray-800 shadow-sm">Progress</button>
+      </div>
+      <!-- Chart card with inline range selector -->
+      <div class="bg-gray-50 rounded-xl border border-gray-100 p-4">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-sm font-semibold text-gray-800">Calories</h3>
+          <div class="flex gap-1">
+            <button class="px-2.5 py-1 rounded-md text-xs font-medium text-gray-500 hover:bg-gray-200 transition-colors">1M</button>
+            <button class="px-2.5 py-1 rounded-md text-xs font-medium bg-gray-200 text-gray-800 transition-colors">6M</button>
+            <button class="px-2.5 py-1 rounded-md text-xs font-medium text-gray-500 hover:bg-gray-200 transition-colors">YTD</button>
+            <button class="px-2.5 py-1 rounded-md text-xs font-medium text-gray-500 hover:bg-gray-200 transition-colors">1Y</button>
+            <button class="px-2.5 py-1 rounded-md text-xs font-medium text-gray-500 hover:bg-gray-200 transition-colors">All</button>
+          </div>
+        </div>
+        <div class="h-20 flex items-center justify-center text-xs text-gray-400">chart bars</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ─── OPTION H: Segmented with count badge ─────────────────────── -->
+  <section class="mb-12">
+    <div class="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">Option H — Pills with Date Range Preview</div>
+    <p class="text-sm text-gray-500 mb-4 max-w-xl">Active pill shows the date range it covers as a sub-label. Only the selected pill shows the range — keeps it minimal until needed.</p>
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 max-w-2xl">
+      <!-- Tab bar for context -->
+      <div class="flex bg-gray-100 rounded-lg p-1 mb-5">
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Daily</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Weekly</button>
+        <button class="flex-1 py-1.5 text-sm font-medium rounded-md bg-white text-gray-800 shadow-sm">Progress</button>
+      </div>
+      <!-- Range selector -->
+      <div class="flex items-center gap-2 flex-wrap mb-6">
+        <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">This Month</button>
+        <!-- Active pill: shows date range below label -->
+        <button class="px-3 py-1.5 rounded-full text-sm font-medium bg-gray-800 text-white transition-colors flex flex-col items-center leading-tight">
+          <span>Last 6 Mo</span>
+          <span class="text-[10px] font-normal text-gray-300">Sep 1 – Mar 1</span>
+        </button>
+        <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">YTD</button>
+        <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">Last Year</button>
+        <button class="px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-600 hover:bg-gray-200 transition-colors">All Time</button>
+      </div>
+      <!-- Placeholder chart area -->
+      <div class="bg-gray-50 rounded-xl border border-gray-100 h-28 flex items-center justify-center text-xs text-gray-400">chart</div>
+    </div>
+  </section>
+
+</body>
+</html>

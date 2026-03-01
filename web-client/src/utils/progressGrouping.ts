@@ -1,17 +1,23 @@
 // progressGrouping.ts — pure functions for bucketing WeekDaySummary rows into
-// chart bars for the Progress tab. Three modes: day (month range), ISO-week
-// (year range), and calendar-month (all-time range). Extracted here so they
-// can be unit-tested independently of the component.
+// chart bars for the Progress tab. Three modes: day (1M range), ISO-week
+// (6M/YTD/1Y ranges), and calendar-month (all-time range). Extracted here so
+// they can be unit-tested independently of the component.
 
 import type { WeekDaySummary } from '../types'
 import { todayString } from './dates'
 
+/* ─── Types ─────────────────────────────────────────────────────────────── */
+
+// ProgressRange identifies the five range presets on the Progress tab.
+// Determines both the date window (getRangeDates) and bar grouping (groupDays).
+export type ProgressRange = 'month' | '6months' | 'ytd' | 'lastyear' | 'all'
+
 /* ─── ChartBar ──────────────────────────────────────────────────────────── */
 
 // ChartBar represents one bar in the Progress tab calorie chart.
-// For 'month': one bar per calendar day.
-// For 'year':  one bar per ISO week (~52 bars).
-// For 'all':   one bar per calendar month.
+// For 'month':                one bar per calendar day.
+// For '6months'/'ytd'/'lastyear': one bar per ISO week.
+// For 'all':                  one bar per calendar month.
 export interface ChartBar {
   label: string         // Display label: "15", "Wk 3", "Jan", or "Jan '25"
   totalFood: number
@@ -56,14 +62,16 @@ function getISOWeekYear(dateStr: string): number {
 /* ─── getRangeDates ──────────────────────────────────────────────────────── */
 
 // getRangeDates returns start/end YYYY-MM-DD strings for a given range preset.
-// - 'month': first → last day of the current calendar month (always a full month)
-// - 'year':  Jan 1 of the current year → today
-// - 'all':   earliestDate (or '2020-01-01' if absent) → today
+// - 'month':    first → last day of the current calendar month (always a full month)
+// - '6months':  6 calendar months ago → today
+// - 'ytd':      Jan 1 of the current year → today
+// - 'lastyear': 365 days ago → today
+// - 'all':      earliestDate (or '2020-01-01' if absent) → today
 //
 // 'month' uses the full calendar month so the bar chart always has 28–31 bars,
 // even on the 1st of the month. Future days appear as empty (no-data) bars.
 export function getRangeDates(
-  range: 'month' | 'year' | 'all',
+  range: ProgressRange,
   earliestDate?: string | null,
 ): { start: string; end: string } {
   const today = todayString()
@@ -74,8 +82,18 @@ export function getRangeDates(
     const lastDay = new Date(parseInt(y, 10), parseInt(mm, 10), 0).getDate()
     return { start: `${y}-${mm}-01`, end: `${y}-${mm}-${String(lastDay).padStart(2, '0')}` }
   }
-  if (range === 'year')  return { start: today.slice(0, 4) + '-01-01', end: today }
-  return { start: earliestDate ?? '2020-01-01', end: today }
+  if (range === '6months') {
+    const d = new Date(today + 'T00:00:00Z')
+    d.setUTCMonth(d.getUTCMonth() - 6)
+    return { start: d.toISOString().slice(0, 10), end: today }
+  }
+  if (range === 'ytd')  return { start: today.slice(0, 4) + '-01-01', end: today }
+  if (range === 'lastyear') {
+    const d = new Date(today + 'T00:00:00Z')
+    d.setUTCDate(d.getUTCDate() - 365)
+    return { start: d.toISOString().slice(0, 10), end: today }
+  }
+  return { start: earliestDate ?? '2020-01-01', end: today }  // 'all'
 }
 
 /* ─── groupDays ─────────────────────────────────────────────────────────── */
@@ -85,13 +103,13 @@ export function getRangeDates(
 // empty bars so the chart always covers the full selected range.
 export function groupDays(
   days: WeekDaySummary[],
-  range: 'month' | 'year' | 'all',
+  range: ProgressRange,
   start: string,
   end: string,
 ): ChartBar[] {
   if (range === 'month') return groupByDay(days, start, end)
-  if (range === 'year')  return groupByISOWeek(days, start, end)
-  return groupByMonth(days, start, end)
+  if (range === 'all')   return groupByMonth(days, start, end)
+  return groupByISOWeek(days, start, end)  // '6months' | 'ytd' | 'lastyear'
 }
 
 /* ─── Day grouping (month range) ────────────────────────────────────────── */

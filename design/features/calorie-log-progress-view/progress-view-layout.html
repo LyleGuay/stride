@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stride — Progress View Layout</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: { 50: '#eef2ff', 100: '#e0e7ff', 500: '#6366f1', 600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  </style>
+</head>
+<body class="bg-gray-50 py-10 px-6">
+
+  <h1 class="text-xl font-semibold text-gray-900 mb-1">Progress View — Redesigned Layout</h1>
+  <p class="text-sm text-gray-500 mb-10">Period Summary at top with inline range selector · Weight above Calories · Weight stats in summary</p>
+
+  <div class="max-w-2xl space-y-4">
+
+    <!-- ─── TAB BAR ────────────────────────────────────────────────── -->
+    <div class="flex bg-gray-100 rounded-lg p-1">
+      <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Daily</button>
+      <button class="flex-1 py-1.5 text-sm font-medium rounded-md text-gray-500">Weekly</button>
+      <button class="flex-1 py-1.5 text-sm font-medium rounded-md bg-white text-gray-800 shadow-sm">Progress</button>
+    </div>
+
+    <!-- ─── 1. PERIOD SUMMARY ─────────────────────────────────────── -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+      <!-- Card header: title + range selector -->
+      <div class="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100">
+        <h3 class="text-sm font-semibold text-gray-800">Period Summary</h3>
+        <div class="flex items-center gap-1">
+          <button class="px-2.5 py-1 rounded-md text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">1M</button>
+          <button class="px-2.5 py-1 rounded-md text-xs font-medium bg-gray-800 text-white transition-colors">6M</button>
+          <button class="px-2.5 py-1 rounded-md text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">YTD</button>
+          <button class="px-2.5 py-1 rounded-md text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">1Y</button>
+          <button class="px-2.5 py-1 rounded-md text-xs font-medium text-gray-500 hover:bg-gray-100 transition-colors">All</button>
+        </div>
+      </div>
+
+      <!-- Calorie stats row -->
+      <div class="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
+        <div class="px-4 py-3">
+          <div class="text-xs text-gray-500 mb-0.5">Avg Daily Net</div>
+          <div class="text-lg font-semibold text-gray-900">1,840</div>
+          <div class="text-xs text-gray-400">cal / day</div>
+        </div>
+        <div class="px-4 py-3">
+          <div class="text-xs text-gray-500 mb-0.5">Days Tracked</div>
+          <div class="text-lg font-semibold text-gray-900">89</div>
+          <div class="text-xs text-gray-400">of 182 days</div>
+        </div>
+        <div class="px-4 py-3">
+          <div class="text-xs text-gray-500 mb-0.5">Days on Budget</div>
+          <div class="text-lg font-semibold text-gray-900">61</div>
+          <div class="text-xs text-gray-400">69% of tracked</div>
+        </div>
+      </div>
+
+      <!-- Weight stats row -->
+      <div class="grid grid-cols-3 divide-x divide-gray-100 border-b border-gray-100">
+        <div class="px-4 py-3">
+          <div class="text-xs text-gray-500 mb-0.5">Weight Change</div>
+          <div class="text-lg font-semibold text-green-600">−6.8 lbs</div>
+          <div class="text-xs text-gray-400">over period</div>
+        </div>
+        <div class="px-4 py-3">
+          <div class="text-xs text-gray-500 mb-0.5">Start Weight</div>
+          <div class="text-lg font-semibold text-gray-900">185.2</div>
+          <div class="text-xs text-gray-400">lbs · Sep 1</div>
+        </div>
+        <div class="px-4 py-3">
+          <div class="text-xs text-gray-500 mb-0.5">End Weight</div>
+          <div class="text-lg font-semibold text-gray-900">178.4</div>
+          <div class="text-xs text-gray-400">lbs · Mar 1</div>
+        </div>
+      </div>
+
+      <!-- Estimated impact footer -->
+      <div class="px-4 py-3 flex items-center justify-between">
+        <span class="text-xs text-gray-500">Estimated weight impact from calorie deficit</span>
+        <span class="text-sm font-semibold text-green-600">−4.6 lbs</span>
+      </div>
+    </div>
+
+    <!-- ─── 2. WEIGHT TREND ───────────────────────────────────────── -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+      <div class="flex items-center justify-between px-4 pt-4 pb-3">
+        <h3 class="text-sm font-semibold text-gray-800">Weight</h3>
+        <div class="flex gap-1">
+          <button class="px-2.5 py-1 text-xs font-medium rounded-md bg-gray-100 text-gray-800 transition-colors">Graph</button>
+          <button class="px-2.5 py-1 text-xs font-medium rounded-md text-gray-400 hover:text-gray-600 transition-colors">Table</button>
+        </div>
+      </div>
+
+      <!-- Weight line chart placeholder -->
+      <div class="px-4 pb-4">
+        <svg viewBox="0 0 520 100" class="w-full" style="height:100px">
+          <!-- Y axis labels -->
+          <text x="0" y="12" font-size="9" fill="#9ca3af">186</text>
+          <text x="0" y="55" font-size="9" fill="#9ca3af">182</text>
+          <text x="0" y="98" font-size="9" fill="#9ca3af">178</text>
+
+          <!-- Grid lines -->
+          <line x1="22" y1="8"  x2="515" y2="8"  stroke="#f3f4f6" stroke-width="1"/>
+          <line x1="22" y1="51" x2="515" y2="51" stroke="#f3f4f6" stroke-width="1"/>
+          <line x1="22" y1="94" x2="515" y2="94" stroke="#f3f4f6" stroke-width="1"/>
+
+          <!-- Area fill under line -->
+          <defs>
+            <linearGradient id="wGrad" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#6366f1" stop-opacity="0.15"/>
+              <stop offset="100%" stop-color="#6366f1" stop-opacity="0.01"/>
+            </linearGradient>
+          </defs>
+          <path d="M30,18 C70,20 110,30 155,38 C200,46 240,50 285,52 C330,54 370,62 415,70 C450,76 480,88 510,92 L510,94 L30,94 Z"
+                fill="url(#wGrad)"/>
+
+          <!-- Line -->
+          <path d="M30,18 C70,20 110,30 155,38 C200,46 240,50 285,52 C330,54 370,62 415,70 C450,76 480,88 510,92"
+                fill="none" stroke="#6366f1" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+
+          <!-- Dots -->
+          <circle cx="30"  cy="18" r="3" fill="white" stroke="#6366f1" stroke-width="1.5"/>
+          <circle cx="90"  cy="26" r="3" fill="white" stroke="#6366f1" stroke-width="1.5"/>
+          <circle cx="155" cy="38" r="3" fill="white" stroke="#6366f1" stroke-width="1.5"/>
+          <circle cx="220" cy="48" r="3" fill="white" stroke="#6366f1" stroke-width="1.5"/>
+          <circle cx="285" cy="52" r="3" fill="white" stroke="#6366f1" stroke-width="1.5"/>
+          <circle cx="350" cy="60" r="3" fill="white" stroke="#6366f1" stroke-width="1.5"/>
+          <circle cx="415" cy="70" r="3" fill="white" stroke="#6366f1" stroke-width="1.5"/>
+          <circle cx="510" cy="92" r="3.5" fill="#6366f1" stroke="white" stroke-width="1.5"/>
+
+          <!-- X labels -->
+          <text x="27"  y="108" font-size="9" fill="#9ca3af" text-anchor="middle">Sep</text>
+          <text x="155" y="108" font-size="9" fill="#9ca3af" text-anchor="middle">Nov</text>
+          <text x="285" y="108" font-size="9" fill="#9ca3af" text-anchor="middle">Jan</text>
+          <text x="415" y="108" font-size="9" fill="#9ca3af" text-anchor="middle">Feb</text>
+          <text x="510" y="108" font-size="9" fill="#9ca3af" text-anchor="middle">Mar</text>
+        </svg>
+      </div>
+    </div>
+
+    <!-- ─── 3. CALORIES BAR CHART ─────────────────────────────────── -->
+    <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+      <div class="px-4 pt-4 pb-3">
+        <h3 class="text-sm font-semibold text-gray-800">Calories</h3>
+      </div>
+
+      <!-- Bar chart placeholder — weekly bars for 6M view -->
+      <div class="px-4 pb-4 overflow-x-auto">
+        <svg viewBox="0 20 520 135" class="w-full" style="height:130px">
+          <!-- Y gridlines -->
+          <line x1="28" y1="25"  x2="515" y2="25"  stroke="#f3f4f6" stroke-width="1"/>
+          <line x1="28" y1="58"  x2="515" y2="58"  stroke="#f3f4f6" stroke-width="1"/>
+          <line x1="28" y1="91"  x2="515" y2="91"  stroke="#f3f4f6" stroke-width="1"/>
+          <line x1="28" y1="124" x2="515" y2="124" stroke="#f3f4f6" stroke-width="1"/>
+          <text x="22" y="29"  font-size="8" fill="#9ca3af" text-anchor="end">2400</text>
+          <text x="22" y="62"  font-size="8" fill="#9ca3af" text-anchor="end">1800</text>
+          <text x="22" y="95"  font-size="8" fill="#9ca3af" text-anchor="end">1200</text>
+          <text x="22" y="128" font-size="8" fill="#9ca3af" text-anchor="end">600</text>
+
+          <!-- Bars: ~26 weeks, alternating on/over budget -->
+          <!-- Green = on budget, red = over budget -->
+          <g>
+            <!-- Sep wk1-4 mostly under budget -->
+            <rect x="30"  y="52" width="11" height="72" rx="2" fill="#86efac"/>
+            <rect x="49"  y="61" width="11" height="63" rx="2" fill="#86efac"/>
+            <rect x="68"  y="44" width="11" height="80" rx="2" fill="#fca5a5"/>
+            <rect x="87"  y="55" width="11" height="69" rx="2" fill="#86efac"/>
+            <!-- Oct -->
+            <rect x="106" y="65" width="11" height="59" rx="2" fill="#86efac"/>
+            <rect x="125" y="48" width="11" height="76" rx="2" fill="#fca5a5"/>
+            <rect x="144" y="70" width="11" height="54" rx="2" fill="#86efac"/>
+            <rect x="163" y="59" width="11" height="65" rx="2" fill="#86efac"/>
+            <!-- Nov -->
+            <rect x="182" y="43" width="11" height="81" rx="2" fill="#fca5a5"/>
+            <rect x="201" y="62" width="11" height="62" rx="2" fill="#86efac"/>
+            <rect x="220" y="57" width="11" height="67" rx="2" fill="#86efac"/>
+            <rect x="239" y="50" width="11" height="74" rx="2" fill="#fca5a5"/>
+            <!-- Dec -->
+            <rect x="258" y="67" width="11" height="57" rx="2" fill="#86efac"/>
+            <rect x="277" y="72" width="11" height="52" rx="2" fill="#86efac"/>
+            <rect x="296" y="45" width="11" height="79" rx="2" fill="#fca5a5"/>
+            <rect x="315" y="38" width="11" height="86" rx="2" fill="#fca5a5"/>
+            <!-- Jan -->
+            <rect x="334" y="60" width="11" height="64" rx="2" fill="#86efac"/>
+            <rect x="353" y="54" width="11" height="70" rx="2" fill="#86efac"/>
+            <rect x="372" y="47" width="11" height="77" rx="2" fill="#fca5a5"/>
+            <rect x="391" y="63" width="11" height="61" rx="2" fill="#86efac"/>
+            <!-- Feb/Mar -->
+            <rect x="410" y="56" width="11" height="68" rx="2" fill="#86efac"/>
+            <rect x="429" y="69" width="11" height="55" rx="2" fill="#86efac"/>
+            <rect x="448" y="61" width="11" height="63" rx="2" fill="#86efac"/>
+            <rect x="467" y="52" width="11" height="72" rx="2" fill="#fca5a5"/>
+            <rect x="486" y="71" width="11" height="53" rx="2" fill="#86efac"/>
+            <rect x="505" y="66" width="11" height="58" rx="2" fill="#86efac"/>
+          </g>
+
+          <!-- X labels — month names roughly positioned -->
+          <text x="49"  y="143" font-size="8" fill="#9ca3af" text-anchor="middle">Sep</text>
+          <text x="144" y="143" font-size="8" fill="#9ca3af" text-anchor="middle">Oct</text>
+          <text x="220" y="143" font-size="8" fill="#9ca3af" text-anchor="middle">Nov</text>
+          <text x="296" y="143" font-size="8" fill="#9ca3af" text-anchor="middle">Dec</text>
+          <text x="372" y="143" font-size="8" fill="#9ca3af" text-anchor="middle">Jan</text>
+          <text x="448" y="143" font-size="8" fill="#9ca3af" text-anchor="middle">Feb</text>
+        </svg>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ─── FAB ────────────────────────────────────────────────────── -->
+  <div class="fixed bottom-6 right-8 flex flex-col items-end gap-2">
+    <button class="w-14 h-14 bg-teal-500 text-white rounded-full shadow-lg flex flex-col items-center justify-center gap-0.5">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="1.75" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3"/>
+      </svg>
+      <span class="text-[8px] font-bold uppercase tracking-wide leading-none">Weight</span>
+    </button>
+  </div>
+
+</body>
+</html>

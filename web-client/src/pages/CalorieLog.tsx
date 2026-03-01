@@ -15,7 +15,7 @@ import {
 } from '../api'
 import { useDailySummary } from '../hooks/useDailySummary'
 import { todayString, getMondayOf } from '../utils/dates'
-import { getRangeDates } from '../utils/progressGrouping'
+import { getRangeDates, type ProgressRange } from '../utils/progressGrouping'
 import { ITEM_TYPES } from '../constants'
 import DateHeader from '../components/calorie-log/DateHeader'
 import DailySummary from '../components/calorie-log/DailySummary'
@@ -56,7 +56,7 @@ export default function CalorieLog() {
   const [weekError, setWeekError] = useState<string | null>(null)
 
   // Progress tab state
-  const [progressRange, setProgressRange] = useState<'month' | 'year' | 'all'>('month')
+  const [progressRange, setProgressRange] = useState<ProgressRange>('month')
   const [progressData, setProgressData] = useState<ProgressResponse | null>(null)
   const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([])
   const [progressLoading, setProgressLoading] = useState(false)
