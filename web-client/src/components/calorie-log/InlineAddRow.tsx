@@ -9,14 +9,11 @@
 // for dirty fields, AI values for clean fields).
 
 import { useState, useRef, useEffect } from 'react'
-import { ALL_UNITS, EXERCISE_UNITS } from '../../constants'
+import { FOOD_UNITS, EXERCISE_UNITS, UNIT_LABELS } from '../../constants'
 import { useSuggestion } from '../../hooks/useSuggestion'
 import type { AISuggestion } from '../../types'
 import SuggestionStrip from './SuggestionStrip'
 
-const UNIT_LABELS: Record<string, string> = {
-  each: 'Each', g: 'g', miles: 'Miles', km: 'km', minutes: 'Minutes',
-}
 
 interface Props {
   mealType: string
@@ -36,7 +33,7 @@ interface Props {
 
 export default function InlineAddRow({ mealType, isOpen, onOpen, onClose, onAdd }: Props) {
   const isExercise = mealType === 'exercise'
-  const units = isExercise ? EXERCISE_UNITS : ALL_UNITS
+  const units = isExercise ? EXERCISE_UNITS : FOOD_UNITS
 
   const [name, setName] = useState('')
   const [qty, setQty] = useState('1')

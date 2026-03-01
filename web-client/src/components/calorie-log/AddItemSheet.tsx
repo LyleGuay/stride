@@ -7,17 +7,11 @@
 
 import { useState, useEffect, useRef, type FormEvent } from 'react'
 import type { CalorieLogItem } from '../../api'
-import { ALL_UNITS, EXERCISE_UNITS } from '../../constants'
+import { FOOD_UNITS, EXERCISE_UNITS, UNIT_LABELS, ITEM_TYPES } from '../../constants'
 import { useSuggestion } from '../../hooks/useSuggestion'
 import type { AISuggestion } from '../../types'
 import SuggestionStrip from './SuggestionStrip'
 
-const TYPES = ['breakfast', 'lunch', 'dinner', 'snack', 'exercise'] as const
-
-// Unit display labels (DB stores lowercase).
-const UNIT_LABELS: Record<string, string> = {
-  each: 'Each', g: 'g', miles: 'Miles', km: 'km', minutes: 'Minutes',
-}
 
 interface Props {
   open: boolean
@@ -188,14 +182,14 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
           <div className="mb-3">
             <label className="block text-sm font-medium text-gray-700 mb-1">Type</label>
             <div className="grid grid-cols-5 gap-1">
-              {TYPES.map(t => (
+              {ITEM_TYPES.map(t => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => {
                     setType(t)
-                    // Reset UOM to 'each' when switching to exercise if current UOM is food-only
-                    if (t === 'exercise' && uom === 'g') setUom('each')
+                    // Reset to 'each' when switching to exercise if the current UOM isn't valid for exercise
+                    if (t === 'exercise' && !(EXERCISE_UNITS as readonly string[]).includes(uom)) setUom('each')
                   }}
                   className={`px-2 py-2 text-xs font-medium rounded-lg border capitalize ${
                     type === t
@@ -229,7 +223,7 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
                 onChange={e => { markDirty('uom'); setUom(e.target.value) }}
                 className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent"
               >
-                {(type === 'exercise' ? EXERCISE_UNITS : ALL_UNITS).map(u => (
+                {(type === 'exercise' ? EXERCISE_UNITS : FOOD_UNITS).map(u => (
                   <option key={u} value={u}>{UNIT_LABELS[u]}</option>
                 ))}
               </select>

@@ -55,6 +55,10 @@ export default function ProfileDropdown() {
             Settings
           </button>
           <div className="h-px bg-gray-200 my-1" />
+          <div className="px-3.5 py-1.5 text-[11px] text-gray-400 select-none">
+            build {import.meta.env.VITE_BUILD_SHA}
+          </div>
+          <div className="h-px bg-gray-200 my-1" />
           <button
             onClick={signOut}
             className="flex items-center gap-2 w-full px-3.5 py-1.5 text-[13px] text-gray-700 hover:bg-gray-100"

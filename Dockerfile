@@ -15,6 +15,10 @@ RUN pnpm install --frozen-lockfile
 COPY packages/shared/ ./packages/shared/
 COPY web-client/ ./web-client/
 WORKDIR /app/web-client
+# Railway injects RAILWAY_GIT_COMMIT_SHA as a build arg; we expose it as
+# VITE_BUILD_SHA so vite.config.ts can bake it into the bundle.
+ARG RAILWAY_GIT_COMMIT_SHA
+ENV VITE_BUILD_SHA=$RAILWAY_GIT_COMMIT_SHA
 RUN pnpm run build
 
 # Stage 2: build the Go binary with the frontend embedded

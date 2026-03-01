@@ -7,9 +7,7 @@
 import { useState, useRef, useEffect } from 'react'
 import type { CalorieLogItem } from '../../api'
 import InlineAddRow from './InlineAddRow'
-
-// Meal types in display order.
-const MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack', 'exercise'] as const
+import { ITEM_TYPES, FOOD_UNITS, EXERCISE_UNITS, UNIT_LABELS } from '../../constants'
 
 // Colored left-border classes per meal type.
 const MEAL_BORDER_COLORS: Record<string, string> = {
@@ -24,14 +22,10 @@ const MEAL_BORDER_COLORS: Record<string, string> = {
 const EDITABLE_FIELDS = ['item_name', 'qty', 'uom', 'calories', 'protein_g', 'carbs_g', 'fat_g']
 const NUMERIC_FIELDS = new Set(['qty', 'calories', 'protein_g', 'carbs_g', 'fat_g'])
 
-// Options for the unit-of-measure select in inline cell editing.
-const UNIT_OPTIONS = [
-  { value: 'each', label: 'Each' },
-  { value: 'g', label: 'g' },
-  { value: 'miles', label: 'Miles' },
-  { value: 'km', label: 'km' },
-  { value: 'minutes', label: 'Minutes' },
-]
+// Options for the unit-of-measure select in inline cell editing — union of food
+// and exercise UOMs, deduplicated, so the editor works for items of either type.
+const ALL_UOMS = [...new Set([...FOOD_UNITS, ...EXERCISE_UNITS])]
+const UNIT_OPTIONS = ALL_UOMS.map(u => ({ value: u, label: UNIT_LABELS[u] }))
 
 interface Props {
   items: CalorieLogItem[]
@@ -52,7 +46,7 @@ export default function ItemTable({ items, netCalories, netProtein, netCarbs, ne
   onInlineAdd, onUpdateItem, onItemAction }: Props) {
   // Group items by meal type
   const grouped: Record<string, CalorieLogItem[]> = Object.fromEntries(
-    MEAL_TYPES.map(t => [t, items.filter(i => i.type === t)])
+    ITEM_TYPES.map(t => [t, items.filter(i => i.type === t)])
   )
 
   /* ─── Inline add state — only one section open at a time ───────────── */
@@ -138,7 +132,7 @@ export default function ItemTable({ items, netCalories, netProtein, netCarbs, ne
           </tr>
         </thead>
         <tbody>
-          {MEAL_TYPES.map(type => (
+          {ITEM_TYPES.map(type => (
             <MealSection
               key={type}
               type={type}

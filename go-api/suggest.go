@@ -43,7 +43,7 @@ type suggestionResponse struct {
 const foodSystemPrompt = `You are a nutrition assistant. Parse the food description and return a JSON object with:
 - "item_name" (string, cleaned up title case)
 - "qty" (number)
-- "uom" (one of: each, g, miles, km, minutes)
+- "uom" (one of: each, g, serving, miles, km, minutes)
 - "calories" (integer, total for the full quantity)
 - "protein_g" (integer, total for the full quantity)
 - "carbs_g" (integer, total for the full quantity)
@@ -64,7 +64,7 @@ const exerciseSystemPromptTemplate = `You are a fitness calorie-burn estimator. 
 Parse the exercise description and estimate calories burned. Return a JSON object with:
 - "item_name" (string, cleaned up title case)
 - "qty" (number, duration or distance)
-- "uom" (one of: each, g, miles, km, minutes)
+- "uom" (one of: each, miles, km, minutes, reps)
 - "calories" (integer, estimated calories burned)
 - "protein_g" (always 0)
 - "carbs_g" (always 0)
@@ -80,7 +80,7 @@ const exerciseSystemPromptFallback = `You are a fitness calorie-burn estimator. 
 Parse the exercise description and estimate calories burned. Return a JSON object with:
 - "item_name" (string, cleaned up title case)
 - "qty" (number, duration or distance)
-- "uom" (one of: each, g, miles, km, minutes)
+- "uom" (one of: each, miles, km, minutes, reps)
 - "calories" (integer, estimated calories burned)
 - "protein_g" (always 0)
 - "carbs_g" (always 0)

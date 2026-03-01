@@ -2,9 +2,25 @@ import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { VitePWA } from 'vite-plugin-pwa'
+import { execSync } from 'child_process'
+
+// Resolve the build SHA at build time: Railway injects VITE_BUILD_SHA via Docker
+// build arg; locally we fall back to the current git SHA.
+function getBuildSha(): string {
+  if (process.env.VITE_BUILD_SHA) return process.env.VITE_BUILD_SHA
+  try {
+    return execSync('git rev-parse --short HEAD').toString().trim()
+  } catch {
+    return 'dev'
+  }
+}
 
 // https://vite.dev/config/
 export default defineConfig({
+  define: {
+    // Bake the SHA into the bundle so import.meta.env.VITE_BUILD_SHA is always defined.
+    'import.meta.env.VITE_BUILD_SHA': JSON.stringify(getBuildSha()),
+  },
   server: {
     proxy: {
       '/api': {
