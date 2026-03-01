@@ -66,11 +66,20 @@ func main() {
 		path := strings.TrimPrefix(c.Request.URL.Path, "/")
 		// Serve files with an extension (JS, CSS, images, etc.) directly from the FS.
 		if strings.Contains(path, ".") {
+			// Hashed assets (e.g. /assets/index-abc123.js) are content-addressed so
+			// they can be cached indefinitely. The service worker manifest and other
+			// non-hashed files get no-cache so they're always revalidated.
+			if strings.HasPrefix(path, "assets/") {
+				c.Header("Cache-Control", "public, max-age=31536000, immutable")
+			} else {
+				c.Header("Cache-Control", "no-cache")
+			}
 			c.FileFromFS(path, http.FS(staticFS))
 			return
 		}
-		// SPA route — send index.html bytes directly. We avoid c.FileFromFS("index.html")
-		// because Go's http.FileServer always redirects /index.html → ./ causing a loop.
+		// SPA fallback — always revalidate so the browser picks up the new service
+		// worker and asset manifest after each deploy.
+		c.Header("Cache-Control", "no-cache")
 		c.Data(http.StatusOK, "text/html; charset=utf-8", indexHTML)
 	})
 
