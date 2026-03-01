@@ -1,0 +1,1 @@
+cd ./go-api && go run ./cmd/migrate

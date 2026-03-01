@@ -1,17 +1,21 @@
-// CalorieLog page — main view with Daily and Weekly tabs.
+// CalorieLog page — main view with Daily, Weekly, and Progress tabs.
 // Daily tab: fetches the daily summary (items + settings + computed totals)
 // and renders the date header, summary panel, item table, bottom sheet, FAB,
 // and context menu. Manages state for date navigation, sheet open/close,
 // inline editing, and context menu actions (edit in modal, duplicate, delete).
 // Weekly tab: renders WeeklySummary; row clicks switch back to Daily for that date.
+// Progress tab: renders ProgressView with calorie trend chart, weight log, and stats.
 
 import { useState, useEffect } from 'react'
 import {
   fetchWeekSummary, createCalorieLogItem, updateCalorieLogItem, deleteCalorieLogItem,
-  type WeekDaySummary, type CalorieLogItem,
+  fetchProgress, fetchEarliestLogDate, fetchWeightLog,
+  upsertWeightEntry, updateWeightEntry, deleteWeightEntry,
+  type WeekDaySummary, type CalorieLogItem, type ProgressResponse, type WeightEntry,
 } from '../api'
 import { useDailySummary } from '../hooks/useDailySummary'
 import { todayString, getMondayOf } from '../utils/dates'
+import { getRangeDates } from '../utils/progressGrouping'
 import { ITEM_TYPES } from '../constants'
 import DateHeader from '../components/calorie-log/DateHeader'
 import DailySummary from '../components/calorie-log/DailySummary'
@@ -20,10 +24,14 @@ import AddItemSheet from '../components/calorie-log/AddItemSheet'
 import FloatingActionButton from '../components/calorie-log/FloatingActionButton'
 import ContextMenu from '../components/calorie-log/ContextMenu'
 import WeeklySummary from '../components/calorie-log/WeeklySummary'
+import ProgressView from '../components/calorie-log/ProgressView'
+
+/* ─── CalorieLog ─────────────────────────────────────────────────────────── */
 
 export default function CalorieLog() {
-  // Active tab — Daily shows the per-day log; Weekly shows the summary view.
-  const [tab, setTab] = useState<'daily' | 'weekly'>('daily')
+  // Active tab — Daily shows the per-day log; Weekly shows the summary view;
+  // Progress shows calorie trends and weight history.
+  const [tab, setTab] = useState<'daily' | 'weekly' | 'progress'>('daily')
 
   const [date, setDate] = useState(todayString)
   const { summary, loading, reload: loadSummary } = useDailySummary(date)
@@ -47,6 +55,16 @@ export default function CalorieLog() {
   const [weekLoading, setWeekLoading] = useState(false)
   const [weekError, setWeekError] = useState<string | null>(null)
 
+  // Progress tab state
+  const [progressRange, setProgressRange] = useState<'month' | 'year' | 'all'>('month')
+  const [progressData, setProgressData] = useState<ProgressResponse | null>(null)
+  const [weightEntries, setWeightEntries] = useState<WeightEntry[]>([])
+  const [progressLoading, setProgressLoading] = useState(false)
+  const [progressError, setProgressError] = useState<string | null>(null)
+  // Fetched once on mount — used to compute the "All Time" range start date.
+  // undefined = not yet fetched; null = no items exist; string = earliest date.
+  const [earliestLogDate, setEarliestLogDate] = useState<string | null | undefined>(undefined)
+
   // Synchronous setState here is safe — weekLoading/weekError are not in the dep
   // array so there's no cascade risk. The rule fires but the pattern is correct.
   useEffect(() => {
@@ -57,6 +75,33 @@ export default function CalorieLog() {
       .then(data => { setWeekData(data); setWeekLoading(false) })
       .catch((e: Error) => { setWeekError(e.message); setWeekLoading(false) })
   }, [weekStart])
+
+  // Fetch the earliest log date once on mount — used to set the "All Time" range start.
+  useEffect(() => {
+    fetchEarliestLogDate()
+      .then(r => setEarliestLogDate(r.date))
+      .catch(() => setEarliestLogDate(null))
+  }, [])
+
+  // Fetch progress data whenever the progress tab is active or the range changes.
+  // Wait for earliestLogDate to resolve (undefined means still loading) before fetching.
+  useEffect(() => {
+    if (tab !== 'progress' || earliestLogDate === undefined) return
+    const { start, end } = getRangeDates(progressRange, earliestLogDate)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setProgressLoading(true)
+    setProgressError(null)
+    Promise.all([fetchProgress(start, end), fetchWeightLog(start, end)])
+      .then(([prog, weights]) => {
+        setProgressData(prog)
+        setWeightEntries(weights)
+        setProgressLoading(false)
+      })
+      .catch((e: Error) => {
+        setProgressError(e.message)
+        setProgressLoading(false)
+      })
+  }, [tab, progressRange, earliestLogDate])
 
   /* ─── Item creation (inline add + bottom sheet) ────────────────────── */
 
@@ -177,21 +222,49 @@ export default function CalorieLog() {
     }
   }
 
+  /* ─── Weight log actions (Progress tab) ───────────────────────────── */
+
+  // Refetch both progress data and weight entries after any weight mutation.
+  const refetchProgress = () => {
+    const { start, end } = getRangeDates(progressRange, earliestLogDate ?? null)
+    Promise.all([fetchProgress(start, end), fetchWeightLog(start, end)])
+      .then(([prog, weights]) => { setProgressData(prog); setWeightEntries(weights) })
+      .catch(() => { /* non-critical; stale data is acceptable */ })
+  }
+
+  const handleLogWeight = async (date: string, lbs: number) => {
+    await upsertWeightEntry(date, lbs)
+    refetchProgress()
+  }
+
+  const handleUpdateWeight = async (id: number, date: string, lbs: number) => {
+    await updateWeightEntry(id, { date, weight_lbs: lbs })
+    refetchProgress()
+  }
+
+  const handleDeleteWeight = async (id: number) => {
+    await deleteWeightEntry(id)
+    refetchProgress()
+  }
+
   /* ─── Render ───────────────────────────────────────────────────────── */
+
+  const { start: progressStart, end: progressEnd } = getRangeDates(progressRange, earliestLogDate ?? null)
+  const userUnits = summary?.settings?.units ?? 'imperial'
 
   return (
     <div className="max-w-3xl mx-auto px-4 py-4 pb-24">
 
       {/* Segment control — always visible regardless of tab or load state */}
       <div className="flex bg-gray-100 rounded-lg p-1 mb-4">
-        {(['daily', 'weekly'] as const).map(t => (
+        {(['daily', 'weekly', 'progress'] as const).map(t => (
           <button
             key={t}
             onClick={() => setTab(t)}
             className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors
               ${tab === t ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
           >
-            {t === 'daily' ? 'Daily' : 'Weekly'}
+            {t === 'daily' ? 'Daily' : t === 'weekly' ? 'Weekly' : 'Progress'}
           </button>
         ))}
       </div>
@@ -205,6 +278,24 @@ export default function CalorieLog() {
           weekStart={weekStart}
           onWeekChange={setWeekStart}
           onNavigateToDay={d => { setDate(d); setTab('daily') }}
+        />
+      )}
+
+      {/* ── Progress tab ───────────────────────────────────────────────── */}
+      {tab === 'progress' && (
+        <ProgressView
+          range={progressRange}
+          onRangeChange={setProgressRange}
+          progressData={progressData}
+          weightEntries={weightEntries}
+          loading={progressLoading}
+          error={progressError}
+          rangeStart={progressStart}
+          rangeEnd={progressEnd}
+          onLogWeight={handleLogWeight}
+          onUpdateWeight={handleUpdateWeight}
+          onDeleteWeight={handleDeleteWeight}
+          units={userUnits}
         />
       )}
 

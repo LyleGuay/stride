@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"net/http"
 	"time"
 
@@ -26,6 +27,10 @@ func (h *Handler) getWeightLog(c *gin.Context) {
 	}
 	if _, err := time.Parse("2006-01-02", end); err != nil {
 		apiError(c, http.StatusBadRequest, "invalid end, expected YYYY-MM-DD")
+		return
+	}
+	if start > end {
+		apiError(c, http.StatusBadRequest, "start must not be after end")
 		return
 	}
 
@@ -68,8 +73,8 @@ func (h *Handler) upsertWeightEntry(c *gin.Context) {
 		apiError(c, http.StatusBadRequest, "invalid date, expected YYYY-MM-DD")
 		return
 	}
-	if body.WeightLBS <= 0 {
-		apiError(c, http.StatusBadRequest, "weight_lbs must be greater than 0")
+	if body.WeightLBS <= 0 || body.WeightLBS > 9999.9 {
+		apiError(c, http.StatusBadRequest, "weight_lbs must be between 0 and 9999.9")
 		return
 	}
 
@@ -108,8 +113,8 @@ func (h *Handler) updateWeightEntry(c *gin.Context) {
 			return
 		}
 	}
-	if body.WeightLBS != nil && *body.WeightLBS <= 0 {
-		apiError(c, http.StatusBadRequest, "weight_lbs must be greater than 0")
+	if body.WeightLBS != nil && (*body.WeightLBS <= 0 || *body.WeightLBS > 9999.9) {
+		apiError(c, http.StatusBadRequest, "weight_lbs must be between 0 and 9999.9")
 		return
 	}
 
@@ -121,7 +126,13 @@ func (h *Handler) updateWeightEntry(c *gin.Context) {
 		 RETURNING *`,
 		pgx.NamedArgs{"id": id, "userID": userID, "date": body.Date, "weightLBS": body.WeightLBS})
 	if err != nil {
-		apiError(c, http.StatusNotFound, "weight entry not found")
+		// Distinguish a missing row from a real DB failure so callers get an
+		// actionable status code rather than a misleading 404.
+		if errors.Is(err, pgx.ErrNoRows) {
+			apiError(c, http.StatusNotFound, "weight entry not found")
+		} else {
+			apiError(c, http.StatusInternalServerError, "failed to update weight entry")
+		}
 		return
 	}
 

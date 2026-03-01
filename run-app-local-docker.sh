@@ -20,8 +20,8 @@ echo "  App:      http://localhost:8080"
 echo "  Postgres: localhost:5433  (stride / stride / stride_test)"
 echo ""
 echo "To seed the database, run in a separate terminal:"
-echo "  DB_URL=postgresql://stride:stride@localhost:5433/stride_test go run ./go-api/cmd/migrate"
-echo "  DB_URL=postgresql://stride:stride@localhost:5433/stride_test go run ./go-api/cmd/create-user"
+echo "  cd go-api && DB_URL=postgresql://stride:stride@localhost:5433/stride_test go run ./cmd/migrate"
+echo "  cd go-api && DB_URL=postgresql://stride:stride@localhost:5433/stride_test go run ./cmd/create-user"
 echo ""
 
 docker compose -f "$ROOT/docker-compose.e2e.yml" up --build

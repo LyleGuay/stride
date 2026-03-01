@@ -77,7 +77,7 @@ Add a **Progress** tab to the calorie log (alongside the existing Daily and Week
 
 ### Phase C: ProgressView Component + CalorieLog Integration
 
-- [ ] **C.1 — Create `ProgressView.tsx` with range selector and bar chart**
+- [x] **C.1 — Create `ProgressView.tsx` with range selector and bar chart**
   Create `web-client/src/components/calorie-log/ProgressView.tsx`. Data is fetched by the parent and passed as props (`range`, `onRangeChange`, `progressData: ProgressResponse | null`, `weightEntries: WeightEntry[]`, `loading`, `error`, `onLogWeight`, `onDeleteWeight`).
 
   **Range selector**: pill segment control matching the existing Daily/Weekly tab style — 3 buttons: "This Month" / "This Year" / "All Time".
@@ -106,7 +106,7 @@ Add a **Progress** tab to the calorie log (alongside the existing Daily and Week
   - Year: group by ISO week, sum days within each week.
   - All Time: group by calendar month, sum days within each month.
 
-- [ ] **C.2 — Add weight trend chart, stats panel, FAB, and log-weight modal to `ProgressView.tsx`**
+- [x] **C.2 — Add weight trend chart, stats panel, FAB, and log-weight modal to `ProgressView.tsx`**
   **Weight card — Graph / Table tabs**: A small two-tab toggle ("Graph" / "Table") inside the weight card header switches between:
 
   - **Graph view**: SVG line chart with dots, connecting line, and light area fill. X = entry dates within the selected range, Y = weight. Display unit follows the user's `units` setting (lbs for imperial, kg for metric — convert from stored lbs for display only; always store and send lbs). If no entries in range: empty state + "Log your first weight entry" prompt. Each dot shows a tooltip on click (date + weight in the user's unit).
@@ -126,7 +126,7 @@ Add a **Progress** tab to the calorie log (alongside the existing Daily and Week
 
   State for modal open/close and the entry being edited is managed in `CalorieLog.tsx` alongside the other sheet states.
 
-- [ ] **C.3 — Wire Progress tab into `web-client/src/pages/CalorieLog.tsx`**
+- [x] **C.3 — Wire Progress tab into `web-client/src/pages/CalorieLog.tsx`**
   1. Extend tab type to `'daily' | 'weekly' | 'progress'`.
   2. Add state: `progressRange: 'month' | 'year' | 'all'`, `progressData`, `weightEntries`, `progressLoading`, `progressError`.
   3. Add `useEffect` that fetches when `tab === 'progress'` or `progressRange` changes:
@@ -145,7 +145,7 @@ Add a **Progress** tab to the calorie log (alongside the existing Daily and Week
 
   Fetch `earliestLogDate` once when the component mounts (not per range switch). The "All Time" button is disabled if `earliestLogDate` is null (no data yet).
 
-- [ ] **C.4 — Unit tests: bar grouping logic**
+- [x] **C.4 — Unit tests: bar grouping logic**
   Create `web-client/src/utils/progressGrouping.test.ts` (Vitest). Test `groupDays`:
   - Month range: produces one bar per calendar day; days missing from API data have `trackedDays=0`
   - Year range: produces ~52 week bars; each bar correctly sums its days' food/exercise
@@ -153,14 +153,14 @@ Add a **Progress** tab to the calorie log (alongside the existing Daily and Week
   - Bars for buckets with no data at all have `netCalories=0` and `trackedDays=0`
   - A bar spanning the month boundary is attributed to the month of its start date
 
-- [ ] **C.5 — Unit tests: `getRangeDates` helper**
+- [x] **C.5 — Unit tests: `getRangeDates` helper**
   Add tests in `web-client/src/utils/progressGrouping.test.ts` (or a dedicated `getRangeDates.test.ts`). Verify:
   - `'month'` returns the first day of the current month through today
   - `'year'` returns Jan 1 of the current year through today
   - `'all'` returns `2020-01-01` through today
   - All returned dates are valid `YYYY-MM-DD` strings
 
-- [ ] **C.6 — Component tests: `ProgressView` and `LogWeightSheet` non-trivial behaviour**
+- [x] **C.6 — Component tests: `ProgressView` and `LogWeightSheet` non-trivial behaviour**
   Create `web-client/src/components/calorie-log/__tests__/ProgressView.test.tsx` (`@testing-library/react`). Test with mocked props:
   - Switching range selector calls `onRangeChange` with the correct value
   - Loading state renders a spinner and no chart
@@ -175,7 +175,7 @@ Add a **Progress** tab to the calorie log (alongside the existing Daily and Week
   - Close/cancel button calls `onClose` without calling `onSave`
   - When opened with an existing entry (edit mode), date and weight fields are pre-filled in the user's display unit
 
-- [ ] **C.7 — E2E test: Progress tab happy path**
+- [x] **C.7 — E2E test: Progress tab happy path**
   Add a test in `e2e/` (Playwright). Steps:
   1. Log in and navigate to the Calorie Log page
   2. Click the **Progress** tab — verify it becomes active and the range selector is visible

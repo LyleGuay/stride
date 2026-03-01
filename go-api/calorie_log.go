@@ -199,6 +199,10 @@ func (h *Handler) getProgress(c *gin.Context) {
 		apiError(c, http.StatusBadRequest, "invalid end, expected YYYY-MM-DD")
 		return
 	}
+	if start > end {
+		apiError(c, http.StatusBadRequest, "start must not be after end")
+		return
+	}
 
 	// Get the user's calorie budget from settings.
 	settings, err := queryOne[calorieLogUserSettings](h.db, c,
