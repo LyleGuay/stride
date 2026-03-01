@@ -179,6 +179,127 @@ func (h *Handler) getWeekSummary(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
+// getProgress returns per-day calorie totals and aggregate stats for an arbitrary date range.
+// GET /api/calorie-log/progress?start=YYYY-MM-DD&end=YYYY-MM-DD. Both params required.
+// Only days with logged items are returned (no gap-filling — the frontend handles that).
+func (h *Handler) getProgress(c *gin.Context) {
+	userID := c.GetInt("user_id")
+	start := c.Query("start")
+	end := c.Query("end")
+
+	if start == "" || end == "" {
+		apiError(c, http.StatusBadRequest, "start and end query params are required")
+		return
+	}
+	if _, err := time.Parse("2006-01-02", start); err != nil {
+		apiError(c, http.StatusBadRequest, "invalid start, expected YYYY-MM-DD")
+		return
+	}
+	if _, err := time.Parse("2006-01-02", end); err != nil {
+		apiError(c, http.StatusBadRequest, "invalid end, expected YYYY-MM-DD")
+		return
+	}
+
+	// Get the user's calorie budget from settings.
+	settings, err := queryOne[calorieLogUserSettings](h.db, c,
+		"SELECT * FROM calorie_log_user_settings WHERE user_id = @userID",
+		pgx.NamedArgs{"userID": userID})
+	if err != nil {
+		apiError(c, http.StatusInternalServerError, "failed to fetch settings")
+		return
+	}
+
+	// Query per-day totals across the requested range. Same GROUP BY as getWeekSummary
+	// but with arbitrary start/end and no gap-filling.
+	rows, err := queryMany[weekDayDBRow](h.db, c,
+		`SELECT
+			date,
+			SUM(CASE WHEN type != 'exercise' THEN calories ELSE 0 END) AS calories_food,
+			SUM(CASE WHEN type  = 'exercise' THEN calories ELSE 0 END) AS calories_exercise,
+			COALESCE(SUM(protein_g), 0) AS protein_g,
+			COALESCE(SUM(carbs_g),   0) AS carbs_g,
+			COALESCE(SUM(fat_g),     0) AS fat_g
+		 FROM calorie_log_items
+		 WHERE user_id = @userID AND date >= @start AND date <= @end
+		 GROUP BY date
+		 ORDER BY date ASC`,
+		pgx.NamedArgs{"userID": userID, "start": start, "end": end})
+	if err != nil {
+		apiError(c, http.StatusInternalServerError, "failed to fetch progress data")
+		return
+	}
+
+	// Build weekDaySummary slice (same shape as getWeekSummary) and compute stats.
+	days := make([]weekDaySummary, 0, len(rows))
+	var stats progressStats
+	for _, row := range rows {
+		net := row.CaloriesFood - row.CaloriesExercise
+		left := settings.CalorieBudget - net
+		days = append(days, weekDaySummary{
+			Date:             row.Date,
+			CalorieBudget:    settings.CalorieBudget,
+			CaloriesFood:     row.CaloriesFood,
+			CaloriesExercise: row.CaloriesExercise,
+			NetCalories:      net,
+			CaloriesLeft:     left,
+			ProteinG:         row.ProteinG,
+			CarbsG:           row.CarbsG,
+			FatG:             row.FatG,
+			HasData:          true,
+		})
+		stats.DaysTracked++
+		if net <= settings.CalorieBudget {
+			stats.DaysOnBudget++
+		}
+		stats.AvgCaloriesFood += row.CaloriesFood
+		stats.AvgCaloriesExercise += row.CaloriesExercise
+		stats.AvgNetCalories += net
+		stats.TotalCaloriesLeft += left
+	}
+
+	// Convert totals to averages.
+	if stats.DaysTracked > 0 {
+		stats.AvgCaloriesFood /= stats.DaysTracked
+		stats.AvgCaloriesExercise /= stats.DaysTracked
+		stats.AvgNetCalories /= stats.DaysTracked
+	}
+
+	c.JSON(http.StatusOK, progressResponse{Days: days, Stats: stats})
+}
+
+// getEarliestLogDate returns the earliest date the user has a calorie log entry.
+// GET /api/calorie-log/earliest-date. Used by the frontend to compute the "All Time" range start.
+// Returns { "date": "YYYY-MM-DD" } or { "date": null } if no entries exist.
+func (h *Handler) getEarliestLogDate(c *gin.Context) {
+	userID := c.GetInt("user_id")
+
+	// SELECT MIN returns a nullable date — use *string to handle the NULL case.
+	var result struct {
+		Date *string `db:"date"`
+	}
+	rows, err := h.db.Query(c,
+		`SELECT TO_CHAR(MIN(date), 'YYYY-MM-DD') AS date
+		 FROM calorie_log_items WHERE user_id = @userID`,
+		pgx.NamedArgs{"userID": userID})
+	if err != nil {
+		apiError(c, http.StatusInternalServerError, "failed to fetch earliest date")
+		return
+	}
+	defer rows.Close()
+	if rows.Next() {
+		if err := rows.Scan(&result.Date); err != nil {
+			apiError(c, http.StatusInternalServerError, "failed to scan earliest date")
+			return
+		}
+	}
+	if err := rows.Err(); err != nil {
+		apiError(c, http.StatusInternalServerError, "failed to read earliest date")
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"date": result.Date})
+}
+
 // createCalorieLogItem inserts a new calorie log entry.
 // POST /api/calorie-log/items. Defaults date to today if omitted.
 func (h *Handler) createCalorieLogItem(c *gin.Context) {

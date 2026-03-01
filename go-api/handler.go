@@ -91,4 +91,10 @@ func (h *Handler) registerRoutes(router *gin.Engine) {
 	api.GET("/calorie-log/user-settings", h.getUserSettings)
 	api.PATCH("/calorie-log/user-settings", h.patchUserSettings)
 	api.POST("/calorie-log/suggest", h.suggestCalorieLogItem)
+	api.GET("/calorie-log/progress", h.getProgress)
+	api.GET("/calorie-log/earliest-date", h.getEarliestLogDate)
+	api.GET("/weight-log", h.getWeightLog)
+	api.POST("/weight-log", h.upsertWeightEntry)
+	api.PUT("/weight-log/:id", h.updateWeightEntry)
+	api.DELETE("/weight-log/:id", h.deleteWeightEntry)
 }

@@ -4,9 +4,10 @@ RUN corepack enable
 WORKDIR /app
 
 # Copy workspace manifests first for layer caching
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml .npmrc ./
 COPY packages/shared/package.json ./packages/shared/
 COPY web-client/package.json ./web-client/
+COPY mobile-client/package.json ./mobile-client/
 
 RUN pnpm install --frozen-lockfile
 
@@ -14,7 +15,7 @@ RUN pnpm install --frozen-lockfile
 COPY packages/shared/ ./packages/shared/
 COPY web-client/ ./web-client/
 WORKDIR /app/web-client
-RUN npm run build
+RUN pnpm run build
 
 # Stage 2: build the Go binary with the frontend embedded
 FROM golang:1.25-alpine AS backend

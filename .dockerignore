@@ -1,0 +1,36 @@
+# Version control
+.git
+.gitignore
+
+# Node dependencies (installed fresh in the Docker build)
+node_modules
+**/node_modules
+
+# Go build cache and test artifacts
+go-api/cmd
+**/*.test
+**/*.out
+
+# Local env / secrets — never bake these into the image
+go-api/.env
+.env
+
+# E2E test tooling — not needed in the app image
+e2e
+
+# Mobile client — not part of the web/API build, but pnpm workspace
+# resolution requires the package.json to be present for `pnpm install`.
+mobile-client
+!mobile-client/package.json
+
+# Docs and planning files
+docs
+design
+plan
+README.md
+CLAUDE.md
+
+# Editor and OS artifacts
+.vscode
+.idea
+**/.DS_Store

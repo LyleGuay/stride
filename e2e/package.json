@@ -9,6 +9,7 @@
     "db:up": "docker compose -f ../docker-compose.test.yml up -d --wait",
     "db:down": "docker compose -f ../docker-compose.test.yml down -v",
     "test": "npm run db:up && playwright test; npm run db:down",
+    "test:docker": "bash run-docker.sh",
     "test:ui": "npm run db:up && playwright test --ui; npm run db:down",
     "test:headed": "npm run db:up && playwright test --headed; npm run db:down"
   },

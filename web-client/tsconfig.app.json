@@ -24,5 +24,7 @@
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true
   },
-  "include": ["src"]
+  "include": ["src"],
+  // Exclude test files — they're checked by vitest, not tsc -b
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx"]
 }

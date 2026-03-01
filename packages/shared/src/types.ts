@@ -94,3 +94,30 @@ export interface WeekDaySummary {
   fat_g: number
   has_data: boolean
 }
+
+// WeightEntry mirrors the weight_log DB row. One entry per user per date;
+// weight_lbs is always stored in lbs — clients convert for display only.
+export interface WeightEntry {
+  id: number
+  user_id: number
+  date: string
+  weight_lbs: number
+  created_at: string
+}
+
+// ProgressStats holds aggregate calorie stats computed from a date range (Progress tab).
+export interface ProgressStats {
+  days_tracked: number
+  days_on_budget: number
+  avg_calories_food: number
+  avg_calories_exercise: number
+  avg_net_calories: number
+  total_calories_left: number
+}
+
+// ProgressResponse is the response from GET /api/calorie-log/progress.
+// Days contains only dates with logged items; the frontend fills visual gaps.
+export interface ProgressResponse {
+  days: WeekDaySummary[]
+  stats: ProgressStats
+}

@@ -51,6 +51,12 @@ npm run android:usb:live-api    # Run on Android device via USB (live API)
 
 See `mobile-client/RUNNING_ON_DEVICE.md` for full setup instructions.
 
+## Notes
+
+### pnpm `onlyBuiltDependencies`
+
+`package.json` sets `pnpm.onlyBuiltDependencies: ["esbuild"]`. pnpm v10 blocks postinstall scripts by default; this opt-in allows esbuild to run its postinstall, which downloads the platform-specific binary that Vite depends on.
+
 ## Tech Stack
 
 | Layer | Technology |

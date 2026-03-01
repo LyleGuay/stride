@@ -53,20 +53,6 @@ jobs:
   e2e:
     name: E2E tests
     runs-on: ubuntu-latest
-    services:
-      postgres:
-        image: postgres:17-alpine
-        env:
-          POSTGRES_DB: stride_test
-          POSTGRES_USER: stride
-          POSTGRES_PASSWORD: stride
-        ports:
-          - 5433:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 2s
-          --health-retries 10
-
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -83,34 +69,8 @@ jobs:
       - name: Install workspace dependencies
         run: pnpm install
 
-      - name: Build Docker image
-        run: docker build -t stride .
-
-      - name: Start app container
-        # --network host lets the container reach the postgres service on localhost:5433.
-        run: |
-          docker run -d \
-            --network host \
-            -e DB_URL=postgresql://stride:stride@localhost:5433/stride_test \
-            -e PORT=8080 \
-            --name stride-app \
-            stride
-
-      - name: Wait for app to be ready
-        run: |
-          for i in {1..30}; do
-            curl -sf http://localhost:8080 && break
-            echo "Waiting for app... ($i)"
-            sleep 2
-          done
-
-      - name: Install e2e dependencies + Playwright browsers
-        run: cd e2e && npm ci && npx playwright install chromium --with-deps
-
-      - name: Run Playwright tests
-        run: cd e2e && npx playwright test
-        env:
-          CI: true
+      - name: Run E2E tests
+        run: bash e2e/run-docker.sh
 
       - name: Upload Playwright report on failure
         if: failure()

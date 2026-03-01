@@ -142,6 +142,34 @@ type dailySummary struct {
 	Settings         calorieLogUserSettings `json:"settings"`
 }
 
+// weightEntry maps to the weight_log table. One entry per user per date;
+// the UNIQUE(user_id, date) constraint enables upsert via ON CONFLICT.
+type weightEntry struct {
+	ID        int        `json:"id"         db:"id"`
+	UserID    int        `json:"user_id"    db:"user_id"`
+	Date      DateOnly   `json:"date"       db:"date"`
+	WeightLBS float64    `json:"weight_lbs" db:"weight_lbs"`
+	CreatedAt *time.Time `json:"created_at" db:"created_at"`
+}
+
+// progressStats holds aggregate stats computed from a date range for the Progress tab.
+type progressStats struct {
+	DaysTracked         int `json:"days_tracked"`
+	DaysOnBudget        int `json:"days_on_budget"`
+	AvgCaloriesFood     int `json:"avg_calories_food"`
+	AvgCaloriesExercise int `json:"avg_calories_exercise"`
+	AvgNetCalories      int `json:"avg_net_calories"`
+	TotalCaloriesLeft   int `json:"total_calories_left"`
+}
+
+// progressResponse is the response for GET /api/calorie-log/progress.
+// Days contains only dates with logged items (no gap-filling from the API);
+// the frontend fills visual gaps for the month view.
+type progressResponse struct {
+	Days  []weekDaySummary `json:"days"`
+	Stats progressStats    `json:"stats"`
+}
+
 // createCalorieLogItemRequest is the request body for POST /api/calorie-log/items.
 type createCalorieLogItemRequest struct {
 	Date     string   `json:"date"`

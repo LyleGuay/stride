@@ -1,6 +1,8 @@
 import { defineConfig, devices } from '@playwright/test'
 
-const CI = !!process.env.CI
+// DOCKER=1 is set by run-docker.sh (both local and CI). Without it, the dev
+// server mode is used (Vite + go run).
+const DOCKER = !!process.env.DOCKER
 
 const TEST_DB_URL = 'postgresql://stride:stride@localhost:5433/stride_test'
 
@@ -8,10 +10,10 @@ const TEST_DB_URL = 'postgresql://stride:stride@localhost:5433/stride_test'
 // a local dev server on 3000 (which would point at the wrong database).
 const TEST_API_PORT = '3099'
 
-// In CI, tests run against the built Docker container (port 8080) which serves
-// both the API and the embedded frontend. Locally, separate Vite dev server and
-// go-api processes are used so changes are reflected without rebuilding.
-const baseURL = CI ? 'http://localhost:8080' : 'http://localhost:5174'
+// In Docker mode, tests run against the built container (port 8080) which serves
+// both the API and the embedded frontend. In dev mode, separate Vite and go-api
+// processes are used so changes are reflected without rebuilding.
+const baseURL = DOCKER ? 'http://localhost:8080' : 'http://localhost:5174'
 
 export default defineConfig({
   testDir: './tests',
@@ -19,14 +21,18 @@ export default defineConfig({
   use: {
     baseURL,
     trace: 'on-first-retry',
+    // Block service workers in Docker mode — the production build registers a
+    // VitePWA service worker with autoUpdate/skipWaiting that can trigger
+    // mid-test page reloads, causing flaky failures.
+    ...(DOCKER && { serviceWorkers: 'block' as const }),
   },
   projects: [
     // Solo app — chromium only for now
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
   ],
-  // In CI the Docker container is started by the workflow before `playwright test`
-  // runs, so no webServer config is needed. Locally, spin up the two dev servers.
-  webServer: CI ? [] : [
+  // In Docker mode the container is already running, so no webServer config is
+  // needed. In dev mode, spin up the two dev servers.
+  webServer: DOCKER ? [] : [
     {
       // Run go-api on TEST_API_PORT with the test DB — separate from any dev server.
       command: `PORT=${TEST_API_PORT} DB_URL=${TEST_DB_URL} go run .`,

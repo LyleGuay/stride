@@ -1,10 +1,10 @@
 // API service layer — all backend calls go through request() which handles
 // auth headers, 401 redirects, and consistent error extraction.
 
-import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary } from './types'
+import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeightEntry, ProgressStats, ProgressResponse } from './types'
 
 // Re-export types so existing imports from api.ts keep working.
-export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary }
+export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeightEntry, ProgressStats, ProgressResponse }
 
 function getToken(): string | null {
   return localStorage.getItem('token')
@@ -90,6 +90,45 @@ export function patchUserSettings(settings: Partial<Omit<CalorieLogUserSettings,
     method: 'PATCH',
     body: JSON.stringify(settings),
   })
+}
+
+// fetchProgress returns per-day calorie totals and aggregate stats for the given date range.
+// Only days with logged items are in the response; the frontend fills visual gaps.
+export function fetchProgress(start: string, end: string) {
+  return request<ProgressResponse>(`/api/calorie-log/progress?start=${start}&end=${end}`)
+}
+
+// fetchEarliestLogDate returns the user's earliest calorie log date, used to compute
+// the "All Time" range start. Returns null if the user has no items yet.
+export function fetchEarliestLogDate() {
+  return request<{ date: string | null }>('/api/calorie-log/earliest-date')
+}
+
+// fetchWeightLog returns weight entries for the given date range ordered by date ASC.
+export function fetchWeightLog(start: string, end: string) {
+  return request<WeightEntry[]>(`/api/weight-log?start=${start}&end=${end}`)
+}
+
+// upsertWeightEntry creates or updates the weight entry for the given date (always in lbs).
+// Posts the same date a second time updates the existing entry (upsert via ON CONFLICT).
+export function upsertWeightEntry(date: string, weightLbs: number) {
+  return request<WeightEntry>('/api/weight-log', {
+    method: 'POST',
+    body: JSON.stringify({ date, weight_lbs: weightLbs }),
+  })
+}
+
+// updateWeightEntry partially updates an existing weight entry (date and/or weight_lbs).
+export function updateWeightEntry(id: number, fields: { date?: string; weight_lbs?: number }) {
+  return request<WeightEntry>(`/api/weight-log/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(fields),
+  })
+}
+
+// deleteWeightEntry removes a weight log entry by id.
+export function deleteWeightEntry(id: number) {
+  return request<void>(`/api/weight-log/${id}`, { method: 'DELETE' })
 }
 
 // fetchSuggestion asks the AI to parse a food/exercise description into structured

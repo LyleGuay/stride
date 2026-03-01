@@ -1,3 +1,7 @@
+# Production / staging deployment.
+# Builds and runs the app container only — no bundled postgres.
+# DB_URL must be provided via environment variable (e.g. a managed cloud DB).
+# Usage: DB_URL=<connection-string> docker compose up
 services:
   app:
     build: .
