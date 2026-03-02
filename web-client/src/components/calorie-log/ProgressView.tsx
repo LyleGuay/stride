@@ -201,7 +201,9 @@ export default function ProgressView({
   /* ─── Stats ──────────────────────────────────────────────────────────── */
 
   const stats = progressData?.stats ?? null
-  const weightImpact = stats ? stats.total_calories_left / 3500 : 0
+  // total_calories_left > 0 = under budget = calorie deficit = losing weight.
+  // Negate to weight-change convention: positive = gaining, negative = losing.
+  const weightChange = stats ? -(stats.total_calories_left / 3500) : 0
 
   /* ─── Handlers ───────────────────────────────────────────────────────── */
 
@@ -335,11 +337,11 @@ export default function ProgressView({
                   </div>
                 </div>
 
-                {/* Estimated weight impact footer */}
+                {/* Estimated weight impact footer — positive = gaining, negative = losing */}
                 <div className="px-4 py-3 flex items-center justify-between">
-                  <span className="text-xs text-gray-500">Estimated weight impact from calorie deficit</span>
-                  <span className={`text-sm font-semibold ${weightImpact >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                    {weightImpact >= 0 ? '+' : ''}{weightImpact.toFixed(2)} lbs
+                  <span className="text-xs text-gray-500">Estimated weight impact from calorie balance</span>
+                  <span className={`text-sm font-semibold ${weightChange <= 0 ? 'text-green-600' : 'text-red-500'}`}>
+                    {weightChange >= 0 ? '+' : ''}{weightChange.toFixed(2)} lbs
                   </span>
                 </div>
               </>

@@ -18,15 +18,39 @@ function mealCalories(items: CalorieLogItem[]): Record<CalorieLogItem['type'], n
   return totals
 }
 
-// estimatedPace computes an implied lbs/week rate from today's net calories vs TDEE.
-// Returns a string like "~1.0 lbs/wk loss" or "+0.3 lbs/wk gain", or null if TDEE unknown.
-function estimatedPace(netCalories: number, tdee?: number): { label: string; gaining: boolean } | null {
+// estimatedPace computes today's weight impact vs TDEE.
+// Returns the daily lbs impact and weekly-rate equivalent, or null if TDEE unknown.
+// deficit > 0 = losing weight, deficit < 0 = gaining weight.
+function estimatedPace(netCalories: number, tdee?: number): {
+  dailyLabel: string   // e.g. "-0.07 lbs" — actual impact today
+  weeklyLabel: string  // e.g. "+0.5 lbs/wk" — projected if every day were like today
+  gaining: boolean
+  deficit: number
+} | null {
   if (!tdee) return null
-  const deficit = tdee - netCalories        // positive = losing, negative = gaining
-  const pace = Math.abs(deficit) / 500      // lbs per week
+  const deficit = tdee - netCalories              // positive = losing, negative = gaining
+  const dailyImpact = Math.abs(deficit) / 3500   // lbs moved today
+  const weeklyRate  = Math.abs(deficit) / 500    // lbs/wk if continued
   const gaining = deficit < 0
-  const label = `${gaining ? '+' : '-'}${pace.toFixed(1)} lbs/wk`
-  return { label, gaining }
+  const sign = gaining ? '+' : '-'
+  return {
+    dailyLabel:  `${sign}${dailyImpact.toFixed(2)} lbs`,
+    weeklyLabel: `${sign}${weeklyRate.toFixed(1)} lbs/wk`,
+    gaining,
+    deficit,
+  }
+}
+
+// paceColor returns a Tailwind text color based on whether the current pace is
+// moving toward or away from the user's target weight.
+// Green = toward target, red = away from target, gray = no movement or no target.
+function paceColor(gaining: boolean, deficit: number, weightLbs?: number | null, targetWeightLbs?: number | null): string {
+  if (deficit === 0 || !weightLbs || !targetWeightLbs) return 'text-gray-400'
+  const wantToLose = targetWeightLbs < weightLbs
+  const wantToGain = targetWeightLbs > weightLbs
+  if ((wantToLose && !gaining) || (wantToGain && gaining)) return 'text-emerald-600'
+  if ((wantToLose && gaining) || (wantToGain && !gaining)) return 'text-red-500'
+  return 'text-gray-400' // already at target
 }
 
 export default function DailySummary({ summary }: Props) {
@@ -160,10 +184,19 @@ export default function DailySummary({ summary }: Props) {
           </tbody>
         </table>
 
-        {/* Estimated pace — only shown when TDEE is known from profile */}
+        {/* Estimated weight impact — daily lbs with weekly-rate tooltip */}
         {pace && (
-          <div className={`mt-2 pt-2 border-t border-gray-100 text-xs font-medium ${pace.gaining ? 'text-blue-500' : 'text-emerald-600'}`}>
-            {pace.label} Estimated
+          <div className={`mt-2 pt-2 border-t border-gray-100 text-xs font-medium flex items-center gap-1 ${paceColor(pace.gaining, pace.deficit, settings.weight_lbs, settings.target_weight_lbs)}`}>
+            {pace.dailyLabel} Estimated
+            {/* Info icon — hover reveals the weekly-rate equivalent */}
+            <span className="relative group cursor-default">
+              <svg className="w-3.5 h-3.5 opacity-50" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a.75.75 0 000 1.5h.253a.25.25 0 01.244.304l-.459 2.066A1.75 1.75 0 0010.747 15H11a.75.75 0 000-1.5h-.253a.25.25 0 01-.244-.304l.459-2.066A1.75 1.75 0 009.253 9H9z" clipRule="evenodd"/>
+              </svg>
+              <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded bg-gray-800 text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
+                ≈ {pace.weeklyLabel} if continued all week
+              </span>
+            </span>
           </div>
         )}
       </div>

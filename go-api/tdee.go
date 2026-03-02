@@ -54,23 +54,28 @@ func computeTDEE(s *calorieLogUserSettings) (bmr, tdee, budget int, paceLbsPerWe
 	}
 	tdeeF := bmrF * mult
 
-	// Pace from target weight delta and time remaining
+	// Pace from target weight delta and time remaining.
+	// Negative pace = weight loss (target < current); positive pace = weight gain.
 	weeksUntil := time.Until(s.TargetDate.Time).Hours() / 24 / 7
 	if weeksUntil <= 0 {
 		return 0, 0, 0, 0, false
 	}
-	pace := (*s.WeightLBS - *s.TargetWeightLBS) / weeksUntil
-	// Cap pace at 2 lbs/week (safe maximum), floor at 0.25
-	if pace > 2 {
+	pace := (*s.TargetWeightLBS - *s.WeightLBS) / weeksUntil
+	// Cap pace at ±2 lbs/week (health/safety limit).
+	// Snap |pace| < 0.1 to 0 — a sub-0.1 adjustment is within TDEE estimation
+	// noise and is effectively a maintenance budget (budget = TDEE).
+	if math.Abs(pace) < 0.1 {
+		pace = 0
+	} else if pace > 2 {
 		pace = 2
-	}
-	if pace < 0.25 {
-		pace = 0.25
+	} else if pace < -2 {
+		pace = -2
 	}
 
-	// Budget = TDEE minus the caloric deficit implied by pace (3500 cal ≈ 1 lb fat).
+	// Budget = TDEE plus the caloric adjustment implied by pace (3500 cal ≈ 1 lb fat).
+	// Loss (pace < 0): budget < TDEE. Gain (pace > 0): budget > TDEE. Zero: budget = TDEE.
 	// Use math.Round to avoid systematic under-reporting from truncation.
-	budgetF := tdeeF - pace*500
+	budgetF := tdeeF + pace*500
 	return int(math.Round(bmrF)), int(math.Round(tdeeF)), int(math.Round(budgetF)), pace, true
 }
 

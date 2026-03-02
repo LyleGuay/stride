@@ -65,16 +65,20 @@ export default function CalorieLog() {
   // undefined = not yet fetched; null = no items exist; string = earliest date.
   const [earliestLogDate, setEarliestLogDate] = useState<string | null | undefined>(undefined)
 
+  // Fetch weekly data when the Weekly tab becomes active or the week changes.
+  // Gating on tab==='weekly' avoids showing stale data when items are added
+  // on the Daily tab then the user switches to Weekly.
   // Synchronous setState here is safe — weekLoading/weekError are not in the dep
   // array so there's no cascade risk. The rule fires but the pattern is correct.
   useEffect(() => {
+    if (tab !== 'weekly') return
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setWeekLoading(true)
     setWeekError(null)
     fetchWeekSummary(weekStart)
       .then(data => { setWeekData(data); setWeekLoading(false) })
       .catch((e: Error) => { setWeekError(e.message); setWeekLoading(false) })
-  }, [weekStart])
+  }, [tab, weekStart])
 
   // Fetch the earliest log date once on mount — used to set the "All Time" range start.
   useEffect(() => {
@@ -278,6 +282,7 @@ export default function CalorieLog() {
           weekStart={weekStart}
           onWeekChange={setWeekStart}
           onNavigateToDay={d => { setDate(d); setTab('daily') }}
+          settings={summary?.settings ?? null}
         />
       )}
 

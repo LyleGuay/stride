@@ -37,22 +37,28 @@ export default async function globalSetup() {
     stdio: 'inherit',
   })
 
-  log('[e2e setup] Creating e2e test user...')
-  // Pass credentials as flags to avoid interactive stdin.
-  // In Docker mode the DB is always fresh (down -v wipes it), so the user can
-  // never already exist — any error here is a real failure and should surface.
-  // In dev mode the DB persists across runs, so "user already exists" is harmless.
-  try {
-    execSync('go run ./cmd/create-user --username e2e_user --email e2e@test.com --password password123', {
-      cwd: GO_API_DIR,
-      env,
-      stdio: 'inherit',
-    })
-  } catch (err) {
-    if (DOCKER) {
-      throw new Error(`[e2e setup] create-user failed in Docker mode: ${(err as Error).message}`)
+  // Create all e2e test users. Each test file that patches user settings gets its
+  // own dedicated user to prevent parallel workers from racing on shared state.
+  // In Docker mode the DB is always fresh so users can never already exist.
+  // In dev mode the DB persists across runs so "already exists" errors are harmless.
+  const testUsers = [
+    { username: 'e2e_user',       email: 'e2e@test.com',       password: 'password123' },
+    { username: 'pace_test_user', email: 'pace@test.com',      password: 'password123' },
+  ]
+
+  for (const user of testUsers) {
+    log(`[e2e setup] Creating test user '${user.username}'...`)
+    try {
+      execSync(
+        `go run ./cmd/create-user --username ${user.username} --email ${user.email} --password ${user.password}`,
+        { cwd: GO_API_DIR, env, stdio: 'inherit' },
+      )
+    } catch (err) {
+      if (DOCKER) {
+        throw new Error(`[e2e setup] create-user failed in Docker mode: ${(err as Error).message}`)
+      }
+      log(`[e2e setup] User '${user.username}' already exists or creation skipped (dev mode).`)
     }
-    log('[e2e setup] User already exists or creation skipped (dev mode).')
   }
 
   log('[e2e setup] Done.')

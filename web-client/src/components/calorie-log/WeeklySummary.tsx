@@ -5,7 +5,7 @@
 // Data is fetched by the parent (CalorieLog) and passed as props.
 
 import { useState } from 'react'
-import type { WeekDaySummary } from '../../types'
+import type { WeekDaySummary, CalorieLogUserSettings } from '../../types'
 import { todayString, getMondayOf, shiftWeek, formatWeekRange, dayLabel, dayNumber } from '../../utils/dates'
 
 interface WeeklySummaryProps {
@@ -15,6 +15,20 @@ interface WeeklySummaryProps {
   weekStart: string
   onWeekChange: (weekStart: string) => void
   onNavigateToDay: (date: string) => void
+  settings: CalorieLogUserSettings | null
+}
+
+// weightImpactColor returns a Tailwind text color based on whether the calorie
+// surplus/deficit is moving the user toward or away from their target weight.
+// Mirrors the paceColor logic in DailySummary — green = toward target, red = away.
+function weightImpactColor(impact: number, weightLbs?: number | null, targetLbs?: number | null): string {
+  if (impact === 0 || !weightLbs || !targetLbs) return 'text-gray-400'
+  const wantToLose = targetLbs < weightLbs
+  const wantToGain = targetLbs > weightLbs
+  // impact > 0 = calorie deficit = losing weight; impact < 0 = surplus = gaining
+  if ((wantToLose && impact > 0) || (wantToGain && impact < 0)) return 'text-emerald-600'
+  if ((wantToLose && impact < 0) || (wantToGain && impact > 0)) return 'text-red-500'
+  return 'text-gray-400' // already at target
 }
 
 /* ─── SVG chart layout constants ───────────────────────────────────── */
@@ -36,7 +50,7 @@ const barX = (i: number) => X_START + i * SLOT_W + (SLOT_W - BAR_W) / 2
 // slotCenter returns the center x of slot i for labels and tooltips.
 const slotCenter = (i: number) => X_START + (i + 0.5) * SLOT_W
 
-export default function WeeklySummary({ days, loading, error, weekStart, onWeekChange, onNavigateToDay }: WeeklySummaryProps) {
+export default function WeeklySummary({ days, loading, error, weekStart, onWeekChange, onNavigateToDay, settings }: WeeklySummaryProps) {
   const [tooltipIdx, setTooltipIdx] = useState(-1)
 
   const currentWeekStart = getMondayOf(todayString())
@@ -50,9 +64,19 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
   const budget        = days[0]?.calorie_budget ?? 0
   const weeklyBudget  = budget * 7
 
-  // Weight impact: sum of surplus/deficit across tracked days → lbs (3500 cal/lb)
+  // Weight impact: estimated actual weight change based on TDEE (consistent with daily view).
+  // Uses TDEE as the baseline rather than calorie budget — budget already has a goal deficit
+  // baked in, which would make the impact appear larger than the actual metabolic effect.
+  const tdee         = settings?.computed_tdee ?? 0
+  const totalDeficit = tdee > 0
+    ? dataDays.reduce((s, d) => s + (tdee - d.net_calories), 0)
+    : 0
+  const weightImpact = tdee > 0 && dataDays.length > 0 ? totalDeficit / 3500 : 0
+  // Project the tracked-day rate to a full week for comparison with target pace
+  const weeklyRate   = tdee > 0 && dataDays.length > 0 ? (weightImpact / dataDays.length) * 7 : 0
+
+  // totalLeft is used only for the budget progress bar (separate from weight impact)
   const totalLeft    = dataDays.reduce((s, d) => s + d.calories_left, 0)
-  const weightImpact = totalLeft / 3500
 
   // Progress bar: net calories consumed vs period budget (budget × tracked days)
   const netConsumed  = dataDays.reduce((s, d) => s + d.net_calories, 0)
@@ -169,6 +193,7 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
             </div>
 
             {/* SVG bar chart with Y-axis, grid lines, day labels, date numbers, tooltip */}
+            <div className="relative">
             <div className="w-full overflow-x-auto -mx-1 px-1">
               <svg
                 viewBox={`0 0 430 ${VB_H}`}
@@ -251,34 +276,43 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
                   )
                 })}
 
-                {/* Tooltip — dark callout above clicked bar */}
-                {tooltipIdx >= 0 && days[tooltipIdx] && (() => {
-                  const day = days[tooltipIdx]
-                  const cx = slotCenter(tooltipIdx)
-                  const barH = day.has_data ? Math.max(3, scaleY(day.net_calories)) : 8
-                  const tipY = Math.max(10, Y_BOT - barH - 56)
-                  // Clamp x so tooltip doesn't overflow chart
-                  const tx = Math.min(Math.max(cx, X_START + 55), X_END - 55)
-                  const delta = day.calories_left
-                  return (
-                    <g>
-                      <rect x={tx - 55} y={tipY} width={110} height={48} rx={5} fill="#1f2937" />
-                      <text x={tx - 47} y={tipY + 15} fontSize={9} fill="#9ca3af">
-                        {new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
-                      </text>
-                      <text x={tx - 47} y={tipY + 28} fontSize={9} fill="#9ca3af">Net calories</text>
-                      <text x={tx + 47} y={tipY + 28} fontSize={9} fill="white" textAnchor="end" fontWeight="600">
-                        {day.net_calories.toLocaleString()}
-                      </text>
-                      <text x={tx - 47} y={tipY + 41} fontSize={9} fill="#9ca3af">vs. budget</text>
-                      <text x={tx + 47} y={tipY + 41} fontSize={9} textAnchor="end" fontWeight="600"
-                        fill={delta >= 0 ? '#22c55e' : '#ef4444'}>
-                        {delta >= 0 ? `+${delta.toLocaleString()}` : delta.toLocaleString()}
-                      </text>
-                    </g>
-                  )
-                })()}
               </svg>
+            </div>
+
+            {/* HTML tooltip overlay — rendered outside the overflow-x-auto div so it isn't clipped */}
+            {tooltipIdx >= 0 && days[tooltipIdx] && (() => {
+              const day = days[tooltipIdx]
+              const delta = day.calories_left
+              // Position as % of SVG viewBox width, clamped to prevent edge overflow
+              const pct = Math.min(Math.max((slotCenter(tooltipIdx) / 430) * 100, 14), 86)
+              return (
+                <div
+                  className="absolute z-10 -translate-x-1/2 bg-gray-800 rounded-lg p-2.5 shadow-lg pointer-events-auto"
+                  style={{ left: `${pct}%`, bottom: '24%', width: 128 }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div className="text-[10px] text-gray-400 mb-1.5">
+                    {new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                  </div>
+                  <div className="flex justify-between text-[10px] mb-0.5">
+                    <span className="text-gray-400">Net cal</span>
+                    <span className="text-white font-semibold">{day.net_calories.toLocaleString()}</span>
+                  </div>
+                  <div className="flex justify-between text-[10px] mb-2">
+                    <span className="text-gray-400">vs. budget</span>
+                    <span className={`font-semibold ${delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                      {delta >= 0 ? `+${delta.toLocaleString()}` : delta.toLocaleString()}
+                    </span>
+                  </div>
+                  <button
+                    className="w-full bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-medium py-1 rounded transition-colors"
+                    onClick={() => { onNavigateToDay(day.date); setTooltipIdx(-1) }}
+                  >
+                    Go to day →
+                  </button>
+                </div>
+              )
+            })()}
             </div>
 
             {/* Legend */}
@@ -325,30 +359,43 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
                   </div>
                 )}
               </div>
-              {/* Right: big impact number */}
-              {dataDays.length > 0 && (
+              {/* Right: big impact number + pace boxes — only shown when TDEE is known */}
+              {dataDays.length > 0 && tdee > 0 && (
                 <div className="text-right flex-shrink-0">
-                  <div className={`text-2xl font-bold leading-tight ${weightImpact >= 0 ? 'text-green-600' : 'text-red-500'}`}>
-                    {weightImpact >= 0 ? '+' : ''}{weightImpact.toFixed(2)} lbs
+                  <div className={`text-2xl font-bold leading-tight ${weightImpactColor(weightImpact, settings?.weight_lbs, settings?.target_weight_lbs)}`}>
+                    {/* Display as projected lbs/wk (weight-change convention: + = gaining, - = losing).
+                        weeklyRate is in deficit convention, so negate: -weeklyRate matches daily view's sign. */}
+                    {(-weeklyRate) >= 0 ? '+' : ''}{(-weeklyRate).toFixed(1)} lbs/wk
                   </div>
-                  <div className="text-[10px] text-gray-400 mt-0.5">
-                    {weightImpact >= 0 ? 'ahead of goal pace' : 'behind goal pace'}
-                  </div>
+                  {/* Target pace and diff from target */}
+                  {settings?.pace_lbs_per_week != null && (() => {
+                    const pace = settings.pace_lbs_per_week!
+                    // weeklyRate: positive = calorie deficit = losing weight; negative = surplus = gaining.
+                    // pace: negative = loss goal, positive = gain goal (opposite sign to weeklyRate convention).
+                    // diff = weeklyRate + pace converts pace to same convention: >0 means ahead, <0 means behind.
+                    const diff = weeklyRate + pace
+                    const diffColor = weightImpactColor(diff, settings.weight_lbs, settings.target_weight_lbs)
+                    return (
+                      <div className="flex gap-1.5 mt-1.5 justify-end">
+                        <div className="bg-gray-50 rounded px-1.5 py-1 text-center">
+                          <div className="text-[9px] text-gray-400 leading-none mb-0.5">Target</div>
+                          <div data-testid="weekly-target-pace" className="text-[11px] font-semibold text-gray-600">
+                            {pace > 0 ? '+' : ''}{pace.toFixed(1)} lbs/wk
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 rounded px-1.5 py-1 text-center">
+                          <div className="text-[9px] text-gray-400 leading-none mb-0.5">vs Target</div>
+                          <div className={`text-[11px] font-semibold ${diffColor}`}>
+                            {/* Negate diff to match weight-change convention: +X = gaining above target, -X = ahead (losing faster) */}
+                            {(-diff) >= 0 ? '+' : ''}{(-diff).toFixed(1)} lbs/wk
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               )}
             </div>
-
-            {/* Info note */}
-            {dataDays.length > 0 && (
-              <div className="mt-3 pt-3 border-t border-gray-100 flex items-start gap-2 text-[11px] text-gray-400">
-                <svg className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-gray-300" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M11.25 11.25l.041-.02a.75.75 0 011.063.852l-.708 2.836a.75.75 0 001.063.853l.041-.021M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9-3.75h.008v.008H12V8.25z"/>
-                </svg>
-                <span>
-                  {Math.abs(totalLeft).toLocaleString()} cal {totalLeft >= 0 ? 'under' : 'over'} {dataDays.length}-day budget ÷ 3,500 cal/lb ≈ {Math.abs(weightImpact).toFixed(2)} lbs. Your budget already targets your desired loss rate — staying at budget = on pace.
-                </span>
-              </div>
-            )}
           </div>
 
           {/* ── Day Summaries table ───────────────────────────────────────── */}

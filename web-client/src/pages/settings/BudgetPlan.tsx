@@ -85,10 +85,11 @@ export default function BudgetPlan({ form, preview, onFormChange, onSetForm }: B
               </div>
               <div>
                 <div className="text-gray-400 mb-0.5">Pace</div>
+                {/* pace < 0 = losing weight; pace > 0 = gaining weight */}
                 <div className={`font-semibold ${Math.abs(preview.pace) >= 2 ? 'text-red-600' : 'text-gray-700'}`}>
                   {preview.pace < 0
-                    ? `+${Math.abs(preview.pace).toFixed(1)} lbs/wk gain`
-                    : `~${preview.pace.toFixed(1)} lbs/wk loss`}
+                    ? `~${Math.abs(preview.pace).toFixed(1)} lbs/wk loss`
+                    : `+${preview.pace.toFixed(1)} lbs/wk gain`}
                 </div>
               </div>
               <div>
@@ -135,9 +136,10 @@ export default function BudgetPlan({ form, preview, onFormChange, onSetForm }: B
                 {form.budgetAuto ? (
                   <>
                     <div className="flex justify-between">
-                      {preview.pace >= 0
-                        ? <span>− Goal deficit ({preview.pace.toFixed(1)} lb/wk loss × 500)</span>
-                        : <span>+ Goal surplus ({Math.abs(preview.pace).toFixed(1)} lb/wk gain × 500)</span>}
+                      {/* pace < 0 = loss (deficit); pace > 0 = gain (surplus) */}
+                      {preview.pace < 0
+                        ? <span>− Goal deficit ({Math.abs(preview.pace).toFixed(1)} lb/wk loss × 500)</span>
+                        : <span>+ Goal surplus ({preview.pace.toFixed(1)} lb/wk gain × 500)</span>}
                       <span className={`font-medium ${preview.deficit >= 0 ? 'text-red-500' : 'text-gray-700'}`}>
                         {preview.deficit >= 0
                           ? `−${preview.deficit.toLocaleString()} cal`
@@ -171,10 +173,11 @@ export default function BudgetPlan({ form, preview, onFormChange, onSetForm }: B
                     </div>
                     <div className="flex justify-between border-t border-gray-100 pt-1.5">
                       <span className="font-semibold text-stride-700">Implied pace</span>
+                      {/* pace < 0 = losing weight; pace > 0 = gaining weight */}
                       <span className={`font-bold ${Math.abs(preview.pace) >= 2 ? 'text-red-600' : 'text-stride-700'}`}>
                         {preview.pace < 0
-                          ? `+${Math.abs(preview.pace).toFixed(1)} lbs/wk gain`
-                          : `~${preview.pace.toFixed(1)} lbs/wk loss`}
+                          ? `~${Math.abs(preview.pace).toFixed(1)} lbs/wk loss`
+                          : `+${preview.pace.toFixed(1)} lbs/wk gain`}
                       </span>
                     </div>
                   </>

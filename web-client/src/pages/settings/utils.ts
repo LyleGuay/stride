@@ -93,20 +93,21 @@ export function computePreview(form: FormState): Preview | null {
 
   if (!form.budgetAuto) {
     // Manual mode: budget is given; derive deficit/pace/goal date from it.
-    // Negative deficit = caloric surplus = weight gain.
+    // deficit: positive = calorie deficit = losing weight; negative = surplus = gaining.
+    // pace: negative = losing weight; positive = gaining (matches auto mode convention).
     const budget = parseInt(form.manualBudget)
     if (isNaN(budget) || budget <= 0) return null
-    const deficit = tdee - budget
-    const pace = deficit / 500  // negative when budget > TDEE (gaining)
+    const deficit = tdee - budget          // positive when budget < TDEE (losing)
+    const pace = -(tdee - budget) / 500   // negative when losing (budget < TDEE)
 
-    // Goal date: derive from pace + weight delta. Works for both loss (pace > 0)
-    // and gain (pace < 0, target > current).
+    // Goal date: derive from pace + weight delta.
+    // After sign flip: loss has pace<0 and delta>0 (current>target); gain has pace>0 and delta<0.
     let goalDate: Date | null = null
     const targetWeightLbs = parseFloat(form.targetWeightLbs)
     if (!isNaN(targetWeightLbs) && pace !== 0) {
-      const delta = weightLbs - targetWeightLbs   // negative when gaining
-      if ((delta > 0 && pace > 0) || (delta < 0 && pace < 0)) {
-        const weeksNeeded = delta / pace
+      const delta = weightLbs - targetWeightLbs   // positive when losing (current > target)
+      if ((delta > 0 && pace < 0) || (delta < 0 && pace > 0)) {
+        const weeksNeeded = Math.abs(delta / pace)
         goalDate = new Date(Date.now() + weeksNeeded * 7 * 24 * 60 * 60 * 1000)
       }
     }
@@ -118,7 +119,7 @@ export function computePreview(form: FormState): Preview | null {
   }
 
   // Auto mode: derive budget from pace toward goal date.
-  // Negative pace = gaining (target > current weight).
+  // Negative pace = weight loss (target < current); positive pace = weight gain.
   const targetWeightLbs = parseFloat(form.targetWeightLbs)
   if (isNaN(targetWeightLbs) || !form.targetDate) return null
 
@@ -126,14 +127,16 @@ export function computePreview(form: FormState): Preview | null {
   const weeksUntil = msUntil / 1000 / 60 / 60 / 24 / 7
   if (weeksUntil <= 0) return null
 
-  let pace = (weightLbs - targetWeightLbs) / weeksUntil
-  // Cap rate at ±2 lbs/wk for both loss and gain. Only apply the 0.25 minimum
-  // for weight loss — gaining should be shown as-is without a floor.
-  if (pace > 2) pace = 2
-  else if (pace > 0 && pace < 0.25) pace = 0.25
+  let pace = (targetWeightLbs - weightLbs) / weeksUntil
+  // Cap at ±2 lbs/wk (health/safety). Snap |pace| < 0.1 to 0 — negligible
+  // adjustment that's within TDEE estimation noise (maintenance budget).
+  if (Math.abs(pace) < 0.1) pace = 0
+  else if (pace > 2) pace = 2
   else if (pace < -2) pace = -2
 
-  const deficit = pace * 500  // negative when gaining
+  // deficit: calories below TDEE — positive for loss (calorie deficit), negative for gain (surplus).
+  // budget = TDEE + pace*500 (loss pace<0 → budget<TDEE; gain pace>0 → budget>TDEE).
+  const deficit = -pace * 500
   const budget = Math.round(tdee - deficit)
   return {
     bmr: Math.round(bmr), tdee: Math.round(tdee),

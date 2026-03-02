@@ -1,6 +1,8 @@
 # Stride
 
-A life & productivity dashboard — habits, tasks, goals, calorie logging, and more.
+A personal life & productivity dashboard — habits, tasks, goals, calorie logging, and more.
+
+**This is a personal hobby project built for one user (me).** There is no multi-tenancy roadmap, no design-by-committee, and no requirement to optimize for hypothetical future users. Decisions are made for the current use case.
 
 ## Structure
 
@@ -15,9 +17,9 @@ stride/
 
 ## Platform Strategy
 
-**`web-client` is desktop only.** It is not designed or optimized for mobile browsers. Do not add responsive breakpoints or mobile-specific hacks.
+**`web-client` is desktop primary.** Mobile is tolerated as a fallback but not optimized for — no responsive breakpoints, no mobile-specific layout work. Avoid patterns that actively break on mobile (fixed pixel widths, hover-only primary actions), but don't fix things that merely look suboptimal on small screens.
 
-**`mobile-client` is mobile only.** It is a native Android/iOS app via Expo. Do not attempt to make it work on desktop.
+**`mobile-client` is mobile only.** It is a native Android app via Expo. iOS is not a target — the only device is a Google Pixel. Do not attempt to make it work on desktop.
 
 Each platform has its own UI built for that context. Shared business logic (types, date utilities) lives in `packages/shared` and is consumed by both.
 

@@ -181,16 +181,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Stride is a life & productivity dashboard — habits, tasks, goals, calorie logging, and more. The first feature being built is a calorie log (replacing an existing Google Sheets workflow; see `design/existing_calorie_log_spreadsheet/` for reference).
+Stride is a personal life & productivity dashboard — habits, tasks, goals, calorie logging, and more. The first feature being built is a calorie log (replacing an existing Google Sheets workflow; see `design/existing_calorie_log_spreadsheet/` for reference).
+
+**This is a personal hobby project built for one user.** There is no multi-tenant architecture, no iOS support, and no need to design for hypothetical future scale. The only mobile device is a Google Pixel (Android). Optimize for the current use case.
 
 ## Modules
 
 - **`go-api/`** — Go backend (Gin + PostgreSQL via pgx). This is the active backend.
-- **`web-client/`** — React frontend (Vite + Tailwind CSS + PWA). **Desktop only** — no mobile support, no responsive layout work.
-- **`mobile-client/`** — Expo React Native app. **Mobile only** — no tablet/desktop support.
+- **`web-client/`** — React frontend (Vite + Tailwind CSS + PWA). **Desktop primary.** Mobile is tolerated as a fallback (e.g. if the mobile app is broken) but not optimized for.
+- **`mobile-client/`** — Expo React Native app. **Android only** (Google Pixel) — no iOS, no tablet/desktop support.
 - **`packages/shared/`** — Shared TypeScript types and pure utilities consumed by both clients.
 
-Each client is intentionally scoped to its platform. Do not add responsive breakpoints or mobile-specific hacks to `web-client`, and do not attempt to make `mobile-client` work on desktop. Features are built separately for each platform to keep each codebase simple and optimized for its target.
+**`web-client` mobile policy:** Don't actively break mobile — avoid fixed pixel widths and hover-only primary actions. Hover is fine for progressive disclosure (tooltips, info popovers). Do not add responsive breakpoints, mobile-specific variants, or optimize layouts for small screens. If something looks bad on mobile, that's acceptable.
 
 ## Commands
 

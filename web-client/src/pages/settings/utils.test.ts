@@ -112,12 +112,12 @@ describe('computePreview', () => {
       expect(p).not.toBeNull()
       expect(p!.bmr).toBeGreaterThan(0)
       expect(p!.tdee).toBeGreaterThan(p!.bmr)
-      expect(p!.pace).toBeGreaterThan(0)
+      expect(p!.pace).toBeLessThan(0)      // negative = losing weight
       expect(p!.budget).toBeLessThan(p!.tdee)
     })
 
-    it('caps pace at 2 lbs/wk when computed pace would exceed 2', () => {
-      // Very large weight delta, very short timeline → pace would be >> 2
+    it('caps pace at -2 lbs/wk for extreme weight loss', () => {
+      // Very large weight delta, very short timeline → raw loss pace >> 2 → capped at -2
       const form = makeForm({
         budgetAuto: true,
         targetWeightLbs: '100',  // 80 lbs to lose
@@ -125,39 +125,38 @@ describe('computePreview', () => {
       })
       const p = computePreview(form)
       expect(p).not.toBeNull()
-      expect(p!.pace).toBe(2)
+      expect(p!.pace).toBe(-2)
     })
 
-    it('floors pace at 0.25 lbs/wk for weight loss when pace is very small', () => {
-      // Small delta, very long timeline → pace would be < 0.25 naturally
+    it('snaps pace to 0 for very slow weight loss (maintenance budget)', () => {
+      // |pace| < 0.1 → snaps to 0 (budget = TDEE)
       const form = makeForm({
         budgetAuto: true,
         targetWeightLbs: '179',  // only 1 lb to lose
-        targetDate: '2030-12-31', // ~5 years away
+        targetDate: '2030-12-31', // ~5 years away → raw pace ≈ -0.008 lbs/wk
       })
       const p = computePreview(form)
       expect(p).not.toBeNull()
-      // Pace should be floored at 0.25 since the computed pace (< 0.25) is for weight loss
-      expect(p!.pace).toBe(0.25)
+      expect(p!.pace).toBe(0)
+      expect(p!.budget).toBe(p!.tdee)
     })
 
-    it('does NOT apply 0.25 floor for weight gain (negative pace returned as-is)', () => {
-      // Target weight above current → gaining; small gain over long period
+    it('snaps pace to 0 for very slow weight gain (maintenance budget)', () => {
+      // |pace| < 0.1 → snaps to 0 (budget = TDEE)
       const form = makeForm({
         budgetAuto: true,
         weightLbs: '150',
         targetWeightLbs: '151',  // 1 lb to gain
-        targetDate: '2030-12-31', // ~5 years away → very slow gain
+        targetDate: '2030-12-31', // ~5 years away → raw pace ≈ +0.008 lbs/wk
       })
       const p = computePreview(form)
       expect(p).not.toBeNull()
-      // Pace is negative (gaining) and should NOT be floored — it should be close to 0
-      expect(p!.pace).toBeLessThan(0)
-      expect(p!.pace).toBeGreaterThan(-0.25)
+      expect(p!.pace).toBe(0)
+      expect(p!.budget).toBe(p!.tdee)
     })
 
-    it('caps pace at -2 lbs/wk for weight gain', () => {
-      // Large gain, short timeline → pace would be < -2
+    it('caps pace at 2 lbs/wk for extreme weight gain', () => {
+      // Large gain, short timeline → raw gain pace >> 2 → capped at 2
       const form = makeForm({
         budgetAuto: true,
         weightLbs: '150',
@@ -166,7 +165,7 @@ describe('computePreview', () => {
       })
       const p = computePreview(form)
       expect(p).not.toBeNull()
-      expect(p!.pace).toBe(-2)
+      expect(p!.pace).toBe(2)
     })
 
     it('returns null when target date is in the past', () => {
@@ -229,11 +228,12 @@ describe('computePreview', () => {
       })
       const p = computePreview(form)
       expect(p).not.toBeNull()
-      // deficit = tdee - 1800; pace = deficit / 500
+      // deficit = tdee - 1800 (positive = calorie deficit = losing weight)
+      // pace is negative for loss: pace = -(tdee - 1800) / 500
       expect(p!.budget).toBe(1800)
       expect(p!.deficit).toBe(p!.tdee - 1800)
-      // pace = deficit / 500; deficit is rounded so check to 2 decimal places
-      expect(p!.pace * 500).toBeCloseTo(p!.deficit, 0)
+      // |pace| * 500 ≈ deficit; deficit is rounded so check to 2 decimal places
+      expect(-p!.pace * 500).toBeCloseTo(p!.deficit, 0)
     })
 
     it('computes goalDate when weight delta and pace direction match (loss)', () => {

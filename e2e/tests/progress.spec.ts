@@ -53,10 +53,12 @@ test.describe('Progress tab', () => {
     // Log Weight modal should open
     await expect(page.getByRole('heading', { name: 'Log Weight' })).toBeVisible()
 
-    // Date field should default to today in YYYY-MM-DD format
-    const today = new Date().toISOString().slice(0, 10)
+    // Date field should default to today. Compare against the input's own max
+    // attribute (set by the app to todayString()) rather than computing the date
+    // here — avoids UTC vs local-time skew between the test runner and the browser.
     const dateInput = page.locator('#lw-date')
-    await expect(dateInput).toHaveValue(today)
+    const maxDate = await dateInput.getAttribute('max')
+    await expect(dateInput).toHaveValue(maxDate!)
   })
 
   test('log a weight entry — entry appears in weight table', async ({ page }) => {

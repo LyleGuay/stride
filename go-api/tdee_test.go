@@ -144,31 +144,49 @@ func TestComputeTDEE_FemaleBMR(t *testing.T) {
 
 /* ─── Pace capping / flooring tests ─────────────────────────────────── */
 
-// TestComputeTDEE_PaceCappedAt2 verifies that an extreme weight-loss goal
-// (300lbs → 100lbs in 10 weeks) is capped at 2 lbs/week.
-func TestComputeTDEE_PaceCappedAt2(t *testing.T) {
+// TestComputeTDEE_PaceCappedAtNeg2 verifies that an extreme weight-loss goal
+// (300lbs → 100lbs in 10 weeks) is capped at -2 lbs/week.
+// After the sign-flip: loss pace is negative, so the cap is -2.
+func TestComputeTDEE_PaceCappedAtNeg2(t *testing.T) {
 	tenWeeksOut := time.Now().UTC().AddDate(0, 0, 10*7)
 	s := makeSettings("male", 1990, 175, 300, 100, "sedentary", tenWeeksOut)
 	_, _, _, pace, ok := computeTDEE(s)
 	if !ok {
 		t.Fatal("expected ok=true, got ok=false")
 	}
-	if pace != 2.0 {
-		t.Errorf("expected pace capped at 2.0, got %f", pace)
+	if pace != -2.0 {
+		t.Errorf("expected loss pace capped at -2.0, got %f", pace)
 	}
 }
 
-// TestComputeTDEE_PaceFlooredAt0_25 verifies that when the current weight is
-// already at or below the target (a gaining scenario), pace is floored at 0.25.
-func TestComputeTDEE_PaceFlooredAt0_25(t *testing.T) {
-	// currentWeight (150) < targetWeight (160): raw pace is negative, must floor to 0.25
-	s := makeSettings("male", 1990, 175, 150, 160, "sedentary", futureTargetDate())
+// TestComputeTDEE_SlowLossPaceSnapsToZero verifies that a very slow weight-loss
+// goal produces pace = 0 (maintenance budget) rather than a tiny non-zero value.
+// |pace| < 0.1 snaps to 0 because the budget adjustment would be within TDEE noise.
+func TestComputeTDEE_SlowLossPaceSnapsToZero(t *testing.T) {
+	// 1 lb to lose over 100 weeks → raw pace ≈ -0.01, snaps to 0
+	farFuture := time.Now().UTC().AddDate(0, 0, 100*7)
+	s := makeSettings("male", 1990, 175, 161, 160, "sedentary", farFuture)
 	_, _, _, pace, ok := computeTDEE(s)
 	if !ok {
 		t.Fatal("expected ok=true, got ok=false")
 	}
-	if pace != 0.25 {
-		t.Errorf("expected pace floored at 0.25, got %f", pace)
+	if pace != 0 {
+		t.Errorf("expected slow loss pace to snap to 0, got %f", pace)
+	}
+}
+
+// TestComputeTDEE_SlowGainPaceSnapsToZero verifies that a very slow weight-gain
+// goal produces pace = 0 (maintenance budget) rather than a tiny non-zero value.
+func TestComputeTDEE_SlowGainPaceSnapsToZero(t *testing.T) {
+	// 10 lbs to gain over 500 weeks → raw pace ≈ 0.02, snaps to 0
+	veryFarFuture := time.Now().UTC().AddDate(0, 0, 500*7)
+	s := makeSettings("male", 1990, 175, 150, 160, "sedentary", veryFarFuture)
+	_, _, _, pace, ok := computeTDEE(s)
+	if !ok {
+		t.Fatal("expected ok=true, got ok=false")
+	}
+	if pace != 0 {
+		t.Errorf("expected slow gain pace to snap to 0, got %f", pace)
 	}
 }
 
