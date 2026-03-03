@@ -2,7 +2,8 @@
 // Daily tab: fetches the daily summary (items + settings + computed totals)
 // and renders the date header, summary panel, item table, bottom sheet, FAB,
 // and context menu. Manages state for date navigation, sheet open/close,
-// inline editing, and context menu actions (edit in modal, duplicate, delete).
+// inline editing, and context menu actions (edit in modal, duplicate, delete,
+// save as favorite). Also loads the favorites list used by InlineAddRow and AddItemSheet.
 // Weekly tab: renders WeeklySummary; row clicks switch back to Daily for that date.
 // Progress tab: renders ProgressView with calorie trend chart, weight log, and stats.
 
@@ -11,7 +12,9 @@ import {
   fetchWeekSummary, createCalorieLogItem, updateCalorieLogItem, deleteCalorieLogItem,
   fetchProgress, fetchEarliestLogDate, fetchWeightLog,
   upsertWeightEntry, updateWeightEntry, deleteWeightEntry,
+  fetchFavorites, createFavorite, deleteFavorite,
   type WeekDaySummary, type CalorieLogItem, type ProgressResponse, type WeightEntry,
+  type CalorieLogFavorite,
 } from '../api'
 import { useDailySummary } from '../hooks/useDailySummary'
 import { todayString, getMondayOf } from '../utils/dates'
@@ -25,6 +28,7 @@ import FloatingActionButton from '../components/calorie-log/FloatingActionButton
 import ContextMenu from '../components/calorie-log/ContextMenu'
 import WeeklySummary from '../components/calorie-log/WeeklySummary'
 import ProgressView from '../components/calorie-log/ProgressView'
+import ManageFavoritesModal from '../components/calorie-log/ManageFavoritesModal'
 
 /* ─── CalorieLog ─────────────────────────────────────────────────────────── */
 
@@ -48,6 +52,18 @@ export default function CalorieLog() {
     x: number
     y: number
   } | null>(null)
+
+  // Favorites — loaded once on mount, reloaded after create/delete.
+  // An empty array is the safe default; missing favorites just means an empty dropdown.
+  const [favorites, setFavorites] = useState<CalorieLogFavorite[]>([])
+  const loadFavorites = () => {
+    fetchFavorites()
+      .then(setFavorites)
+      .catch(() => { /* non-critical; empty list is acceptable */ })
+  }
+
+  // Manage favorites modal state
+  const [manageFavoritesOpen, setManageFavoritesOpen] = useState(false)
 
   // Week data — fetched here so WeeklySummary can be a pure presentational component
   const [weekStart, setWeekStart] = useState(() => getMondayOf(todayString()))
@@ -86,6 +102,9 @@ export default function CalorieLog() {
       .then(r => setEarliestLogDate(r.date))
       .catch(() => setEarliestLogDate(null))
   }, [])
+
+  // Load favorites once on mount — refreshed after any create/delete.
+  useEffect(() => { loadFavorites() }, [])
 
   // Fetch progress data whenever the progress tab is active or the range changes.
   // Wait for earliestLogDate to resolve (undefined means still loading) before fetching.
@@ -226,6 +245,38 @@ export default function CalorieLog() {
     }
   }
 
+  // "Save as Favorite" — save the context menu item as a new favorite template.
+  const handleCtxFavorite = async () => {
+    if (!ctxMenu) return
+    const src = ctxMenu.item
+    closeCtxMenu()
+    try {
+      await createFavorite({
+        item_name: src.item_name,
+        type: src.type,
+        qty: src.qty,
+        uom: src.uom,
+        calories: src.calories,
+        protein_g: src.protein_g,
+        carbs_g: src.carbs_g,
+        fat_g: src.fat_g,
+      })
+      loadFavorites()
+    } catch {
+      // Non-critical — silently fail rather than interrupting the user
+    }
+  }
+
+  // Delete a favorite from the Manage Favorites modal.
+  const handleDeleteFavorite = async (id: number) => {
+    try {
+      await deleteFavorite(id)
+      loadFavorites()
+    } catch {
+      // Non-critical
+    }
+  }
+
   /* ─── Weight log actions (Progress tab) ───────────────────────────── */
 
   // Refetch both progress data and weight entries after any weight mutation.
@@ -329,6 +380,8 @@ export default function CalorieLog() {
                 onInlineAdd={handleInlineAdd}
                 onUpdateItem={handleUpdateItem}
                 onItemAction={handleItemAction}
+                favorites={favorites}
+                onManageFavorites={() => setManageFavoritesOpen(true)}
               />
             </>
           )}
@@ -339,6 +392,8 @@ export default function CalorieLog() {
             onSave={handleSheetSave}
             editItem={editItem}
             defaultType={sheetType}
+            favorites={favorites}
+            onManageFavorites={() => setManageFavoritesOpen(true)}
           />
 
           {/* FAB only shown on daily tab */}
@@ -353,10 +408,19 @@ export default function CalorieLog() {
           y={ctxMenu.y}
           onEdit={handleCtxEdit}
           onDuplicate={handleCtxDuplicate}
+          onFavorite={handleCtxFavorite}
           onDelete={handleCtxDelete}
           onClose={closeCtxMenu}
         />
       )}
+
+      {/* Manage Favorites modal — accessible from FavoritesDropdown footer */}
+      <ManageFavoritesModal
+        open={manageFavoritesOpen}
+        favorites={favorites}
+        onDelete={handleDeleteFavorite}
+        onClose={() => setManageFavoritesOpen(false)}
+      />
     </div>
   )
 }

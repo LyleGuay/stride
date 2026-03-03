@@ -42,8 +42,9 @@ export default async function globalSetup() {
   // In Docker mode the DB is always fresh so users can never already exist.
   // In dev mode the DB persists across runs so "already exists" errors are harmless.
   const testUsers = [
-    { username: 'e2e_user',       email: 'e2e@test.com',       password: 'password123' },
-    { username: 'pace_test_user', email: 'pace@test.com',      password: 'password123' },
+    { username: 'e2e_user',           email: 'e2e@test.com',           password: 'password123' },
+    { username: 'pace_test_user',     email: 'pace@test.com',          password: 'password123' },
+    { username: 'favorites_test_user',email: 'favorites@test.com',     password: 'password123' },
   ]
 
   for (const user of testUsers) {

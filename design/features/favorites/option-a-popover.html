@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Favorites — Option A: Popover from Add Row</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: {
+              50: '#eef2ff', 100: '#e0e7ff', 300: '#a5b4fc',
+              500: '#6366f1', 600: '#4f46e5', 700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    /* Show star only on group hover (uses JS fallback below for CDN) */
+    .item-row:hover .star-btn { opacity: 1; }
+    .star-btn { opacity: 0; transition: opacity 0.15s; }
+    .star-btn.favorited { opacity: 0.6; color: #fbbf24; }
+    .item-row:hover .star-btn.favorited { opacity: 1; }
+
+    /* ×qty scale panel animation */
+    .scale-panel { display: none; }
+    .scale-panel.open { display: block; }
+
+    /* Dropdown slide-in */
+    #favDropdown { display: none; }
+    #favDropdown.open { display: block; }
+    #favDropdown2 { display: none; }
+    #favDropdown2.open { display: block; }
+
+    /* Fav row hover: reveal ×qty */
+    .fav-row .qty-btn { opacity: 0; transition: opacity 0.15s; }
+    .fav-row:hover .qty-btn { opacity: 1; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+  <!-- Page chrome -->
+  <div class="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3 mb-6">
+    <span class="text-xs font-semibold text-stride-600 bg-stride-50 border border-stride-200 px-2 py-1 rounded">Design Mockup</span>
+    <span class="text-sm font-semibold text-gray-700">Option A — Favorites Popover</span>
+    <span class="text-xs text-gray-400 ml-2">Star on row hover · ★ button in name field · ×qty serving scale</span>
+  </div>
+
+  <div class="max-w-5xl mx-auto px-6 space-y-8 pb-16">
+
+    <!-- ───────────────────────────────────────────────
+         SECTION 1: Item rows with hover stars
+    ─────────────────────────────────────────────── -->
+    <section>
+      <h2 class="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+        <span class="bg-stride-600 text-white rounded-full w-4 h-4 inline-flex items-center justify-center text-[9px]">1</span>
+        Favoriting from existing item rows
+      </h2>
+
+      <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+        <table class="w-full text-xs" style="border-collapse:collapse">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-wide">
+              <th class="text-left py-2 px-3 font-medium">Item</th>
+              <th class="text-right py-2 px-2 font-medium w-14">Qty</th>
+              <th class="text-left py-2 px-2 font-medium w-20">Unit</th>
+              <th class="text-right py-2 px-2 font-medium w-16">Cal</th>
+              <th class="text-right py-2 px-2 font-medium w-12">P</th>
+              <th class="text-right py-2 px-2 font-medium w-12">C</th>
+              <th class="text-right py-2 px-2 font-medium w-12">F</th>
+              <th class="w-6"></th>
+            </tr>
+          </thead>
+          <tbody>
+            <!-- Section header -->
+            <tr class="border-t border-gray-200 bg-[#f0f0f4]">
+              <td colspan="3" class="py-1.5 px-3 font-semibold text-xs text-gray-700 border-l-[3px] border-l-orange-400">Breakfast</td>
+              <td class="py-1.5 px-2 text-right font-semibold text-gray-600">650</td>
+              <td colspan="4"></td>
+            </tr>
+
+            <!-- Row 1: unfavorited -->
+            <tr class="item-row border-t border-gray-50 hover:bg-gray-50 select-none cursor-default">
+              <td class="py-1.5 px-3 font-medium text-gray-800 whitespace-nowrap relative">
+                <span class="star-btn absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-amber-400 cursor-pointer text-sm leading-none"
+                      title="Add to Favorites"
+                      onclick="toggleFav(this)">★</span>
+                <span class="pl-3">Overnight Oats with Berries</span>
+              </td>
+              <td class="py-1.5 px-2 text-right text-gray-500">1</td>
+              <td class="py-1.5 px-2 text-gray-500 capitalize">bowl</td>
+              <td class="py-1.5 px-2 text-right font-medium">350</td>
+              <td class="py-1.5 px-2 text-right text-blue-500">12</td>
+              <td class="py-1.5 px-2 text-right text-amber-500">52</td>
+              <td class="py-1.5 px-2 text-right text-pink-500">8</td>
+              <td></td>
+            </tr>
+
+            <!-- Row 2: already favorited -->
+            <tr class="item-row border-t border-gray-50 hover:bg-gray-50 select-none cursor-default">
+              <td class="py-1.5 px-3 font-medium text-gray-800 whitespace-nowrap relative">
+                <span class="star-btn favorited absolute left-1.5 top-1/2 -translate-y-1/2 cursor-pointer text-sm leading-none hover:text-gray-300"
+                      title="Remove from Favorites"
+                      onclick="toggleFav(this)">★</span>
+                <span class="pl-3">Protein Shake</span>
+              </td>
+              <td class="py-1.5 px-2 text-right text-gray-500">1</td>
+              <td class="py-1.5 px-2 text-gray-500 capitalize">each</td>
+              <td class="py-1.5 px-2 text-right font-medium">150</td>
+              <td class="py-1.5 px-2 text-right text-blue-500">25</td>
+              <td class="py-1.5 px-2 text-right text-amber-500">8</td>
+              <td class="py-1.5 px-2 text-right text-pink-500">3</td>
+              <td></td>
+            </tr>
+
+            <!-- Row 3: unfavorited -->
+            <tr class="item-row border-t border-gray-50 hover:bg-gray-50 select-none cursor-default">
+              <td class="py-1.5 px-3 font-medium text-gray-800 whitespace-nowrap relative">
+                <span class="star-btn absolute left-1.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-amber-400 cursor-pointer text-sm leading-none"
+                      title="Add to Favorites"
+                      onclick="toggleFav(this)">★</span>
+                <span class="pl-3">Greek Yogurt (whole milk)</span>
+              </td>
+              <td class="py-1.5 px-2 text-right text-gray-500">150</td>
+              <td class="py-1.5 px-2 text-gray-500 capitalize">g</td>
+              <td class="py-1.5 px-2 text-right font-medium">150</td>
+              <td class="py-1.5 px-2 text-right text-blue-500">10</td>
+              <td class="py-1.5 px-2 text-right text-amber-500">12</td>
+              <td class="py-1.5 px-2 text-right text-pink-500">6</td>
+              <td></td>
+            </tr>
+
+            <!-- Collapsed + Add row -->
+            <tr class="border-t border-gray-50">
+              <td colspan="8" class="py-0 px-0">
+                <div class="flex items-center">
+                  <button class="flex-1 text-left py-1.5 pl-4 text-[11px] text-gray-400 hover:text-stride-600 transition-colors">+ Add</button>
+                  <!-- Favorites shortcut on collapsed row -->
+                  <button class="mr-3 text-[11px] text-amber-500 hover:text-amber-600 transition-colors flex items-center gap-1"
+                          onclick="openDropdown('favDropdown')"
+                          title="Quick add from favorites">
+                    ★ <span class="text-gray-400">Favorites</span>
+                  </button>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-[11px] text-gray-400 mt-2">↑ Hover rows to reveal the star. "Protein Shake" is already favorited. Click any star to toggle. The "★ Favorites" button on the collapsed add row is also clickable (opens the same dropdown).</p>
+    </section>
+
+    <!-- ───────────────────────────────────────────────
+         SECTION 2: Expanded inline add + favorites dropdown
+    ─────────────────────────────────────────────── -->
+    <section>
+      <h2 class="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+        <span class="bg-stride-600 text-white rounded-full w-4 h-4 inline-flex items-center justify-center text-[9px]">2</span>
+        Expanded inline add row — favorites button + dropdown
+      </h2>
+
+      <div class="bg-white border border-gray-200 rounded-lg overflow-visible">
+        <table class="w-full text-xs" style="border-collapse:collapse">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-wide">
+              <th class="text-left py-2 px-3 font-medium">Item</th>
+              <th class="text-right py-2 px-2 font-medium w-14">Qty</th>
+              <th class="text-left py-2 px-2 font-medium w-20">Unit</th>
+              <th class="text-right py-2 px-2 font-medium w-16">Cal</th>
+              <th class="text-right py-2 px-2 font-medium w-12">P</th>
+              <th class="text-right py-2 px-2 font-medium w-12">C</th>
+              <th class="text-right py-2 px-2 font-medium w-12">F</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="border-t border-gray-200 bg-[#f0f0f4]">
+              <td colspan="3" class="py-1.5 px-3 font-semibold text-xs text-gray-700 border-l-[3px] border-l-yellow-400">Lunch</td>
+              <td class="py-1.5 px-2 text-right font-semibold text-gray-600">0</td>
+              <td colspan="3"></td>
+            </tr>
+
+            <!-- Expanded inline add row -->
+            <tr class="border-t border-stride-100 bg-stride-50/40">
+              <td class="py-1 pl-[14px] pr-1">
+                <div class="flex items-center gap-1 relative">
+                  <!-- Name input with embedded ★ button -->
+                  <div id="nameInputWrap" class="flex-1 flex items-center border border-stride-300 rounded bg-white focus-within:ring-1 focus-within:ring-stride-500">
+                    <input id="nameInput" type="text" placeholder="Item name"
+                           class="flex-1 min-w-0 px-1.5 py-1 text-xs focus:outline-none rounded-l bg-transparent" />
+                    <!-- ★ button inside right edge of input -->
+                    <button class="shrink-0 px-2 py-1 border-l border-gray-200 text-amber-400 hover:text-amber-500 hover:bg-amber-50 transition-colors rounded-r"
+                            title="Pick from Favorites"
+                            onclick="openDropdown('favDropdown2')">
+                      ★
+                    </button>
+                  </div>
+                  <button class="shrink-0 bg-stride-600 text-white text-[11px] px-2 py-1 rounded hover:bg-stride-700 opacity-40 cursor-not-allowed">Add</button>
+                  <button class="shrink-0 text-gray-400 hover:text-gray-600 text-xs px-0.5">✕</button>
+
+                  <!-- ─── Favorites dropdown ─── -->
+                  <div id="favDropdown2" class="absolute top-full left-0 mt-1 w-80 bg-white border border-gray-200 rounded-lg shadow-xl z-50">
+                    <!-- Search -->
+                    <div class="p-2 border-b border-gray-100">
+                      <input type="text" placeholder="Search favorites…" id="favSearch"
+                             oninput="filterFavs(this.value)"
+                             class="w-full border border-gray-200 rounded px-2 py-1.5 text-xs focus:outline-none focus:border-stride-400" />
+                    </div>
+
+                    <!-- Favorites list -->
+                    <div class="max-h-56 overflow-y-auto" id="favList">
+
+                      <!-- Fav item 1: Protein Shake -->
+                      <div class="fav-row flex items-start px-3 py-2.5 hover:bg-stride-50 cursor-pointer border-b border-gray-50 transition-colors"
+                           onclick="applyFav('Protein Shake', '1', 'each', '150', '25', '8', '3')">
+                        <div class="flex-1 min-w-0">
+                          <div class="font-medium text-gray-800">Protein Shake</div>
+                          <div class="text-[10px] text-gray-400 mt-0.5">1 each &middot; <span class="text-blue-500">25P</span> / <span class="text-amber-500">8C</span> / <span class="text-pink-500">3F</span></div>
+                        </div>
+                        <div class="text-xs font-semibold text-gray-700 ml-3 mt-0.5 shrink-0" id="ps-cal-display">150</div>
+                        <button class="qty-btn ml-2 mt-0.5 shrink-0 text-gray-400 hover:text-stride-600 text-[10px] border border-gray-200 hover:border-stride-300 rounded px-1.5 py-0.5 transition-colors"
+                                title="Adjust serving"
+                                onclick="event.stopPropagation(); toggleScale('ps-scale')">
+                          ×qty
+                        </button>
+                      </div>
+                      <!-- Serving scale panel for Protein Shake -->
+                      <div id="ps-scale" class="scale-panel bg-stride-50 border-b border-stride-100 px-3 py-2.5">
+                        <div class="flex items-center gap-2 text-xs">
+                          <span class="text-gray-500 shrink-0">Serving:</span>
+                          <input type="number" value="1" min="0.25" step="0.25" id="ps-qty"
+                                 oninput="scaleNutrition(this, {cal:150,p:25,c:8,f:3}, 'ps')"
+                                 class="w-16 border border-stride-300 rounded px-2 py-1 text-center text-xs focus:outline-none focus:ring-1 focus:ring-stride-500 bg-white" />
+                          <span class="text-gray-400 shrink-0">× 1 each</span>
+                          <div class="ml-auto text-right shrink-0">
+                            <span class="font-semibold text-stride-700" id="ps-cal-scaled">150 cal</span>
+                            <div class="text-[10px] text-gray-400" id="ps-macro-scaled">25P / 8C / 3F</div>
+                          </div>
+                        </div>
+                        <button onclick="applyScaledFav('ps', 'Protein Shake', 'each', 150)"
+                                class="mt-2 w-full bg-stride-600 text-white text-[11px] py-1.5 rounded hover:bg-stride-700 transition-colors">
+                          Add with this serving
+                        </button>
+                      </div>
+
+                      <!-- Fav item 2 -->
+                      <div class="fav-row flex items-start px-3 py-2.5 hover:bg-stride-50 cursor-pointer border-b border-gray-50 transition-colors"
+                           onclick="applyFav('Greek Yogurt (whole milk)', '150', 'g', '150', '10', '12', '6')">
+                        <div class="flex-1 min-w-0">
+                          <div class="font-medium text-gray-800">Greek Yogurt (whole milk)</div>
+                          <div class="text-[10px] text-gray-400 mt-0.5">150 g &middot; <span class="text-blue-500">10P</span> / <span class="text-amber-500">12C</span> / <span class="text-pink-500">6F</span></div>
+                        </div>
+                        <div class="text-xs font-semibold text-gray-700 ml-3 mt-0.5 shrink-0" id="gy-cal-display">150</div>
+                        <button class="qty-btn ml-2 mt-0.5 shrink-0 text-gray-400 hover:text-stride-600 text-[10px] border border-gray-200 hover:border-stride-300 rounded px-1.5 py-0.5 transition-colors"
+                                onclick="event.stopPropagation(); toggleScale('gy-scale')">
+                          ×qty
+                        </button>
+                      </div>
+                      <div id="gy-scale" class="scale-panel bg-stride-50 border-b border-stride-100 px-3 py-2.5">
+                        <div class="flex items-center gap-2 text-xs">
+                          <span class="text-gray-500 shrink-0">Serving:</span>
+                          <input type="number" value="150" min="1" step="10" id="gy-qty"
+                                 oninput="scaleNutrition(this, {cal:150,p:10,c:12,f:6}, 'gy', 150)"
+                                 class="w-16 border border-stride-300 rounded px-2 py-1 text-center text-xs focus:outline-none focus:ring-1 focus:ring-stride-500 bg-white" />
+                          <span class="text-gray-400 shrink-0">× g</span>
+                          <div class="ml-auto text-right shrink-0">
+                            <span class="font-semibold text-stride-700" id="gy-cal-scaled">150 cal</span>
+                            <div class="text-[10px] text-gray-400" id="gy-macro-scaled">10P / 12C / 6F</div>
+                          </div>
+                        </div>
+                        <button onclick="applyScaledFav('gy', 'Greek Yogurt (whole milk)', 'g', 150)"
+                                class="mt-2 w-full bg-stride-600 text-white text-[11px] py-1.5 rounded hover:bg-stride-700 transition-colors">
+                          Add with this serving
+                        </button>
+                      </div>
+
+                      <!-- Fav item 3 -->
+                      <div class="fav-row flex items-start px-3 py-2.5 hover:bg-stride-50 cursor-pointer border-b border-gray-50 transition-colors"
+                           onclick="applyFav('Homemade Bubble Tea with Protein', '1', 'each', '300', '9', '10', '3')">
+                        <div class="flex-1 min-w-0">
+                          <div class="font-medium text-gray-800">Homemade Bubble Tea with Protein</div>
+                          <div class="text-[10px] text-gray-400 mt-0.5">1 each &middot; <span class="text-blue-500">9P</span> / <span class="text-amber-500">10C</span> / <span class="text-pink-500">3F</span></div>
+                        </div>
+                        <div class="text-xs font-semibold text-gray-700 ml-3 mt-0.5 shrink-0">300</div>
+                        <button class="qty-btn ml-2 mt-0.5 shrink-0 text-gray-400 hover:text-stride-600 text-[10px] border border-gray-200 hover:border-stride-300 rounded px-1.5 py-0.5 transition-colors"
+                                onclick="event.stopPropagation(); toggleScale('bt-scale')">
+                          ×qty
+                        </button>
+                      </div>
+                      <div id="bt-scale" class="scale-panel bg-stride-50 border-b border-stride-100 px-3 py-2.5">
+                        <div class="flex items-center gap-2 text-xs">
+                          <span class="text-gray-500 shrink-0">Serving:</span>
+                          <input type="number" value="1" min="0.5" step="0.5" id="bt-qty"
+                                 oninput="scaleNutrition(this, {cal:300,p:9,c:10,f:3}, 'bt')"
+                                 class="w-16 border border-stride-300 rounded px-2 py-1 text-center text-xs focus:outline-none focus:ring-1 focus:ring-stride-500 bg-white" />
+                          <span class="text-gray-400 shrink-0">× 1 each</span>
+                          <div class="ml-auto text-right shrink-0">
+                            <span class="font-semibold text-stride-700" id="bt-cal-scaled">300 cal</span>
+                            <div class="text-[10px] text-gray-400" id="bt-macro-scaled">9P / 10C / 3F</div>
+                          </div>
+                        </div>
+                        <button onclick="applyScaledFav('bt', 'Homemade Bubble Tea', 'each', 300)"
+                                class="mt-2 w-full bg-stride-600 text-white text-[11px] py-1.5 rounded hover:bg-stride-700 transition-colors">
+                          Add with this serving
+                        </button>
+                      </div>
+
+                      <!-- Fav item 4: exercise -->
+                      <div class="fav-row flex items-start px-3 py-2.5 hover:bg-stride-50 cursor-pointer transition-colors"
+                           onclick="applyFav('Evening Walk', '1', 'miles', '100', null, null, null)">
+                        <div class="flex-1 min-w-0">
+                          <div class="font-medium text-gray-800 flex items-center gap-1.5">
+                            Evening Walk
+                            <span class="text-[9px] bg-emerald-100 text-emerald-700 rounded px-1 py-0.5">exercise</span>
+                          </div>
+                          <div class="text-[10px] text-gray-400 mt-0.5">1 miles &middot; <span class="text-emerald-600">−100 cal</span></div>
+                        </div>
+                        <div class="text-xs font-semibold text-emerald-600 ml-3 mt-0.5 shrink-0">−100</div>
+                        <button class="qty-btn ml-2 mt-0.5 shrink-0 text-gray-400 hover:text-stride-600 text-[10px] border border-gray-200 hover:border-stride-300 rounded px-1.5 py-0.5 transition-colors"
+                                onclick="event.stopPropagation(); toggleScale('ew-scale')">
+                          ×qty
+                        </button>
+                      </div>
+                      <div id="ew-scale" class="scale-panel bg-stride-50 px-3 py-2.5">
+                        <div class="flex items-center gap-2 text-xs">
+                          <span class="text-gray-500 shrink-0">Miles:</span>
+                          <input type="number" value="1" min="0.25" step="0.25" id="ew-qty"
+                                 oninput="scaleNutrition(this, {cal:100,p:0,c:0,f:0}, 'ew')"
+                                 class="w-16 border border-stride-300 rounded px-2 py-1 text-center text-xs focus:outline-none focus:ring-1 focus:ring-stride-500 bg-white" />
+                          <span class="text-gray-400 shrink-0">× 1 mile</span>
+                          <div class="ml-auto text-right shrink-0">
+                            <span class="font-semibold text-emerald-700" id="ew-cal-scaled">−100 cal</span>
+                          </div>
+                        </div>
+                        <button class="mt-2 w-full bg-emerald-600 text-white text-[11px] py-1.5 rounded hover:bg-emerald-700 transition-colors">
+                          Add with this serving
+                        </button>
+                      </div>
+
+                    </div><!-- /favList -->
+
+                    <!-- Footer -->
+                    <div class="p-2 border-t border-gray-100 text-center">
+                      <a href="#" class="text-[10px] text-gray-400 hover:text-stride-600 transition-colors">Manage Favorites…</a>
+                    </div>
+                  </div><!-- /favDropdown2 -->
+
+                </div><!-- /flex -->
+              </td>
+
+              <!-- Other columns -->
+              <td class="py-1 px-1 w-14">
+                <input id="qty-field" type="number" placeholder="Qty" value=""
+                       class="w-full border border-gray-200 rounded px-1 py-1 text-xs text-right focus:outline-none focus:border-stride-400 bg-white" />
+              </td>
+              <td class="py-1 px-1 w-20">
+                <select id="uom-field" class="w-full border border-gray-200 rounded px-1 py-1 text-xs focus:outline-none bg-white">
+                  <option value="each">each</option>
+                  <option value="g">g</option>
+                  <option value="ml">ml</option>
+                  <option value="oz">oz</option>
+                </select>
+              </td>
+              <td class="py-1 px-1 w-16">
+                <input id="cal-field" type="number" placeholder="Cal" value=""
+                       class="w-full border border-gray-200 rounded px-1 py-1 text-xs text-right focus:outline-none focus:border-stride-400 bg-white" />
+              </td>
+              <td class="py-1 px-1 w-12">
+                <input id="p-field" type="number" placeholder="P" value=""
+                       class="w-full border border-gray-200 rounded px-1 py-1 text-xs text-right focus:outline-none focus:border-stride-400 bg-white" />
+              </td>
+              <td class="py-1 px-1 w-12">
+                <input id="c-field" type="number" placeholder="C" value=""
+                       class="w-full border border-gray-200 rounded px-1 py-1 text-xs text-right focus:outline-none focus:border-stride-400 bg-white" />
+              </td>
+              <td class="py-1 px-1 w-12">
+                <input id="f-field" type="number" placeholder="F" value=""
+                       class="w-full border border-gray-200 rounded px-1 py-1 text-xs text-right focus:outline-none focus:border-stride-400 bg-white" />
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="text-[11px] text-gray-400 mt-2">↑ Click ★ inside the name field to open the favorites dropdown. Hover a row to see "×qty". Click "×qty" to expand the serving scale — try changing the number to see calories update live. Clicking a favorite row fills all fields.</p>
+    </section>
+
+    <!-- ───────────────────────────────────────────────
+         SECTION 3: Context menu
+    ─────────────────────────────────────────────── -->
+    <section>
+      <h2 class="text-[11px] font-semibold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+        <span class="bg-stride-600 text-white rounded-full w-4 h-4 inline-flex items-center justify-center text-[9px]">3</span>
+        Context menu gains "Add to Favorites"
+      </h2>
+
+      <div class="flex gap-8 items-start">
+        <!-- Context menu -->
+        <div class="bg-white border border-gray-200 rounded-lg shadow-lg py-1 w-48 shrink-0">
+          <button class="flex items-center gap-2 w-full px-3.5 py-[7px] text-[13px] text-gray-700 hover:bg-gray-100">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931z" />
+            </svg>
+            Edit item…
+          </button>
+          <button class="flex items-center gap-2 w-full px-3.5 py-[7px] text-[13px] text-gray-700 hover:bg-gray-100">
+            <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 0 1-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 0 1 1.5.124m7.5 10.376h3.375..." />
+            </svg>
+            Duplicate
+          </button>
+          <!-- NEW option -->
+          <button class="flex items-center gap-2 w-full px-3.5 py-[7px] text-[13px] text-amber-600 hover:bg-amber-50 font-medium">
+            <span class="text-amber-400 text-base leading-none">★</span>
+            Add to Favorites
+          </button>
+          <div class="h-px bg-gray-200 my-1"></div>
+          <button class="flex items-center gap-2 w-full px-3.5 py-[7px] text-[13px] text-red-600 hover:bg-red-50">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21..." />
+            </svg>
+            Delete
+          </button>
+        </div>
+
+        <div class="text-xs text-gray-500 space-y-2 max-w-sm">
+          <p>"Add to Favorites" is added between Duplicate and the separator. For already-favorited items, it becomes <strong class="text-gray-700">Remove from Favorites</strong>.</p>
+          <p>This gives two paths to favorite: the hover star (fast, in-context) and the context menu (always accessible, even without hovering).</p>
+          <p class="text-[11px] text-gray-400">The Add Item modal would also get a small "★ Save as favorite" checkbox near the submit button for capturing new favorites during logging.</p>
+        </div>
+      </div>
+    </section>
+
+  </div><!-- /max-w -->
+
+  <!-- Hidden dropdown for collapsed row demo -->
+  <div id="favDropdown" style="display:none" class="fixed z-50 bg-white border border-gray-200 rounded-lg shadow-xl w-80 p-3">
+    <p class="text-xs text-gray-500">Same dropdown as above — clicking "★ Favorites" on the collapsed row opens it positioned above the row.</p>
+    <button onclick="document.getElementById('favDropdown').style.display='none'" class="mt-2 text-xs text-gray-400 hover:text-gray-600">Close</button>
+  </div>
+
+  <script>
+    /* ── Toggle favorite star ── */
+    function toggleFav(star) {
+      const isFaved = star.classList.contains('favorited');
+      if (isFaved) {
+        star.classList.remove('favorited', 'text-amber-400');
+        star.classList.add('text-gray-300');
+        star.style.color = '';
+        star.title = 'Add to Favorites';
+      } else {
+        star.classList.add('favorited', 'text-amber-400');
+        star.classList.remove('text-gray-300');
+        star.title = 'Remove from Favorites';
+      }
+    }
+
+    /* ── Open/close dropdown ── */
+    function openDropdown(id) {
+      const el = document.getElementById(id);
+      el.classList.toggle('open');
+      if (el.classList.contains('open')) {
+        setTimeout(() => document.getElementById('favSearch')?.focus(), 50);
+      }
+    }
+
+    /* ── Toggle serving scale panel ── */
+    function toggleScale(id) {
+      const panel = document.getElementById(id);
+      // Close other open panels first
+      document.querySelectorAll('.scale-panel.open').forEach(p => {
+        if (p.id !== id) p.classList.remove('open');
+      });
+      panel.classList.toggle('open');
+    }
+
+    /* ── Scale nutrition in real-time ── */
+    function scaleNutrition(input, base, prefix, baseQty) {
+      const qty = parseFloat(input.value) || 0;
+      const divisor = baseQty || 1; // for per-gram scaling
+      const ratio = baseQty ? qty / baseQty : qty;
+      const cal = Math.round(base.cal * ratio);
+      const p   = Math.round(base.p   * ratio);
+      const c   = Math.round(base.c   * ratio);
+      const f   = Math.round(base.f   * ratio);
+      const calEl   = document.getElementById(prefix + '-cal-scaled');
+      const macroEl = document.getElementById(prefix + '-macro-scaled');
+      if (calEl) {
+        calEl.textContent = (prefix === 'ew' ? '−' : '') + cal + ' cal';
+      }
+      if (macroEl) macroEl.textContent = `${p}P / ${c}C / ${f}F`;
+    }
+
+    /* ── Apply a favorite to form fields ── */
+    function applyFav(name, qty, uom, cal, p, c, f) {
+      document.getElementById('nameInput').value = name;
+      document.getElementById('qty-field').value = qty;
+      document.getElementById('cal-field').value = cal;
+      if (p !== null) document.getElementById('p-field').value = p;
+      if (c !== null) document.getElementById('c-field').value = c;
+      if (f !== null) document.getElementById('f-field').value = f;
+      // Set uom select
+      const sel = document.getElementById('uom-field');
+      for (let opt of sel.options) { if (opt.value === uom) { sel.value = uom; break; } }
+      document.getElementById('favDropdown2').classList.remove('open');
+    }
+
+    /* ── Apply scaled favorite ── */
+    function applyScaledFav(prefix, name, uom, baseCal) {
+      const qtyInput = document.getElementById(prefix + '-qty');
+      const qty = parseFloat(qtyInput?.value || '1');
+      const calEl = document.getElementById(prefix + '-cal-scaled');
+      const cal = calEl ? calEl.textContent.replace(/[^0-9]/g, '') : baseCal;
+      document.getElementById('nameInput').value = name;
+      document.getElementById('qty-field').value = qty;
+      document.getElementById('cal-field').value = cal;
+      document.getElementById('favDropdown2').classList.remove('open');
+      document.querySelectorAll('.scale-panel.open').forEach(p => p.classList.remove('open'));
+    }
+
+    /* ── Filter favorites by search ── */
+    function filterFavs(query) {
+      const rows = document.querySelectorAll('#favList .fav-row');
+      query = query.toLowerCase();
+      rows.forEach(row => {
+        const name = row.querySelector('.font-medium')?.textContent?.toLowerCase() || '';
+        const visible = name.includes(query);
+        // Show/hide row and its adjacent scale panel
+        row.style.display = visible ? '' : 'none';
+        const nextPanel = row.nextElementSibling;
+        if (nextPanel && nextPanel.classList.contains('scale-panel')) {
+          nextPanel.style.display = visible ? '' : 'none';
+        }
+      });
+    }
+
+    /* ── Close dropdown on outside click ── */
+    document.addEventListener('click', (e) => {
+      ['favDropdown2', 'favDropdown'].forEach(id => {
+        const el = document.getElementById(id);
+        if (!el) return;
+        if (!el.contains(e.target) && !e.target.closest('[onclick*="' + id + '"]') &&
+            !e.target.closest('[onclick*="openDropdown"]')) {
+          el.classList.remove('open');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

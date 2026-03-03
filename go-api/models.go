@@ -170,6 +170,34 @@ type progressResponse struct {
 	Stats progressStats    `json:"stats"`
 }
 
+// calorieLogFavorite is a saved item template for quick re-logging.
+// Stored in calorie_log_favorites; returned by GET /api/calorie-log/favorites.
+type calorieLogFavorite struct {
+	ID        int        `json:"id"         db:"id"`
+	UserID    int        `json:"user_id"    db:"user_id"`
+	ItemName  string     `json:"item_name"  db:"item_name"`
+	Type      string     `json:"type"       db:"type"`
+	Qty       *float64   `json:"qty"        db:"qty"`
+	Uom       *string    `json:"uom"        db:"uom"`
+	Calories  int        `json:"calories"   db:"calories"`
+	ProteinG  *float64   `json:"protein_g"  db:"protein_g"`
+	CarbsG    *float64   `json:"carbs_g"    db:"carbs_g"`
+	FatG      *float64   `json:"fat_g"      db:"fat_g"`
+	CreatedAt *time.Time `json:"created_at" db:"created_at"`
+}
+
+// createFavoriteRequest is the request body for POST /api/calorie-log/favorites.
+type createFavoriteRequest struct {
+	ItemName string   `json:"item_name" binding:"required"`
+	Type     string   `json:"type"      binding:"required"`
+	Qty      *float64 `json:"qty"`
+	Uom      *string  `json:"uom"`
+	Calories int      `json:"calories"  binding:"required"`
+	ProteinG *float64 `json:"protein_g"`
+	CarbsG   *float64 `json:"carbs_g"`
+	FatG     *float64 `json:"fat_g"`
+}
+
 // createCalorieLogItemRequest is the request body for POST /api/calorie-log/items.
 type createCalorieLogItemRequest struct {
 	Date     string   `json:"date"`

@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Favorites — Option B: Quick-Add Chip Strip</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: {
+              50: '#eef2ff', 100: '#e0e7ff', 300: '#a5b4fc',
+              500: '#6366f1', 600: '#4f46e5', 700: '#4338ca',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .chip-popover { display: none; }
+    .chip-popover.open { display: block; }
+    .star-btn { opacity: 0; transition: opacity 0.15s; }
+    .item-row:hover .star-btn { opacity: 1; }
+    .star-btn.favorited { opacity: 0.6; color: #fbbf24; }
+    .item-row:hover .star-btn.favorited { opacity: 1; }
+    /* Horizontal scroll but hide scrollbar */
+    .chips-scroll::-webkit-scrollbar { display: none; }
+    .chips-scroll { -ms-overflow-style: none; scrollbar-width: none; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen font-sans">
+
+  <!-- Page chrome -->
+  <div class="bg-white border-b border-gray-200 px-6 py-3 flex items-center gap-3 mb-6">
+    <span class="text-xs font-semibold text-stride-600 bg-stride-50 border border-stride-200 px-2 py-1 rounded">Design Mockup</span>
+    <span class="text-sm font-semibold text-gray-700">Option B — Quick-Add Chip Strip</span>
+    <span class="text-xs text-gray-400 ml-2">Horizontal scrollable chips above the log table · click to add with one tap</span>
+  </div>
+
+  <div class="max-w-5xl mx-auto px-6 space-y-6 pb-16">
+
+    <!-- ─── DailySummary card (truncated) ──────────────────── -->
+    <div class="bg-white border border-gray-200 rounded-lg p-4 flex items-center gap-6">
+      <div class="relative w-24 h-24 shrink-0">
+        <svg class="w-full h-full -rotate-90" viewBox="0 0 120 120">
+          <circle cx="60" cy="60" r="52" fill="none" stroke-width="10" stroke="#e5e7eb"/>
+          <circle cx="60" cy="60" r="52" fill="none" stroke-width="10" stroke="#22c55e"
+                  stroke-dasharray="326.7" stroke-dashoffset="120" stroke-linecap="round"/>
+        </svg>
+        <div class="absolute inset-0 flex flex-col items-center justify-center">
+          <span class="text-lg font-bold">1,358</span>
+          <span class="text-[10px] text-gray-400">left</span>
+        </div>
+      </div>
+      <div class="flex-1 text-xs space-y-2">
+        <div class="grid grid-cols-3 gap-4">
+          <div><div class="text-gray-400 mb-0.5">Eaten</div><span class="font-semibold text-sm">642</span></div>
+          <div><div class="text-gray-400 mb-0.5">Exercise</div><span class="font-semibold text-sm text-emerald-600">0</span></div>
+          <div><div class="text-gray-400 mb-0.5">Budget</div><span class="font-semibold text-sm">2,000</span></div>
+        </div>
+        <div class="grid grid-cols-3 gap-4 border-t border-gray-100 pt-2">
+          <div><span class="text-blue-500 font-medium">Protein</span><br /><span class="font-semibold">37</span><span class="text-gray-400"> / 180g</span></div>
+          <div><span class="text-amber-500 font-medium">Carbs</span><br /><span class="font-semibold">72</span><span class="text-gray-400"> / 200g</span></div>
+          <div><span class="text-pink-500 font-medium">Fat</span><br /><span class="font-semibold">18</span><span class="text-gray-400"> / 65g</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── QUICK ADD FAVORITES STRIP ──────────────────────── -->
+    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <!-- Strip header -->
+      <div class="flex items-center justify-between px-4 py-2 border-b border-gray-100">
+        <div class="flex items-center gap-2">
+          <span class="text-amber-400 text-sm">★</span>
+          <span class="text-xs font-semibold text-gray-600">Quick Add</span>
+          <span class="text-[10px] text-gray-400">— your favorites</span>
+        </div>
+        <div class="flex items-center gap-3">
+          <a href="#" class="text-[10px] text-gray-400 hover:text-stride-600 transition-colors">Manage…</a>
+          <button id="stripToggle" onclick="toggleStrip()" class="text-[10px] text-gray-400 hover:text-gray-600 flex items-center gap-1">
+            <span id="stripArrow">▾</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Chip row -->
+      <div id="stripBody" class="relative">
+        <div class="chips-scroll flex items-center gap-2 px-4 py-2.5 overflow-x-auto">
+
+          <!-- Chip 1: Protein Shake -->
+          <button class="relative shrink-0 flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 text-xs hover:bg-stride-50 hover:border-stride-300 transition-colors group"
+                  onclick="openChipPopover('ps', this)">
+            <span class="text-amber-400 text-[10px]">★</span>
+            <span class="font-medium text-gray-700">Protein Shake</span>
+            <span class="text-gray-400">·</span>
+            <span class="text-gray-500">150 cal</span>
+          </button>
+
+          <!-- Chip 2: Greek Yogurt -->
+          <button class="relative shrink-0 flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 text-xs hover:bg-stride-50 hover:border-stride-300 transition-colors"
+                  onclick="openChipPopover('gy', this)">
+            <span class="text-amber-400 text-[10px]">★</span>
+            <span class="font-medium text-gray-700">Greek Yogurt</span>
+            <span class="text-gray-400">·</span>
+            <span class="text-gray-500">150 cal</span>
+          </button>
+
+          <!-- Chip 3: Bubble Tea -->
+          <button class="relative shrink-0 flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 text-xs hover:bg-stride-50 hover:border-stride-300 transition-colors"
+                  onclick="openChipPopover('bt', this)">
+            <span class="text-amber-400 text-[10px]">★</span>
+            <span class="font-medium text-gray-700">Bubble Tea</span>
+            <span class="text-gray-400">·</span>
+            <span class="text-gray-500">300 cal</span>
+          </button>
+
+          <!-- Chip 4: Evening Walk (exercise) -->
+          <button class="relative shrink-0 flex items-center gap-1.5 bg-emerald-50 border border-emerald-200 rounded-full px-3 py-1.5 text-xs hover:bg-emerald-100 hover:border-emerald-300 transition-colors"
+                  onclick="openChipPopover('ew', this)">
+            <span class="text-amber-400 text-[10px]">★</span>
+            <span class="font-medium text-emerald-700">Evening Walk</span>
+            <span class="text-emerald-400">·</span>
+            <span class="text-emerald-600">−100 cal</span>
+          </button>
+
+          <!-- Chip 5 -->
+          <button class="relative shrink-0 flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 text-xs hover:bg-stride-50 hover:border-stride-300 transition-colors">
+            <span class="text-amber-400 text-[10px]">★</span>
+            <span class="font-medium text-gray-700">Oat Bran Cereal</span>
+            <span class="text-gray-400">·</span>
+            <span class="text-gray-500">210 cal</span>
+          </button>
+
+          <!-- Chip 6 -->
+          <button class="relative shrink-0 flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 text-xs hover:bg-stride-50 hover:border-stride-300 transition-colors">
+            <span class="text-amber-400 text-[10px]">★</span>
+            <span class="font-medium text-gray-700">Chicken + Rice Bowl</span>
+            <span class="text-gray-400">·</span>
+            <span class="text-gray-500">520 cal</span>
+          </button>
+
+          <!-- Chip 7 -->
+          <button class="relative shrink-0 flex items-center gap-1.5 bg-gray-50 border border-gray-200 rounded-full px-3 py-1.5 text-xs hover:bg-stride-50 hover:border-stride-300 transition-colors">
+            <span class="text-amber-400 text-[10px]">★</span>
+            <span class="font-medium text-gray-700">Overnight Oats</span>
+            <span class="text-gray-400">·</span>
+            <span class="text-gray-500">350 cal</span>
+          </button>
+
+          <!-- Overflow hint -->
+          <span class="shrink-0 text-[10px] text-gray-300 pr-2">→</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ─── Chip popovers (anchored absolutely, shown per chip click) ── -->
+
+    <!-- Protein Shake popover -->
+    <div id="ps-popover" class="chip-popover fixed z-50 bg-white border border-gray-200 rounded-xl shadow-xl w-72 p-4" style="top:200px; left:200px">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="font-semibold text-sm text-gray-800">Protein Shake</div>
+          <div class="text-[11px] text-gray-400">1 each &middot; 25P / 8C / 3F</div>
+        </div>
+        <button onclick="closeAllPopovers()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+
+      <!-- Serving qty -->
+      <div class="flex items-center gap-2 mb-3 text-xs">
+        <span class="text-gray-500">Qty:</span>
+        <input type="number" value="1" min="0.25" step="0.25" id="ps-qty"
+               oninput="updatePopoverCal('ps', 150, 25, 8, 3)"
+               class="w-16 border border-gray-300 rounded px-2 py-1.5 text-center focus:outline-none focus:border-stride-400 bg-white" />
+        <span class="text-gray-400">each</span>
+        <div class="ml-auto text-right">
+          <div class="font-semibold text-gray-800" id="ps-pop-cal">150 cal</div>
+          <div class="text-[10px] text-gray-400" id="ps-pop-macros">25P / 8C / 3F</div>
+        </div>
+      </div>
+
+      <!-- Meal type buttons -->
+      <div class="text-[10px] text-gray-400 mb-1.5">Add to:</div>
+      <div class="grid grid-cols-4 gap-1.5">
+        <button onclick="addToMeal('ps', 'Protein Shake', 'breakfast')"
+                class="py-2 rounded-lg border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 text-[11px] font-medium transition-colors">
+          🌅 Bfast
+        </button>
+        <button onclick="addToMeal('ps', 'Protein Shake', 'lunch')"
+                class="py-2 rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 text-[11px] font-medium transition-colors">
+          ☀️ Lunch
+        </button>
+        <button onclick="addToMeal('ps', 'Protein Shake', 'dinner')"
+                class="py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-[11px] font-medium transition-colors">
+          🌙 Dinner
+        </button>
+        <button onclick="addToMeal('ps', 'Protein Shake', 'snack')"
+                class="py-2 rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 text-[11px] font-medium transition-colors">
+          🍎 Snack
+        </button>
+      </div>
+    </div>
+
+    <!-- Greek Yogurt popover -->
+    <div id="gy-popover" class="chip-popover fixed z-50 bg-white border border-gray-200 rounded-xl shadow-xl w-72 p-4" style="top:200px; left:200px">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="font-semibold text-sm text-gray-800">Greek Yogurt (whole milk)</div>
+          <div class="text-[11px] text-gray-400">150 g &middot; 10P / 12C / 6F</div>
+        </div>
+        <button onclick="closeAllPopovers()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="flex items-center gap-2 mb-3 text-xs">
+        <span class="text-gray-500">Qty:</span>
+        <input type="number" value="150" min="10" step="10" id="gy-qty"
+               oninput="updatePopoverCal('gy', 150, 10, 12, 6, 150)"
+               class="w-16 border border-gray-300 rounded px-2 py-1.5 text-center focus:outline-none focus:border-stride-400 bg-white" />
+        <span class="text-gray-400">g</span>
+        <div class="ml-auto text-right">
+          <div class="font-semibold text-gray-800" id="gy-pop-cal">150 cal</div>
+          <div class="text-[10px] text-gray-400" id="gy-pop-macros">10P / 12C / 6F</div>
+        </div>
+      </div>
+      <div class="text-[10px] text-gray-400 mb-1.5">Add to:</div>
+      <div class="grid grid-cols-4 gap-1.5">
+        <button onclick="addToMeal('gy', 'Greek Yogurt', 'breakfast')" class="py-2 rounded-lg border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 text-[11px] font-medium transition-colors">🌅 Bfast</button>
+        <button onclick="addToMeal('gy', 'Greek Yogurt', 'lunch')" class="py-2 rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 text-[11px] font-medium transition-colors">☀️ Lunch</button>
+        <button onclick="addToMeal('gy', 'Greek Yogurt', 'dinner')" class="py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-[11px] font-medium transition-colors">🌙 Dinner</button>
+        <button onclick="addToMeal('gy', 'Greek Yogurt', 'snack')" class="py-2 rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 text-[11px] font-medium transition-colors">🍎 Snack</button>
+      </div>
+    </div>
+
+    <!-- Bubble Tea popover -->
+    <div id="bt-popover" class="chip-popover fixed z-50 bg-white border border-gray-200 rounded-xl shadow-xl w-72 p-4" style="top:200px; left:200px">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="font-semibold text-sm text-gray-800">Homemade Bubble Tea</div>
+          <div class="text-[11px] text-gray-400">1 each &middot; 9P / 10C / 3F</div>
+        </div>
+        <button onclick="closeAllPopovers()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="flex items-center gap-2 mb-3 text-xs">
+        <span class="text-gray-500">Qty:</span>
+        <input type="number" value="1" min="0.5" step="0.5" id="bt-qty"
+               oninput="updatePopoverCal('bt', 300, 9, 10, 3)"
+               class="w-16 border border-gray-300 rounded px-2 py-1.5 text-center focus:outline-none focus:border-stride-400 bg-white" />
+        <span class="text-gray-400">each</span>
+        <div class="ml-auto text-right">
+          <div class="font-semibold text-gray-800" id="bt-pop-cal">300 cal</div>
+          <div class="text-[10px] text-gray-400" id="bt-pop-macros">9P / 10C / 3F</div>
+        </div>
+      </div>
+      <div class="text-[10px] text-gray-400 mb-1.5">Add to:</div>
+      <div class="grid grid-cols-4 gap-1.5">
+        <button onclick="addToMeal('bt', 'Bubble Tea', 'breakfast')" class="py-2 rounded-lg border border-orange-200 bg-orange-50 text-orange-700 hover:bg-orange-100 text-[11px] font-medium transition-colors">🌅 Bfast</button>
+        <button onclick="addToMeal('bt', 'Bubble Tea', 'lunch')" class="py-2 rounded-lg border border-yellow-200 bg-yellow-50 text-yellow-700 hover:bg-yellow-100 text-[11px] font-medium transition-colors">☀️ Lunch</button>
+        <button onclick="addToMeal('bt', 'Bubble Tea', 'dinner')" class="py-2 rounded-lg border border-indigo-200 bg-indigo-50 text-indigo-700 hover:bg-indigo-100 text-[11px] font-medium transition-colors">🌙 Dinner</button>
+        <button onclick="addToMeal('bt', 'Bubble Tea', 'snack')" class="py-2 rounded-lg border border-green-200 bg-green-50 text-green-700 hover:bg-green-100 text-[11px] font-medium transition-colors">🍎 Snack</button>
+      </div>
+    </div>
+
+    <!-- Evening Walk popover (exercise) -->
+    <div id="ew-popover" class="chip-popover fixed z-50 bg-white border border-gray-200 rounded-xl shadow-xl w-72 p-4" style="top:200px; left:200px">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <div class="font-semibold text-sm text-gray-800 flex items-center gap-2">
+            Evening Walk
+            <span class="text-[9px] bg-emerald-100 text-emerald-700 rounded px-1.5 py-0.5">exercise</span>
+          </div>
+          <div class="text-[11px] text-gray-400">1 miles &middot; −100 cal</div>
+        </div>
+        <button onclick="closeAllPopovers()" class="text-gray-400 hover:text-gray-600">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      <div class="flex items-center gap-2 mb-3 text-xs">
+        <span class="text-gray-500">Miles:</span>
+        <input type="number" value="1" min="0.25" step="0.25" id="ew-qty"
+               oninput="updateExercisePopover('ew', 100)"
+               class="w-16 border border-gray-300 rounded px-2 py-1.5 text-center focus:outline-none focus:border-stride-400 bg-white" />
+        <div class="ml-auto text-right">
+          <div class="font-semibold text-emerald-700" id="ew-pop-cal">−100 cal</div>
+        </div>
+      </div>
+      <button onclick="addToMeal('ew', 'Evening Walk', 'exercise')"
+              class="w-full py-2.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-medium transition-colors">
+        Log Exercise
+      </button>
+    </div>
+
+    <!-- ─── Item Table ──────────────────────────────────────── -->
+    <div class="bg-white border border-gray-200 rounded-lg overflow-hidden">
+      <table class="w-full text-xs" style="border-collapse:collapse">
+        <thead>
+          <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-wide">
+            <th class="text-left py-2 px-3 font-medium">Item</th>
+            <th class="text-right py-2 px-2 font-medium w-14">Qty</th>
+            <th class="text-left py-2 px-2 font-medium w-20">Unit</th>
+            <th class="text-right py-2 px-2 font-medium w-16">Cal</th>
+            <th class="text-right py-2 px-2 font-medium w-12">P</th>
+            <th class="text-right py-2 px-2 font-medium w-12">C</th>
+            <th class="text-right py-2 px-2 font-medium w-12">F</th>
+          </tr>
+        </thead>
+        <tbody>
+          <!-- Breakfast -->
+          <tr class="border-t border-gray-200 bg-[#f0f0f4]">
+            <td colspan="3" class="py-1.5 px-3 font-semibold text-xs text-gray-700 border-l-[3px] border-l-orange-400">Breakfast</td>
+            <td class="py-1.5 px-2 text-right font-semibold text-gray-600">642</td>
+            <td colspan="3"></td>
+          </tr>
+          <tr id="ps-added-row" class="item-row border-t border-gray-50 hover:bg-gray-50 select-none cursor-default hidden">
+            <td class="py-1.5 px-3 font-medium text-gray-800 whitespace-nowrap relative">
+              <span class="star-btn favorited absolute left-1.5 top-1/2 -translate-y-1/2 cursor-pointer text-sm leading-none">★</span>
+              <span class="pl-3">Protein Shake</span>
+              <span id="ps-added-badge" class="ml-2 text-[9px] bg-green-100 text-green-700 rounded px-1">just added</span>
+            </td>
+            <td class="py-1.5 px-2 text-right text-gray-500" id="ps-added-qty">1</td>
+            <td class="py-1.5 px-2 text-gray-500">each</td>
+            <td class="py-1.5 px-2 text-right font-medium" id="ps-added-cal">150</td>
+            <td class="py-1.5 px-2 text-right text-blue-500">25</td>
+            <td class="py-1.5 px-2 text-right text-amber-500">8</td>
+            <td class="py-1.5 px-2 text-right text-pink-500">3</td>
+          </tr>
+          <tr class="item-row border-t border-gray-50 hover:bg-gray-50 select-none cursor-default">
+            <td class="py-1.5 px-3 font-medium text-gray-800 whitespace-nowrap relative">
+              <span class="star-btn favorited absolute left-1.5 top-1/2 -translate-y-1/2 cursor-pointer text-sm leading-none text-amber-400">★</span>
+              <span class="pl-3">Overnight Oats with Berries</span>
+            </td>
+            <td class="py-1.5 px-2 text-right text-gray-500">1</td>
+            <td class="py-1.5 px-2 text-gray-500">bowl</td>
+            <td class="py-1.5 px-2 text-right font-medium">350</td>
+            <td class="py-1.5 px-2 text-right text-blue-500">12</td>
+            <td class="py-1.5 px-2 text-right text-amber-500">52</td>
+            <td class="py-1.5 px-2 text-right text-pink-500">8</td>
+          </tr>
+          <tr class="item-row border-t border-gray-50 hover:bg-gray-50 select-none cursor-default">
+            <td class="py-1.5 px-3 font-medium text-gray-800 whitespace-nowrap relative">
+              <span class="star-btn absolute left-1.5 top-1/2 -translate-y-1/2 cursor-pointer text-sm leading-none text-gray-300">★</span>
+              <span class="pl-3">Greek Yogurt (whole milk)</span>
+            </td>
+            <td class="py-1.5 px-2 text-right text-gray-500">150</td>
+            <td class="py-1.5 px-2 text-gray-500">g</td>
+            <td class="py-1.5 px-2 text-right font-medium">292</td>
+            <td class="py-1.5 px-2 text-right text-blue-500">10</td>
+            <td class="py-1.5 px-2 text-right text-amber-500">12</td>
+            <td class="py-1.5 px-2 text-right text-pink-500">6</td>
+          </tr>
+          <tr class="border-t border-gray-50">
+            <td colspan="7" class="py-0 px-0">
+              <button class="w-full text-left py-1.5 pl-4 text-[11px] text-gray-400 hover:text-stride-600 transition-colors">+ Add</button>
+            </td>
+          </tr>
+
+          <!-- Lunch -->
+          <tr class="border-t border-gray-200 bg-[#f0f0f4]">
+            <td colspan="3" class="py-1.5 px-3 font-semibold text-xs text-gray-700 border-l-[3px] border-l-yellow-400">Lunch</td>
+            <td class="py-1.5 px-2 text-right font-semibold text-gray-400">0</td>
+            <td colspan="3"></td>
+          </tr>
+          <tr class="border-t border-gray-50">
+            <td colspan="7" class="py-0 px-0">
+              <button class="w-full text-left py-1.5 pl-4 text-[11px] text-gray-400 hover:text-stride-600 transition-colors">+ Add</button>
+            </td>
+          </tr>
+
+          <!-- Net total -->
+          <tr class="border-t-2 border-gray-300 bg-gray-50 font-semibold text-xs">
+            <td class="py-2 px-3 text-gray-700">Net Total</td>
+            <td class="py-2 px-2"></td>
+            <td class="py-2 px-2"></td>
+            <td class="py-2 px-2 text-right">642</td>
+            <td class="py-2 px-2 text-right text-blue-600">37</td>
+            <td class="py-2 px-2 text-right text-amber-600">72</td>
+            <td class="py-2 px-2 text-right text-pink-600">18</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ─── Notes comparing options ─────────────────────────── -->
+    <div class="grid grid-cols-2 gap-4">
+      <div class="bg-white border border-gray-200 rounded-lg p-4">
+        <div class="text-xs font-semibold text-gray-700 mb-2">Option B Pros</div>
+        <ul class="text-xs text-gray-500 space-y-1">
+          <li>✓ Always visible — no hover or button click needed</li>
+          <li>✓ Fastest path for truly repetitive items (1 click → pick meal)</li>
+          <li>✓ Works well when you always eat the same quantity</li>
+          <li>✓ Doesn't disrupt the inline add flow</li>
+        </ul>
+      </div>
+      <div class="bg-white border border-gray-200 rounded-lg p-4">
+        <div class="text-xs font-semibold text-gray-700 mb-2">Option B Cons</div>
+        <ul class="text-xs text-gray-500 space-y-1">
+          <li>✗ Takes up vertical space (though collapsible)</li>
+          <li>✗ Meal type picker adds a click vs Option A's per-section add</li>
+          <li>✗ Chips truncate long names</li>
+          <li>✗ Not integrated with the AI suggestion flow</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="bg-stride-50 border border-stride-200 rounded-lg p-4 text-xs text-stride-700">
+      <strong>Combination idea:</strong> Option A (popover in inline add) handles the power-user "pick and customize" flow. Option B's chip strip could be a complementary addition for the absolute most-used items (e.g. limit strip to top 5 by frequency). The two aren't mutually exclusive.
+    </div>
+
+  </div><!-- /max-w -->
+
+  <!-- Toast notification -->
+  <div id="toast" class="hidden fixed bottom-6 right-6 bg-gray-800 text-white text-xs px-4 py-2.5 rounded-lg shadow-lg z-50 flex items-center gap-2">
+    <span class="text-green-400">✓</span>
+    <span id="toast-msg">Added!</span>
+  </div>
+
+  <script>
+    /* ── Toggle strip ── */
+    function toggleStrip() {
+      const body = document.getElementById('stripBody');
+      const arrow = document.getElementById('stripArrow');
+      if (body.style.display === 'none') {
+        body.style.display = '';
+        arrow.textContent = '▾';
+      } else {
+        body.style.display = 'none';
+        arrow.textContent = '▸';
+      }
+    }
+
+    /* ── Open chip popover, positioned near the chip ── */
+    function openChipPopover(prefix, chipEl) {
+      closeAllPopovers();
+      const popover = document.getElementById(prefix + '-popover');
+      if (!popover) return;
+      const rect = chipEl.getBoundingClientRect();
+      popover.style.top = (rect.bottom + 8 + window.scrollY) + 'px';
+      popover.style.left = Math.min(rect.left, window.innerWidth - 300) + 'px';
+      popover.classList.add('open');
+    }
+
+    function closeAllPopovers() {
+      document.querySelectorAll('.chip-popover').forEach(p => p.classList.remove('open'));
+    }
+
+    /* ── Update popover cal display ── */
+    function updatePopoverCal(prefix, baseCal, baseP, baseC, baseF, baseQty) {
+      const qtyInput = document.getElementById(prefix + '-qty');
+      const qty = parseFloat(qtyInput.value) || 0;
+      const ratio = baseQty ? qty / baseQty : qty;
+      const cal  = Math.round(baseCal * ratio);
+      const p    = Math.round(baseP   * ratio);
+      const c    = Math.round(baseC   * ratio);
+      const f    = Math.round(baseF   * ratio);
+      const calEl    = document.getElementById(prefix + '-pop-cal');
+      const macroEl  = document.getElementById(prefix + '-pop-macros');
+      if (calEl)   calEl.textContent   = cal + ' cal';
+      if (macroEl) macroEl.textContent = `${p}P / ${c}C / ${f}F`;
+    }
+
+    function updateExercisePopover(prefix, baseCal) {
+      const qty = parseFloat(document.getElementById(prefix + '-qty').value) || 0;
+      const cal = Math.round(baseCal * qty);
+      document.getElementById(prefix + '-pop-cal').textContent = '−' + cal + ' cal';
+    }
+
+    /* ── Add to meal (demo: shows toast + adds row for 'ps') ── */
+    function addToMeal(prefix, name, meal) {
+      const qtyInput = document.getElementById(prefix + '-qty');
+      const qty = parseFloat(qtyInput?.value || '1');
+      closeAllPopovers();
+
+      // For demo: show the "just added" row for protein shake
+      if (prefix === 'ps') {
+        const row = document.getElementById('ps-added-row');
+        row.classList.remove('hidden');
+        document.getElementById('ps-added-qty').textContent = qty;
+        document.getElementById('ps-added-cal').textContent = Math.round(150 * qty);
+        row.style.background = '#dcfce7';
+        setTimeout(() => { row.style.background = ''; }, 800);
+        setTimeout(() => {
+          document.getElementById('ps-added-badge').classList.add('hidden');
+        }, 3000);
+      }
+
+      showToast(`Added ${name} → ${meal.charAt(0).toUpperCase() + meal.slice(1)}`);
+    }
+
+    function showToast(msg) {
+      const toast = document.getElementById('toast');
+      document.getElementById('toast-msg').textContent = msg;
+      toast.classList.remove('hidden');
+      setTimeout(() => toast.classList.add('hidden'), 2500);
+    }
+
+    /* ── Close popovers on outside click ── */
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.chip-popover') && !e.target.closest('button[onclick*="Popover"]')) {
+        closeAllPopovers();
+      }
+    });
+  </script>
+</body>
+</html>

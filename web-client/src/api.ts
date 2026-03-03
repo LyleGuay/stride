@@ -1,10 +1,10 @@
 // API service layer — all backend calls go through request() which handles
 // auth headers, 401 redirects, and consistent error extraction.
 
-import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeightEntry, ProgressStats, ProgressResponse } from './types'
+import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite } from './types'
 
 // Re-export types so existing imports from api.ts keep working.
-export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeightEntry, ProgressStats, ProgressResponse }
+export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite }
 
 function getToken(): string | null {
   return localStorage.getItem('token')
@@ -129,6 +129,24 @@ export function updateWeightEntry(id: number, fields: { date?: string; weight_lb
 // deleteWeightEntry removes a weight log entry by id.
 export function deleteWeightEntry(id: number) {
   return request<void>(`/api/weight-log/${id}`, { method: 'DELETE' })
+}
+
+// fetchFavorites returns all saved favorites for the current user, newest first.
+export function fetchFavorites(): Promise<CalorieLogFavorite[]> {
+  return request<CalorieLogFavorite[]>('/api/calorie-log/favorites')
+}
+
+// createFavorite saves a new favorite template from a logged item's fields.
+export function createFavorite(fav: Omit<CalorieLogFavorite, 'id' | 'user_id' | 'created_at'>) {
+  return request<CalorieLogFavorite>('/api/calorie-log/favorites', {
+    method: 'POST',
+    body: JSON.stringify(fav),
+  })
+}
+
+// deleteFavorite removes a favorite by id.
+export function deleteFavorite(id: number) {
+  return request<void>(`/api/calorie-log/favorites/${id}`, { method: 'DELETE' })
 }
 
 // fetchSuggestion asks the AI to parse a food/exercise description into structured

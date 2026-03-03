@@ -4,13 +4,17 @@
 // (pre-filled) modes. Type selector uses segmented buttons.
 // In create mode, an AI suggestion strip appears below the name input
 // after a 600ms debounce, offering to auto-fill nutrition fields.
+// A ★ button below the name field opens a FavoritesDropdown to pre-fill
+// all fields from a saved favorite.
 
 import { useState, useEffect, useRef, type FormEvent } from 'react'
-import type { CalorieLogItem } from '../../api'
+import type { CalorieLogItem, CalorieLogFavorite } from '../../api'
 import { FOOD_UNITS, EXERCISE_UNITS, UNIT_LABELS, ITEM_TYPES } from '../../constants'
 import { useSuggestion } from '../../hooks/useSuggestion'
 import type { AISuggestion } from '../../types'
 import SuggestionStrip from './SuggestionStrip'
+import FavoritesDropdown from './FavoritesDropdown'
+import { scaleFavorite } from './favorites-utils'
 
 
 interface Props {
@@ -30,9 +34,11 @@ interface Props {
   editItem?: CalorieLogItem | null
   // Default meal type when creating (set by the meal section that triggered the open).
   defaultType?: string
+  favorites: CalorieLogFavorite[]
+  onManageFavorites: () => void
 }
 
-export default function AddItemSheet({ open, onClose, onSave, editItem, defaultType }: Props) {
+export default function AddItemSheet({ open, onClose, onSave, editItem, defaultType, favorites, onManageFavorites }: Props) {
   const [name, setName] = useState('')
   const [type, setType] = useState<string>('snack')
   const [qty, setQty] = useState('1')
@@ -41,6 +47,8 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
   const [protein, setProtein] = useState('')
   const [carbs, setCarbs] = useState('')
   const [fat, setFat] = useState('')
+  // showFavorites toggles the inline FavoritesDropdown below the name field
+  const [showFavorites, setShowFavorites] = useState(false)
 
   const isEditMode = !!editItem
 
@@ -58,8 +66,9 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
   useEffect(() => {
     if (!open) return
     dirtyFields.current.clear()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setShowFavorites(false)
     if (editItem) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setName(editItem.item_name)
       setType(editItem.type)
       setQty(editItem.qty?.toString() ?? '1')
@@ -79,6 +88,21 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
       setFat('')
     }
   }, [open, editItem, defaultType])
+
+  // Fill all form fields from a selected favorite (scaled to the chosen qty).
+  // Marks all fields dirty so the AI suggestion strip won't overwrite them.
+  const fillFromFavorite = (fav: CalorieLogFavorite, scaledQty: number) => {
+    const scaled = scaleFavorite(fav, scaledQty)
+    setName(fav.item_name)
+    setQty(String(scaled.qty ?? 1))
+    setUom(scaled.uom ?? 'each')
+    setCalories(String(scaled.calories))
+    setProtein(scaled.protein_g != null ? String(scaled.protein_g) : '')
+    setCarbs(scaled.carbs_g != null ? String(scaled.carbs_g) : '')
+    setFat(scaled.fat_g != null ? String(scaled.fat_g) : '')
+    dirtyFields.current = new Set(['name', 'qty', 'uom', 'calories', 'protein', 'carbs', 'fat'])
+    setShowFavorites(false)
+  }
 
   // Apply AI suggestion — populates non-dirty fields, always replaces name
   const applySuggestion = (suggestion: AISuggestion) => {
@@ -157,7 +181,7 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
             </div>
 
           {/* Item name */}
-          <div className="mb-3">
+          <div className="mb-2">
             <label className="block text-sm font-medium text-gray-700 mb-1">Item name</label>
             <input
               type="text"
@@ -167,6 +191,36 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
               className="w-full border border-gray-300 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500 focus:border-transparent"
             />
           </div>
+
+          {/* ★ Favorites button — opens the dropdown inline (pushes content down) */}
+          {!isEditMode && (
+            <div className="mb-3">
+              <button
+                type="button"
+                onMouseDown={e => e.stopPropagation()}
+                onClick={() => setShowFavorites(f => !f)}
+                className={`text-xs px-2.5 py-1 rounded border transition-colors
+                  ${showFavorites
+                    ? 'border-amber-300 bg-amber-50 text-amber-600'
+                    : 'border-gray-200 text-gray-400 hover:text-amber-500 hover:border-amber-200'
+                  }`}
+              >
+                ★ Favorites
+              </button>
+              {/* Inline favorites dropdown — not absolutely positioned; pushes content down */}
+              {showFavorites && (
+                <div className="mt-1.5">
+                  <FavoritesDropdown
+                    favorites={favorites}
+                    mealType={type}
+                    onSelect={fillFromFavorite}
+                    onManage={() => { setShowFavorites(false); onManageFavorites() }}
+                    onClose={() => setShowFavorites(false)}
+                  />
+                </div>
+              )}
+            </div>
+          )}
 
           {/* AI suggestion strip — appears between name and type selector in create mode */}
           {!isEditMode && (

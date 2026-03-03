@@ -31,7 +31,7 @@ Help the user design an app screen or feature. Produce a written design spec and
 
 ### 3. Write the Design Spec
 
-Write a markdown file to `design/{feature-name}.md` with this structure:
+Write a markdown file to `design/features/{feature-name}/{feature-name}.md` with this structure:
 
 ```markdown
 # {Feature/Screen Name}
@@ -87,7 +87,7 @@ Write a markdown file to `design/{feature-name}.md` with this structure:
 
 ### 4. Generate HTML Mockups
 
-Create standalone HTML files in `design/mockups/{feature-name}/` that the user can open in a browser.
+Create standalone HTML files in `design/features/{feature-name}/{mock-up-name}.html` that the user can open in a browser.
 
 Rules for mockups:
 - **One HTML file per screen.** Name them `{screen-name}.html`.

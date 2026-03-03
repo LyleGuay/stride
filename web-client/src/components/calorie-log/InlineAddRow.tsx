@@ -7,12 +7,15 @@
 // appears below the input row after a 600ms debounce. The suggestion row is
 // column-aligned with the input fields and shows merged values (user overrides
 // for dirty fields, AI values for clean fields).
+// A ★ button opens a FavoritesDropdown to pre-fill fields from a saved favorite.
 
 import { useState, useRef, useEffect } from 'react'
 import { FOOD_UNITS, EXERCISE_UNITS, UNIT_LABELS } from '../../constants'
 import { useSuggestion } from '../../hooks/useSuggestion'
-import type { AISuggestion } from '../../types'
+import type { AISuggestion, CalorieLogFavorite } from '../../types'
 import SuggestionStrip from './SuggestionStrip'
+import FavoritesDropdown from './FavoritesDropdown'
+import { scaleFavorite } from './favorites-utils'
 
 
 interface Props {
@@ -29,9 +32,11 @@ interface Props {
     carbs_g: number | null
     fat_g: number | null
   }) => void
+  favorites: CalorieLogFavorite[]
+  onManageFavorites: () => void
 }
 
-export default function InlineAddRow({ mealType, isOpen, onOpen, onClose, onAdd }: Props) {
+export default function InlineAddRow({ mealType, isOpen, onOpen, onClose, onAdd, favorites, onManageFavorites }: Props) {
   const isExercise = mealType === 'exercise'
   const units = isExercise ? EXERCISE_UNITS : FOOD_UNITS
 
@@ -43,6 +48,10 @@ export default function InlineAddRow({ mealType, isOpen, onOpen, onClose, onAdd 
   const [carbs, setCarbs] = useState('')
   const [fat, setFat] = useState('')
   const nameRef = useRef<HTMLInputElement>(null)
+  // showFavorites controls visibility of the FavoritesDropdown
+  const [showFavorites, setShowFavorites] = useState(false)
+  // nameCellRef used to position the dropdown below the name cell
+  const nameCellRef = useRef<HTMLTableCellElement>(null)
 
   // Track which fields the user has manually edited so Apply doesn't overwrite them.
   // State (not ref) because dirty fields affect rendered displaySuggestion output.
@@ -83,7 +92,25 @@ export default function InlineAddRow({ mealType, isOpen, onOpen, onClose, onAdd 
     setName(''); setQty('1'); setUom('each')
     setCalories(''); setProtein(''); setCarbs(''); setFat('')
     setDirtyFields(new Set())
+    setShowFavorites(false)
     onClose()
+  }
+
+  // Fill all form fields from a favorite (scaled to the chosen qty).
+  // If the row is still collapsed, open it first then fill.
+  const fillFromFavorite = (fav: CalorieLogFavorite, scaledQty: number) => {
+    const scaled = scaleFavorite(fav, scaledQty)
+    if (!isOpen) onOpen()
+    setName(fav.item_name)
+    setQty(String(scaled.qty ?? 1))
+    setUom(scaled.uom ?? 'each')
+    setCalories(String(scaled.calories))
+    setProtein(scaled.protein_g != null ? String(scaled.protein_g) : '')
+    setCarbs(scaled.carbs_g != null ? String(scaled.carbs_g) : '')
+    setFat(scaled.fat_g != null ? String(scaled.fat_g) : '')
+    // Mark all fields dirty so AI suggestion won't overwrite the filled values
+    setDirtyFields(new Set(['name', 'qty', 'uom', 'calories', 'protein', 'carbs', 'fat']))
+    setShowFavorites(false)
   }
 
   const handleSubmit = () => {
@@ -152,17 +179,34 @@ export default function InlineAddRow({ mealType, isOpen, onOpen, onClose, onAdd 
     <>
       <tr className="border-t border-stride-100 bg-stride-50/40">
         {/* Item name + Add/Cancel buttons */}
-        <td className="py-1 pl-[14px] pr-1">
+        <td className="py-1 pl-[14px] pr-1 relative" ref={nameCellRef}>
           <div className="flex items-center gap-1">
-            <input
-              ref={nameRef}
-              type="text"
-              placeholder={isExercise ? 'Activity' : 'Item name'}
-              value={name}
-              onChange={e => setName(e.target.value)}
-              onKeyDown={handleKeyDown}
-              className="flex-1 min-w-0 border border-stride-300 rounded px-1.5 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-stride-500 bg-white"
-            />
+            {/* Split-button: input + ★ share a single border, divided by a left-border on the star */}
+            <div className="flex-1 min-w-0 flex items-center border border-stride-300 rounded focus-within:ring-1 focus-within:ring-stride-500 bg-white">
+              <input
+                ref={nameRef}
+                type="text"
+                placeholder={isExercise ? 'Activity' : 'Item name'}
+                value={name}
+                onChange={e => setName(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="flex-1 min-w-0 px-1.5 py-1 text-xs focus:outline-none bg-transparent rounded-l"
+              />
+              {/* ★ boxed button — right edge of the input container */}
+              <button
+                type="button"
+                onMouseDown={e => e.stopPropagation()}
+                onClick={e => { e.stopPropagation(); setShowFavorites(f => !f) }}
+                className={`shrink-0 px-1.5 py-1 border-l text-[11px] transition-colors rounded-r
+                  ${showFavorites
+                    ? 'border-amber-300 bg-amber-50 text-amber-500'
+                    : 'border-gray-200 text-gray-300 hover:text-amber-400 hover:bg-amber-50 hover:border-amber-200'
+                  }`}
+                title="Pick from Favorites"
+              >
+                ★
+              </button>
+            </div>
             <button
               type="button"
               onClick={handleSubmit}
@@ -181,6 +225,18 @@ export default function InlineAddRow({ mealType, isOpen, onOpen, onClose, onAdd 
               ✕
             </button>
           </div>
+          {/* Favorites dropdown — positioned below the name cell */}
+          {showFavorites && (
+            <div className="absolute left-0 top-full mt-0.5 z-50">
+              <FavoritesDropdown
+                favorites={favorites}
+                mealType={mealType}
+                onSelect={fillFromFavorite}
+                onManage={() => { setShowFavorites(false); onManageFavorites() }}
+                onClose={() => setShowFavorites(false)}
+              />
+            </div>
+          )}
         </td>
 
         {/* Qty */}

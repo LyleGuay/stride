@@ -121,3 +121,19 @@ export interface ProgressResponse {
   days: WeekDaySummary[]
   stats: ProgressStats
 }
+
+// CalorieLogFavorite is a saved item template used for quick re-logging.
+// Mirrors the calorie_log_favorites DB row.
+export interface CalorieLogFavorite {
+  id: number
+  user_id: number
+  item_name: string
+  type: string
+  qty: number | null
+  uom: string | null
+  calories: number
+  protein_g: number | null
+  carbs_g: number | null
+  fat_g: number | null
+  created_at: string
+}

@@ -5,7 +5,7 @@
 // on mobile.
 
 import { useState, useRef, useEffect } from 'react'
-import type { CalorieLogItem } from '../../api'
+import type { CalorieLogItem, CalorieLogFavorite } from '../../api'
 import InlineAddRow from './InlineAddRow'
 import { ITEM_TYPES, FOOD_UNITS, EXERCISE_UNITS, UNIT_LABELS } from '../../constants'
 
@@ -40,10 +40,12 @@ interface Props {
   }) => void
   onUpdateItem: (id: number, field: string, value: unknown) => Promise<boolean>
   onItemAction: (item: CalorieLogItem, position: { x: number; y: number }) => void
+  favorites: CalorieLogFavorite[]
+  onManageFavorites: () => void
 }
 
 export default function ItemTable({ items, netCalories, netProtein, netCarbs, netFat,
-  onInlineAdd, onUpdateItem, onItemAction }: Props) {
+  onInlineAdd, onUpdateItem, onItemAction, favorites, onManageFavorites }: Props) {
   // Group items by meal type
   const grouped: Record<string, CalorieLogItem[]> = Object.fromEntries(
     ITEM_TYPES.map(t => [t, items.filter(i => i.type === t)])
@@ -151,6 +153,8 @@ export default function ItemTable({ items, netCalories, netProtein, netCarbs, ne
               isAddOpen={activeAddType === type}
               onAddOpen={() => setActiveAddType(type)}
               onAddClose={() => setActiveAddType(null)}
+              favorites={favorites}
+              onManageFavorites={onManageFavorites}
             />
           ))}
 
@@ -178,7 +182,7 @@ export default function ItemTable({ items, netCalories, netProtein, netCarbs, ne
 // MealSection renders a meal header row, its item rows, and an inline-add row.
 function MealSection({ type, items, editing, editValue, flashKey, skipBlurRef,
   onStartEdit, onEditChange, onCommitEdit, onCancelEdit, onTabEdit,
-  onItemAction, onInlineAdd, isAddOpen, onAddOpen, onAddClose,
+  onItemAction, onInlineAdd, isAddOpen, onAddOpen, onAddClose, favorites, onManageFavorites,
 }: {
   type: string
   items: CalorieLogItem[]
@@ -199,6 +203,8 @@ function MealSection({ type, items, editing, editValue, flashKey, skipBlurRef,
   isAddOpen: boolean
   onAddOpen: () => void
   onAddClose: () => void
+  favorites: CalorieLogFavorite[]
+  onManageFavorites: () => void
 }) {
   const borderColor = MEAL_BORDER_COLORS[type] || 'border-l-gray-400'
   const isExercise = type === 'exercise'
@@ -250,6 +256,8 @@ function MealSection({ type, items, editing, editValue, flashKey, skipBlurRef,
         onOpen={onAddOpen}
         onClose={onAddClose}
         onAdd={onInlineAdd}
+        favorites={favorites}
+        onManageFavorites={onManageFavorites}
       />
     </>
   )
