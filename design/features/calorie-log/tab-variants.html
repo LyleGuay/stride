@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tab Variants — Calorie Log</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: {
+              50:  '#eff6ff', 100: '#dbeafe', 200: '#bfdbfe',
+              300: '#93c5fd', 400: '#60a5fa', 500: '#3b82f6',
+              600: '#2563eb', 700: '#1d4ed8', 800: '#1e40af', 900: '#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #f3f4f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+    .variant-card { background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+    .variant-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; color: #9ca3af; }
+    .variant-name { font-size: 15px; font-weight: 600; color: #111827; }
+    .variant-note { font-size: 12px; color: #6b7280; }
+  </style>
+</head>
+<body class="p-8">
+
+  <div class="max-w-4xl mx-auto">
+    <div class="mb-8">
+      <p class="variant-label mb-1">Design exploration</p>
+      <h1 class="text-2xl font-bold text-gray-900 mb-1">Calorie Log — Tab Variants</h1>
+      <p class="text-sm text-gray-500">Tabs switch between: Log · Progress · Settings</p>
+    </div>
+
+    <div class="grid grid-cols-1 gap-6">
+
+      <!-- ── Variant A: Pill Segment (current) ── -->
+      <div class="variant-card">
+        <div class="px-6 py-4 border-b border-gray-100 flex items-start justify-between">
+          <div>
+            <p class="variant-label mb-0.5">Variant A — Current</p>
+            <p class="variant-name">Pill Segment Control</p>
+            <p class="variant-note mt-1">Floating pill inside a gray track. iOS/macOS-native feel. Compact.</p>
+          </div>
+          <span class="text-xs bg-blue-50 text-blue-600 border border-blue-200 px-2 py-1 rounded-full font-medium shrink-0">in use</span>
+        </div>
+        <div class="px-6 py-5">
+          <!-- Full header mock -->
+          <div class="border border-gray-200 rounded-xl overflow-hidden">
+            <div class="h-14 flex items-center justify-between px-5 border-b border-gray-200 bg-white">
+              <div class="flex items-center gap-1 bg-gray-100 rounded-lg p-1">
+                <button class="px-4 py-1.5 text-sm font-medium rounded-md bg-white text-gray-800 shadow-sm">Log</button>
+                <button class="px-4 py-1.5 text-sm font-medium rounded-md text-gray-500 hover:text-gray-700">Progress</button>
+                <button class="px-4 py-1.5 text-sm font-medium rounded-md text-gray-500 hover:text-gray-700">Settings</button>
+              </div>
+              <div class="text-sm text-gray-500">Mon, Mar 3</div>
+            </div>
+            <div class="h-16 bg-gray-50 flex items-center justify-center text-xs text-gray-400">page content</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Variant B: Underline ── -->
+      <div class="variant-card">
+        <div class="px-6 py-4 border-b border-gray-100">
+          <p class="variant-label mb-0.5">Variant B</p>
+          <p class="variant-name">Underline Tabs</p>
+          <p class="variant-note mt-1">Classic web pattern. Active tab gets a colored bottom border. Feels light and editorial.</p>
+        </div>
+        <div class="px-6 py-5">
+          <div class="border border-gray-200 rounded-xl overflow-hidden">
+            <div class="flex items-end px-5 border-b border-gray-200 bg-white" style="height:56px;">
+              <button class="px-4 h-full flex items-center text-sm font-semibold text-stride-600 border-b-2 border-stride-500 -mb-px">Log</button>
+              <button class="px-4 h-full flex items-center text-sm font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-700">Progress</button>
+              <button class="px-4 h-full flex items-center text-sm font-medium text-gray-400 border-b-2 border-transparent hover:text-gray-700">Settings</button>
+            </div>
+            <div class="h-16 bg-gray-50 flex items-center justify-center text-xs text-gray-400">page content</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Variant C: Underline Bold ── -->
+      <div class="variant-card">
+        <div class="px-6 py-4 border-b border-gray-100">
+          <p class="variant-label mb-0.5">Variant C</p>
+          <p class="variant-name">Bold Underline + Icon</p>
+          <p class="variant-note mt-1">Thicker indicator, small icons. More prominent active state. Good for 3-item nav.</p>
+        </div>
+        <div class="px-6 py-5">
+          <div class="border border-gray-200 rounded-xl overflow-hidden">
+            <div class="flex items-end px-4 border-b border-gray-200 bg-white" style="height:56px;">
+              <button class="px-4 h-full flex items-center gap-1.5 text-sm font-semibold text-gray-900 border-b-[3px] border-gray-900 -mb-px">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+                Log
+              </button>
+              <button class="px-4 h-full flex items-center gap-1.5 text-sm font-medium text-gray-400 border-b-[3px] border-transparent hover:text-gray-600">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+                Progress
+              </button>
+              <button class="px-4 h-full flex items-center gap-1.5 text-sm font-medium text-gray-400 border-b-[3px] border-transparent hover:text-gray-600">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                Settings
+              </button>
+            </div>
+            <div class="h-16 bg-gray-50 flex items-center justify-center text-xs text-gray-400">page content</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Variant D: Solid Fill ── -->
+      <div class="variant-card">
+        <div class="px-6 py-4 border-b border-gray-100">
+          <p class="variant-label mb-0.5">Variant D</p>
+          <p class="variant-name">Solid Fill Tabs</p>
+          <p class="variant-note mt-1">Active tab has solid brand-color fill. High contrast, clear active state. More button-like.</p>
+        </div>
+        <div class="px-6 py-5">
+          <div class="border border-gray-200 rounded-xl overflow-hidden">
+            <div class="h-14 flex items-center px-5 gap-1.5 border-b border-gray-200 bg-white">
+              <button class="px-4 py-1.5 text-sm font-semibold rounded-lg bg-stride-600 text-white">Log</button>
+              <button class="px-4 py-1.5 text-sm font-medium rounded-lg text-gray-500 hover:bg-gray-100">Progress</button>
+              <button class="px-4 py-1.5 text-sm font-medium rounded-lg text-gray-500 hover:bg-gray-100">Settings</button>
+            </div>
+            <div class="h-16 bg-gray-50 flex items-center justify-center text-xs text-gray-400">page content</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Variant E: Outlined / Ghost ── -->
+      <div class="variant-card">
+        <div class="px-6 py-4 border-b border-gray-100">
+          <p class="variant-label mb-0.5">Variant E</p>
+          <p class="variant-name">Outlined / Ghost</p>
+          <p class="variant-note mt-1">Active tab gets a border ring. Subtle, works well on white backgrounds. Minimal visual weight.</p>
+        </div>
+        <div class="px-6 py-5">
+          <div class="border border-gray-200 rounded-xl overflow-hidden">
+            <div class="h-14 flex items-center px-5 gap-2 border-b border-gray-200 bg-white">
+              <button class="px-4 py-1.5 text-sm font-semibold rounded-lg border-2 border-stride-500 text-stride-600 bg-stride-50">Log</button>
+              <button class="px-4 py-1.5 text-sm font-medium rounded-lg border-2 border-transparent text-gray-500 hover:border-gray-200">Progress</button>
+              <button class="px-4 py-1.5 text-sm font-medium rounded-lg border-2 border-transparent text-gray-500 hover:border-gray-200">Settings</button>
+            </div>
+            <div class="h-16 bg-gray-50 flex items-center justify-center text-xs text-gray-400">page content</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Variant F: Plain Text / Link ── -->
+      <div class="variant-card">
+        <div class="px-6 py-4 border-b border-gray-100">
+          <p class="variant-label mb-0.5">Variant F</p>
+          <p class="variant-name">Plain Text / Link Style</p>
+          <p class="variant-note mt-1">No background or border. Active tab is bold + colored. Minimalist; zero chrome.</p>
+        </div>
+        <div class="px-6 py-5">
+          <div class="border border-gray-200 rounded-xl overflow-hidden">
+            <div class="h-14 flex items-center px-6 gap-5 border-b border-gray-200 bg-white">
+              <button class="text-sm font-bold text-stride-600">Log</button>
+              <button class="text-sm font-medium text-gray-400 hover:text-gray-700">Progress</button>
+              <button class="text-sm font-medium text-gray-400 hover:text-gray-700">Settings</button>
+            </div>
+            <div class="h-16 bg-gray-50 flex items-center justify-center text-xs text-gray-400">page content</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Variant G: Dot Indicator ── -->
+      <div class="variant-card">
+        <div class="px-6 py-4 border-b border-gray-100">
+          <p class="variant-label mb-0.5">Variant G</p>
+          <p class="variant-name">Dot Indicator</p>
+          <p class="variant-note mt-1">Active tab shows a small dot below the label. Very low weight, unobtrusive. Works best with a subtle active text color change too.</p>
+        </div>
+        <div class="px-6 py-5">
+          <div class="border border-gray-200 rounded-xl overflow-hidden">
+            <div class="flex items-end px-6 border-b border-gray-200 bg-white" style="height:56px;">
+              <button class="px-3 pb-3 flex flex-col items-center gap-1.5 text-sm font-semibold text-gray-800 relative">
+                Log
+                <span class="w-1.5 h-1.5 rounded-full bg-stride-500 absolute bottom-2"></span>
+              </button>
+              <button class="px-3 pb-3 flex flex-col items-center gap-1.5 text-sm font-medium text-gray-400 hover:text-gray-600 relative">
+                Progress
+                <span class="w-1.5 h-1.5 rounded-full bg-transparent absolute bottom-2"></span>
+              </button>
+              <button class="px-3 pb-3 flex flex-col items-center gap-1.5 text-sm font-medium text-gray-400 hover:text-gray-600 relative">
+                Settings
+                <span class="w-1.5 h-1.5 rounded-full bg-transparent absolute bottom-2"></span>
+              </button>
+            </div>
+            <div class="h-16 bg-gray-50 flex items-center justify-center text-xs text-gray-400">page content</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Variant H: Sidebar-style vertical (for reference) ── -->
+      <div class="variant-card">
+        <div class="px-6 py-4 border-b border-gray-100">
+          <p class="variant-label mb-0.5">Variant H — Alternative layout</p>
+          <p class="variant-name">No Tabs — Sidebar Nav Items</p>
+          <p class="variant-note mt-1">Move Log / Progress / Settings into the sidebar nav as top-level items. Eliminates the tab bar entirely — one fewer chrome layer. Only feasible if these are distinct enough to warrant nav-level status.</p>
+        </div>
+        <div class="px-6 py-5">
+          <div class="border border-gray-200 rounded-xl overflow-hidden flex" style="height:140px;">
+            <!-- Mini sidebar -->
+            <div class="w-40 bg-gray-50 border-r border-gray-200 flex flex-col">
+              <div class="h-10 flex items-center px-4 border-b border-gray-200">
+                <span class="text-xs font-semibold text-gray-800">Stride</span>
+              </div>
+              <div class="flex-1 py-1">
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-md mx-2 bg-white border border-gray-200 mb-0.5">
+                  <span class="text-xs font-semibold text-gray-800">Log</span>
+                </div>
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-md mx-2 mb-0.5">
+                  <span class="text-xs text-gray-500">Progress</span>
+                </div>
+                <div class="flex items-center gap-2 px-3 py-1.5 rounded-md mx-2">
+                  <span class="text-xs text-gray-500">Settings</span>
+                </div>
+              </div>
+            </div>
+            <!-- Content area -->
+            <div class="flex-1 flex flex-col">
+              <div class="h-10 flex items-center px-4 border-b border-gray-200 bg-white">
+                <span class="text-xs font-semibold text-gray-700">Calorie Log</span>
+              </div>
+              <div class="flex-1 bg-gray-50 flex items-center justify-center text-xs text-gray-400">page content</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Comparison summary -->
+    <div class="mt-8 bg-white rounded-xl border border-gray-200 overflow-hidden">
+      <div class="px-6 py-4 border-b border-gray-100">
+        <p class="variant-label mb-0.5">Summary</p>
+        <p class="variant-name">At a glance</p>
+      </div>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-200">
+              <th class="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Variant</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Visual weight</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Active clarity</th>
+              <th class="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wide">Vibe</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100">
+            <tr>
+              <td class="px-6 py-3 font-medium text-gray-800">A — Pill Segment <span class="text-[10px] font-normal text-blue-500 ml-1">current</span></td>
+              <td class="px-4 py-3 text-gray-600">Medium</td>
+              <td class="px-4 py-3 text-gray-600">High</td>
+              <td class="px-4 py-3 text-gray-600">iOS / native app</td>
+            </tr>
+            <tr>
+              <td class="px-6 py-3 font-medium text-gray-800">B — Underline</td>
+              <td class="px-4 py-3 text-gray-600">Low</td>
+              <td class="px-4 py-3 text-gray-600">Medium</td>
+              <td class="px-4 py-3 text-gray-600">Web / editorial</td>
+            </tr>
+            <tr>
+              <td class="px-6 py-3 font-medium text-gray-800">C — Bold Underline + Icon</td>
+              <td class="px-4 py-3 text-gray-600">Low–Medium</td>
+              <td class="px-4 py-3 text-gray-600">High</td>
+              <td class="px-4 py-3 text-gray-600">Dashboard / data app</td>
+            </tr>
+            <tr>
+              <td class="px-6 py-3 font-medium text-gray-800">D — Solid Fill</td>
+              <td class="px-4 py-3 text-gray-600">High</td>
+              <td class="px-4 py-3 text-gray-600">Very high</td>
+              <td class="px-4 py-3 text-gray-600">Bold / consumer app</td>
+            </tr>
+            <tr>
+              <td class="px-6 py-3 font-medium text-gray-800">E — Outlined</td>
+              <td class="px-4 py-3 text-gray-600">Medium</td>
+              <td class="px-4 py-3 text-gray-600">High</td>
+              <td class="px-4 py-3 text-gray-600">Clean SaaS</td>
+            </tr>
+            <tr>
+              <td class="px-6 py-3 font-medium text-gray-800">F — Plain Text</td>
+              <td class="px-4 py-3 text-gray-600">Very low</td>
+              <td class="px-4 py-3 text-gray-600">Medium</td>
+              <td class="px-4 py-3 text-gray-600">Minimalist / content-first</td>
+            </tr>
+            <tr>
+              <td class="px-6 py-3 font-medium text-gray-800">G — Dot Indicator</td>
+              <td class="px-4 py-3 text-gray-600">Very low</td>
+              <td class="px-4 py-3 text-gray-600">Low–Medium</td>
+              <td class="px-4 py-3 text-gray-600">Minimal / subtle</td>
+            </tr>
+            <tr>
+              <td class="px-6 py-3 font-medium text-gray-800">H — Sidebar Nav (no tabs)</td>
+              <td class="px-4 py-3 text-gray-600">None (moved)</td>
+              <td class="px-4 py-3 text-gray-600">High</td>
+              <td class="px-4 py-3 text-gray-600">Desktop app / admin</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</body>
+</html>

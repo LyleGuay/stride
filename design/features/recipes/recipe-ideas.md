@@ -32,3 +32,12 @@ etc...
     3. (Continuation Step) While that happens, in a bowl mix the pumpkin puree, cinamon, etc..
 4. Once  pie crust is done, remove from oven, etc...
 5. Put pie with filling back in oven, leave for 20 minutes (Timer Step, Post 20 minutes)
+
+When entering a calorie log item from recipe, the user selects the recipe and enters the quantity. It would scale similar to how favorites currently works for calorie log items. In fact, we could likely use favorites menu to add recipe based calorie log items (add filter for only recipes).
+
+When an item is added by recipe, it should store the recipe id. That way we could also show the ingredient contributing to the calorie result.
+
+AI will be used for:
+- Enter text prompt, AI generates a complete recipe.
+- Take a recipe and modify it using AI prompt.
+- Take a recipe and modify it usign AI prompt and create a copy.

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cook Mode — Pumpkin Pie — Stride</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: {
+              50:'#eff6ff',100:'#dbeafe',200:'#bfdbfe',
+              300:'#93c5fd',400:'#60a5fa',500:'#3b82f6',
+              600:'#2563eb',700:'#1d4ed8',800:'#1e40af',900:'#1e3a8a',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .step-slide { animation: slideIn 0.2s ease-out; }
+    @keyframes slideIn { from { opacity:0; transform:translateX(12px); } to { opacity:1; transform:translateX(0); } }
+    .pill { animation: pillIn 0.2s ease-out; }
+    @keyframes pillIn { from { opacity:0; transform:scale(0.85); } to { opacity:1; transform:scale(1); } }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<div class="min-h-screen bg-gray-50">
+
+  <!-- Mobile sidebar overlay -->
+  <div id="sidebar-overlay" class="fixed inset-0 bg-black/40 z-40 hidden lg:hidden" onclick="closeSidebar()"></div>
+
+  <!-- Sidebar -->
+  <aside class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-50 -translate-x-full lg:translate-x-0 transition-transform duration-200" id="sidebar">
+    <div class="h-14 flex items-center px-5 border-b border-gray-200">
+      <h1 class="text-xl font-bold text-stride-600">Stride</h1>
+    </div>
+    <nav class="p-3">
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z"/></svg>
+        Calorie Log
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mt-1 text-gray-600 hover:bg-gray-50">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+        Habits
+      </a>
+      <a href="recipe-list.html" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mt-1 bg-stride-50 text-stride-700 font-medium">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/></svg>
+        Recipes
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mt-1 text-gray-600 hover:bg-gray-50">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+        Settings
+      </a>
+    </nav>
+    <!-- Profile footer -->
+    <div class="absolute bottom-0 left-0 right-0 p-3 border-t border-gray-100">
+      <div class="flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors">
+        <div class="w-7 h-7 rounded-full bg-stride-100 text-stride-700 text-xs font-bold flex items-center justify-center shrink-0">L</div>
+        <div class="flex-1 min-w-0">
+          <p class="text-xs font-medium text-gray-700 truncate">lyle</p>
+          <p class="text-[10px] text-gray-400 truncate">lyle@example.com</p>
+        </div>
+        <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9"/></svg>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main: cook mode fills the content area in light theme -->
+  <main class="lg:ml-64 min-h-screen bg-white flex flex-col">
+
+    <!-- Cook mode bar — h-14 matches sidebar header height -->
+    <div class="sticky top-0 z-20 bg-white border-b border-gray-200 h-14 px-6 flex items-center gap-3">
+      <a href="recipe-detail.html" onclick="return confirm('Exit cook mode?')"
+        class="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12"/></svg>
+      </a>
+      <button onclick="openSidebar()" class="lg:hidden p-1.5 rounded-md text-gray-400 hover:bg-gray-100 shrink-0">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
+      </button>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs text-gray-400">Pumpkin Pie</p>
+        <p id="step-label" class="text-sm font-semibold text-gray-800">Step 1 of 5</p>
+      </div>
+      <!-- Floating timer pills -->
+      <div id="timer-pills" class="flex items-center gap-1.5 flex-wrap justify-end"></div>
+      <button onclick="toggleIngredients()"
+        class="shrink-0 flex items-center gap-1.5 border border-gray-200 text-gray-600 text-xs font-medium px-3 py-1.5 rounded-full hover:bg-gray-50 transition-colors">
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12"/></svg>
+        Ingredients
+      </button>
+    </div>
+
+    <!-- Progress bar — centered to match step content width -->
+    <div class="max-w-2xl mx-auto w-full px-6 pt-5 pb-1">
+      <div id="progress-bar" class="flex gap-1.5"></div>
+    </div>
+
+    <!-- Step content — constrained and centered for readability -->
+    <div class="flex-1 flex flex-col px-6 py-5 max-w-2xl mx-auto w-full">
+
+      <!-- Step badge -->
+      <div id="step-badge" class="mb-4"></div>
+
+      <!-- Instruction layout -->
+      <div id="layout-instruction" class="flex-1 flex flex-col">
+        <p id="instr-text" class="text-gray-900 text-2xl leading-relaxed font-light"></p>
+      </div>
+
+      <!-- Timer layout -->
+      <div id="layout-timer" class="hidden flex-1 flex flex-col gap-5">
+        <!-- Instruction text (what to do) -->
+        <p id="timer-instr-text" class="text-gray-900 text-2xl leading-relaxed font-light"></p>
+
+        <!-- Timer widget -->
+        <div class="bg-amber-50 border border-amber-200 rounded-2xl p-5">
+          <div class="flex items-center gap-5">
+            <!-- Ring -->
+            <div class="relative shrink-0 w-20 h-20">
+              <svg width="80" height="80" viewBox="0 0 80 80">
+                <circle cx="40" cy="40" r="34" fill="none" stroke="#fde68a" stroke-width="7"/>
+                <circle id="ring-progress" cx="40" cy="40" r="34" fill="none" stroke="#f59e0b" stroke-width="7"
+                  stroke-linecap="round"
+                  style="stroke-dasharray:213.6; stroke-dashoffset:0; transform:rotate(-90deg); transform-origin:center; transition:stroke-dashoffset 1s linear;"/>
+              </svg>
+              <div class="absolute inset-0 flex items-center justify-center">
+                <span id="timer-display" class="text-sm font-bold tabular-nums text-amber-800">5:00</span>
+              </div>
+            </div>
+            <!-- Controls -->
+            <div class="flex-1">
+              <p class="text-amber-700 text-sm font-semibold mb-0.5" id="timer-label">Timer · 5 min</p>
+              <p id="timer-status" class="text-amber-600/60 text-xs mb-3">Tap to start when ready</p>
+              <div class="flex gap-2">
+                <button id="timer-start-btn" onclick="toggleTimer()"
+                  class="flex items-center gap-1.5 bg-amber-500 hover:bg-amber-400 text-white text-xs font-semibold px-4 py-2 rounded-xl transition-colors">
+                  <svg id="timer-icon" class="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                  <span id="timer-btn-label">Start Timer</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Meanwhile card -->
+        <div id="meanwhile-card" class="hidden bg-emerald-50 border border-emerald-200 rounded-2xl p-4">
+          <p class="text-emerald-700 text-xs font-semibold mb-2">↳ Meanwhile, while the timer runs…</p>
+          <p id="meanwhile-text" class="text-gray-700 text-sm leading-relaxed"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom nav -->
+    <div class="px-6 py-4 border-t border-gray-100 flex items-center gap-3 bg-white">
+      <button onclick="goPrev()"
+        class="flex items-center gap-1.5 border border-gray-200 text-gray-500 text-sm font-medium px-5 py-2.5 rounded-xl hover:bg-gray-50 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18"/></svg>
+        Prev
+      </button>
+      <button onclick="goNext()" id="next-btn"
+        class="flex-1 bg-stride-600 hover:bg-stride-700 text-white text-sm font-semibold py-2.5 rounded-xl transition-colors flex items-center justify-center gap-2">
+        Next Step
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg>
+      </button>
+    </div>
+  </main>
+</div>
+
+<!-- Ingredients panel -->
+<div id="ingredients-panel" class="fixed inset-0 z-50 hidden">
+  <div class="absolute inset-0 bg-black/40" onclick="toggleIngredients()"></div>
+  <div class="absolute bottom-0 left-0 lg:left-64 right-0 bg-white border-t border-gray-200 shadow-2xl rounded-t-2xl" style="max-height:70vh; overflow-y:auto;">
+    <div class="max-w-lg mx-auto p-5">
+      <div class="flex justify-center mb-4"><div class="w-10 h-1 bg-gray-200 rounded-full"></div></div>
+      <h3 class="text-base font-semibold text-gray-900 mb-4">Ingredients</h3>
+      <div class="space-y-1.5">
+        <label class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 cursor-pointer border border-gray-100"><input type="checkbox" class="w-4 h-4 rounded accent-stride-500" onchange="crossOff(this)"/><div><p class="text-sm text-gray-800 font-medium">Pumpkin Puree</p><p class="text-xs text-gray-400">1 can</p></div></label>
+        <label class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 cursor-pointer border border-gray-100"><input type="checkbox" class="w-4 h-4 rounded accent-stride-500" onchange="crossOff(this)"/><div><p class="text-sm text-gray-800 font-medium">Large eggs</p><p class="text-xs text-gray-400">2 eggs</p></div></label>
+        <label class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 cursor-pointer border border-gray-100"><input type="checkbox" checked class="w-4 h-4 rounded accent-stride-500" onchange="crossOff(this)"/><div style="opacity:0.4"><p class="text-sm text-gray-800 font-medium line-through">Brown sugar</p><p class="text-xs text-gray-400">¾ cup</p></div></label>
+        <label class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 cursor-pointer border border-gray-100"><input type="checkbox" class="w-4 h-4 rounded accent-stride-500" onchange="crossOff(this)"/><div><p class="text-sm text-gray-800 font-medium">Ground cinnamon</p><p class="text-xs text-gray-400">1 tsp</p></div></label>
+        <label class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 cursor-pointer border border-gray-100"><input type="checkbox" class="w-4 h-4 rounded accent-stride-500" onchange="crossOff(this)"/><div><p class="text-sm text-gray-800 font-medium">Evaporated milk</p><p class="text-xs text-gray-400">12 fl oz</p></div></label>
+        <label class="flex items-center gap-3 p-3 rounded-xl hover:bg-gray-50 cursor-pointer border border-gray-100"><input type="checkbox" checked class="w-4 h-4 rounded accent-stride-500" onchange="crossOff(this)"/><div style="opacity:0.4"><p class="text-sm text-gray-800 font-medium line-through">9-inch pie crust</p><p class="text-xs text-gray-400">1 each</p></div></label>
+      </div>
+      <button onclick="toggleIngredients()" class="mt-4 w-full border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const steps = [
+  { type:'instruction', text:'Preheat oven to <strong>420°F (215°C)</strong>. Place a baking sheet on the middle rack to preheat as well.' },
+  { type:'timer', text:'Place the pie crust on the preheated baking sheet and blind bake until just set.', timerMin:5,
+    meanwhile:'In a large bowl, whisk together pumpkin puree, eggs, brown sugar, cinnamon, and ginger until smooth. Stir in the evaporated milk.' },
+  { type:'instruction', text:'Remove the blind-baked crust from the oven. Pour the pumpkin filling into the crust.' },
+  { type:'timer', text:'Bake at <strong>420°F for 15 min</strong>, then reduce to <strong>350°F</strong> and bake <strong>45 more min</strong> until a knife near the center comes out clean.', timerMin:60, meanwhile:null },
+  { type:'instruction', text:'Let cool on a wire rack for at least 20 minutes. Serve warm with whipped cream.' },
+]
+
+let currentStep=0, timerRunning=false, timerSeconds=0, timerDuration=0, timerInterval=null
+const activeTimers = {}
+
+function renderStep() {
+  const step = steps[currentStep]
+  document.getElementById('step-label').textContent = `Step ${currentStep+1} of ${steps.length}`
+
+  document.getElementById('progress-bar').innerHTML = steps.map((_,i) =>
+    `<div class="h-1.5 flex-1 rounded-full ${i < currentStep ? 'bg-stride-500' : i === currentStep ? 'bg-stride-300' : 'bg-gray-200'}"></div>`
+  ).join('')
+
+  const instrLayout = document.getElementById('layout-instruction')
+  const timerLayout = document.getElementById('layout-timer')
+
+  if (step.type === 'instruction') {
+    instrLayout.classList.remove('hidden'); timerLayout.classList.add('hidden')
+    document.getElementById('step-badge').innerHTML = `<span class="inline-flex text-xs font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-500">Step ${currentStep+1}</span>`
+    const el = document.getElementById('instr-text')
+    el.innerHTML = step.text; el.className = 'text-gray-900 text-2xl leading-relaxed font-light step-slide'
+  } else {
+    instrLayout.classList.add('hidden'); timerLayout.classList.remove('hidden')
+    document.getElementById('step-badge').innerHTML = `<span class="inline-flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full bg-amber-100 text-amber-700">⏱ Timer Step · ${step.timerMin} min</span>`
+    const el = document.getElementById('timer-instr-text')
+    el.innerHTML = step.text; el.className = 'text-gray-900 text-2xl leading-relaxed font-light step-slide'
+
+    clearInterval(timerInterval); timerRunning = false
+    timerSeconds = step.timerMin * 60; timerDuration = timerSeconds
+    document.getElementById('timer-display').textContent = formatTime(timerSeconds)
+    document.getElementById('timer-label').textContent = `Timer · ${step.timerMin} min`
+    document.getElementById('timer-status').textContent = 'Tap to start when ready'
+    document.getElementById('timer-btn-label').textContent = 'Start Timer'
+    document.getElementById('timer-icon').innerHTML = '<path d="M8 5v14l11-7z"/>'
+    document.getElementById('ring-progress').style.strokeDashoffset = 0
+    document.getElementById('ring-progress').style.stroke = '#f59e0b'
+
+    const mw = document.getElementById('meanwhile-card')
+    if (step.meanwhile) {
+      mw.classList.remove('hidden')
+      document.getElementById('meanwhile-text').textContent = step.meanwhile
+      document.getElementById('meanwhile-check').checked = false
+      document.getElementById('meanwhile-text').style.opacity = 1
+    } else { mw.classList.add('hidden') }
+  }
+
+  const nb = document.getElementById('next-btn')
+  nb.innerHTML = currentStep === steps.length-1
+    ? 'Finish Cooking <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>'
+    : 'Next Step <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5 21 12m0 0-7.5 7.5M21 12H3"/></svg>'
+}
+
+function goPrev() { if (currentStep>0) { clearInterval(timerInterval); timerRunning=false; currentStep--; renderStep() } }
+function goNext() {
+  if (currentStep===steps.length-1) { if(confirm('Done! Log calories?')) window.location.href='recipe-detail.html'; return }
+  if (timerRunning) detachToPill(currentStep)
+  clearInterval(timerInterval); timerRunning=false; currentStep++; renderStep()
+}
+function advanceWithTimer() {
+  if (timerRunning) detachToPill(currentStep)
+  clearInterval(timerInterval); timerRunning=false
+  if (currentStep<steps.length-1) { currentStep++; renderStep() }
+}
+
+function formatTime(s) { const m=Math.floor(Math.abs(s)/60),sec=Math.abs(s)%60; return `${m}:${sec.toString().padStart(2,'0')}` }
+
+function toggleTimer() {
+  if (timerRunning) {
+    clearInterval(timerInterval); timerRunning=false
+    document.getElementById('timer-btn-label').textContent='Resume'
+    document.getElementById('timer-icon').innerHTML='<path d="M8 5v14l11-7z"/>'
+    document.getElementById('timer-status').textContent='Paused'
+  } else {
+    timerRunning=true
+    document.getElementById('timer-btn-label').textContent='Pause'
+    document.getElementById('timer-icon').innerHTML='<rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/>'
+    document.getElementById('timer-status').textContent='Running…'
+    timerInterval=setInterval(()=>{
+      timerSeconds--
+      document.getElementById('ring-progress').style.strokeDashoffset=(1-timerSeconds/timerDuration)*213.6
+      document.getElementById('timer-display').textContent=formatTime(Math.max(0,timerSeconds))
+      if(timerSeconds<=0){
+        clearInterval(timerInterval); timerRunning=false
+        document.getElementById('timer-display').textContent='Done!'
+        document.getElementById('ring-progress').style.stroke='#22c55e'
+        document.getElementById('timer-btn-label').textContent='Done!'
+        document.getElementById('timer-status').textContent='✓ Timer complete'
+      }
+    },1000)
+  }
+}
+
+function detachToPill(stepIdx) {
+  const remaining=timerSeconds
+  activeTimers[stepIdx]={remaining}
+  const pillsEl=document.getElementById('timer-pills')
+  const pillId=`pill-${stepIdx}`
+  if(document.getElementById(pillId))return
+  const pill=document.createElement('button')
+  pill.id=pillId; pill.className='pill flex items-center gap-1 bg-amber-100 border border-amber-300 text-amber-700 text-[11px] font-medium px-2 py-1 rounded-full'
+  pill.innerHTML=`<span class="pill-time">⏱ ${formatTime(remaining)}</span>`
+  pillsEl.appendChild(pill)
+  const iv=setInterval(()=>{
+    activeTimers[stepIdx].remaining--
+    const el=document.getElementById(pillId)
+    if(!el){clearInterval(iv);return}
+    if(activeTimers[stepIdx].remaining<=0){
+      clearInterval(iv)
+      el.querySelector('.pill-time').textContent='✓ Done'
+      el.style.background='#dcfce7'; el.style.borderColor='#86efac'; el.style.color='#15803d'
+    } else { el.querySelector('.pill-time').textContent=`⏱ ${formatTime(activeTimers[stepIdx].remaining)}` }
+  },1000)
+}
+
+function openSidebar() {
+  document.getElementById('sidebar').classList.remove('-translate-x-full')
+  document.getElementById('sidebar-overlay').classList.remove('hidden')
+}
+function closeSidebar() {
+  document.getElementById('sidebar').classList.add('-translate-x-full')
+  document.getElementById('sidebar-overlay').classList.add('hidden')
+}
+function crossOff(cb){cb.closest('label').querySelector('div').style.opacity=cb.checked?'0.4':'1'}
+function toggleIngredients(){document.getElementById('ingredients-panel').classList.toggle('hidden')}
+
+renderStep()
+</script>
+</body>
+</html>
