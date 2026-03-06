@@ -45,6 +45,7 @@ export default async function globalSetup() {
     { username: 'e2e_user',           email: 'e2e@test.com',           password: 'password123' },
     { username: 'pace_test_user',     email: 'pace@test.com',          password: 'password123' },
     { username: 'favorites_test_user',email: 'favorites@test.com',     password: 'password123' },
+    { username: 'recipes_test_user',  email: 'recipes@test.com',       password: 'password123' },
   ]
 
   for (const user of testUsers) {

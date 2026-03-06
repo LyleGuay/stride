@@ -3,6 +3,7 @@
 // and weight goal sub-components drive a live TDEE preview computed here.
 
 import { useEffect, useState } from 'react'
+import { useSidebar } from '../../components/SidebarContext'
 import { fetchUserSettings, patchUserSettings } from '../../api'
 import type { CalorieLogUserSettings } from '../../api'
 import { computePreview, autoSplitBudgets, buildFormState } from './utils'
@@ -11,6 +12,7 @@ import ProfileForm from './ProfileForm'
 import BudgetPlan from './BudgetPlan'
 
 export default function Settings() {
+  const { setOpen: setSidebarOpen } = useSidebar()
   const [settings, setSettings] = useState<CalorieLogUserSettings | null>(null)
   const [form, setForm] = useState<FormState | null>(null)
   const [saving, setSaving] = useState(false)
@@ -105,6 +107,19 @@ export default function Settings() {
 
   return (
     <>
+      {/* Sticky h-14 header — matches sidebar logo height for continuous chrome line */}
+      <div className="sticky top-0 z-20 bg-white h-14 flex items-center px-6 border-b border-gray-200">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="p-1 -ml-1 mr-3 rounded-md hover:bg-gray-100 lg:hidden"
+        >
+          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        </button>
+        <h2 className="text-sm font-semibold text-gray-800">Settings</h2>
+      </div>
+
       {/* Scrollable content — pb-32 leaves room for the fixed save bar */}
       <div className="max-w-xl mx-auto px-4 py-6 pb-32 space-y-6">
         <BudgetPlan

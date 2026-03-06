@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* All buttons should show a pointer cursor — browsers default to 'default' for buttons */
+@layer base {
+  button { cursor: pointer; }
+}
+
 @theme {
   --color-stride-50: #eef2ff;
   --color-stride-100: #e0e7ff;

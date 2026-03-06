@@ -137,3 +137,109 @@ export interface CalorieLogFavorite {
   fat_g: number | null
   created_at: string
 }
+
+// Recipe mirrors the recipes DB row. emoji is null when not set by the user
+// (the UI falls back to a category-default emoji for display).
+export interface Recipe {
+  id: number
+  user_id: number
+  name: string
+  emoji: string | null
+  category: 'breakfast' | 'lunch' | 'dinner' | 'dessert' | 'snack' | 'other'
+  notes: string | null
+  servings: number
+  calories: number | null
+  protein_g: number | null
+  carbs_g: number | null
+  fat_g: number | null
+  created_at: string
+  updated_at: string
+}
+
+// RecipeListItem extends Recipe with computed aggregate fields returned by
+// GET /api/recipes — step_count and total_timer_seconds come from correlated subqueries.
+export interface RecipeListItem extends Recipe {
+  step_count: number
+  total_timer_seconds: number
+}
+
+// RecipeIngredient mirrors the recipe_ingredients DB row.
+export interface RecipeIngredient {
+  id: number
+  recipe_id: number
+  name: string
+  qty: number | null
+  uom: string | null
+  note: string | null
+  sort_order: number
+}
+
+// RecipeTool mirrors the recipe_tools DB row.
+export interface RecipeTool {
+  id: number
+  recipe_id: number
+  name: string
+  sort_order: number
+}
+
+// RecipeStep mirrors the recipe_steps DB row. timer_seconds and meanwhile_text
+// are only populated for steps of type 'timer'.
+export interface RecipeStep {
+  id: number
+  recipe_id: number
+  type: 'instruction' | 'timer'
+  text: string
+  timer_seconds: number | null
+  meanwhile_text: string | null
+  sort_order: number
+}
+
+// RecipeDetail is the full recipe response from GET /api/recipes/:id — the base
+// Recipe plus all sub-lists (ingredients, tools, steps).
+export interface RecipeDetail extends Recipe {
+  ingredients: RecipeIngredient[]
+  tools: RecipeTool[]
+  steps: RecipeStep[]
+}
+
+// RecipeDraft is the shape used for create/update requests — the input types
+// that map to createRecipeRequest and updateRecipeRequest on the server.
+export interface RecipeIngredientInput {
+  name: string
+  qty: number | null
+  uom: string | null
+  note: string | null
+  sort_order: number
+}
+
+export interface RecipeToolInput {
+  name: string
+  sort_order: number
+}
+
+export interface RecipeStepInput {
+  type: 'instruction' | 'timer'
+  text: string
+  timer_seconds: number | null
+  meanwhile_text: string | null
+  sort_order: number
+}
+
+// CreateRecipeInput is the body for POST /api/recipes.
+export interface CreateRecipeInput {
+  name: string
+  emoji?: string | null
+  category: string
+  notes?: string | null
+  servings?: number
+  calories?: number | null
+  protein_g?: number | null
+  carbs_g?: number | null
+  fat_g?: number | null
+  ingredients?: RecipeIngredientInput[]
+  tools?: RecipeToolInput[]
+  steps?: RecipeStepInput[]
+}
+
+// UpdateRecipeInput is the body for PUT /api/recipes/:id — all fields optional.
+export type UpdateRecipeInput = Partial<CreateRecipeInput>

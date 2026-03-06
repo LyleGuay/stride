@@ -100,4 +100,15 @@ func (h *Handler) registerRoutes(router *gin.Engine) {
 	api.POST("/weight-log", h.upsertWeightEntry)
 	api.PUT("/weight-log/:id", h.updateWeightEntry)
 	api.DELETE("/weight-log/:id", h.deleteWeightEntry)
+	// Recipe routes — /generate must be registered before /:id to avoid being swallowed as an id param
+	api.POST("/recipes/generate", h.generateRecipe)
+	api.GET("/recipes", h.listRecipes)
+	api.POST("/recipes", h.createRecipe)
+	api.GET("/recipes/:id", h.getRecipe)
+	api.PUT("/recipes/:id", h.updateRecipe)
+	api.DELETE("/recipes/:id", h.deleteRecipe)
+	api.POST("/recipes/:id/duplicate", h.duplicateRecipe)
+	api.POST("/recipes/:id/ai-modify", h.aiModifyRecipe)
+	api.POST("/recipes/:id/ai-copy", h.aiCopyRecipe)
+	api.POST("/recipes/:id/ai-nutrition", h.aiNutrition)
 }

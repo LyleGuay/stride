@@ -60,6 +60,7 @@ type calorieLogItem struct {
 	ProteinG  *float64   `json:"protein_g" db:"protein_g"`
 	CarbsG    *float64   `json:"carbs_g" db:"carbs_g"`
 	FatG      *float64   `json:"fat_g" db:"fat_g"`
+	RecipeID  *int       `json:"recipe_id" db:"recipe_id"`
 	CreatedAt *time.Time `json:"created_at" db:"created_at"`
 	UpdatedAt *time.Time `json:"updated_at" db:"updated_at"`
 }
@@ -170,6 +171,141 @@ type progressResponse struct {
 	Stats progressStats    `json:"stats"`
 }
 
+/* ─── Recipe structs ─────────────────────────────────────────────────── */
+
+// recipe maps to the recipes table — top-level recipe record.
+type recipe struct {
+	ID        int        `json:"id"         db:"id"`
+	UserID    int        `json:"user_id"    db:"user_id"`
+	Name      string     `json:"name"       db:"name"`
+	Emoji     *string    `json:"emoji"      db:"emoji"`
+	Category  string     `json:"category"   db:"category"` // recipe_category enum, scans as string
+	Notes     *string    `json:"notes"      db:"notes"`
+	Servings  float64    `json:"servings"   db:"servings"`
+	Calories  *int       `json:"calories"   db:"calories"`
+	ProteinG  *float64   `json:"protein_g"  db:"protein_g"`
+	CarbsG    *float64   `json:"carbs_g"    db:"carbs_g"`
+	FatG      *float64   `json:"fat_g"      db:"fat_g"`
+	CreatedAt *time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt *time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// recipeListItem is the shape returned by GET /api/recipes — recipe plus computed
+// step count and total timer duration (sum of timer_seconds across all timer steps).
+type recipeListItem struct {
+	recipe
+	StepCount         int `json:"step_count"          db:"step_count"`
+	TotalTimerSeconds int `json:"total_timer_seconds" db:"total_timer_seconds"`
+}
+
+// recipeIngredient maps to recipe_ingredients.
+type recipeIngredient struct {
+	ID        int      `json:"id"         db:"id"`
+	RecipeID  int      `json:"recipe_id"  db:"recipe_id"`
+	Name      string   `json:"name"       db:"name"`
+	Qty       *float64 `json:"qty"        db:"qty"`
+	Uom       *string  `json:"uom"        db:"uom"`
+	Note      *string  `json:"note"       db:"note"`
+	SortOrder int      `json:"sort_order" db:"sort_order"`
+}
+
+// recipeTool maps to recipe_tools.
+type recipeTool struct {
+	ID        int    `json:"id"         db:"id"`
+	RecipeID  int    `json:"recipe_id"  db:"recipe_id"`
+	Name      string `json:"name"       db:"name"`
+	SortOrder int    `json:"sort_order" db:"sort_order"`
+}
+
+// recipeStep maps to recipe_steps. Type is 'instruction' or 'timer'.
+// TimerSeconds and MeanwhileText are only populated for timer steps.
+type recipeStep struct {
+	ID            int     `json:"id"             db:"id"`
+	RecipeID      int     `json:"recipe_id"      db:"recipe_id"`
+	Type          string  `json:"type"           db:"type"`
+	Text          string  `json:"text"           db:"text"`
+	TimerSeconds  *int    `json:"timer_seconds"  db:"timer_seconds"`
+	MeanwhileText *string `json:"meanwhile_text" db:"meanwhile_text"`
+	SortOrder     int     `json:"sort_order"     db:"sort_order"`
+}
+
+// recipeDetail is the full recipe response — recipe fields plus all sub-lists.
+// Returned by GET /api/recipes/:id and write endpoints.
+type recipeDetail struct {
+	recipe
+	Ingredients []recipeIngredient `json:"ingredients"`
+	Tools       []recipeTool       `json:"tools"`
+	Steps       []recipeStep       `json:"steps"`
+}
+
+// ingredientInput is a single ingredient in a create/update request.
+type ingredientInput struct {
+	Name      string   `json:"name"`
+	Qty       *float64 `json:"qty"`
+	Uom       *string  `json:"uom"`
+	Note      *string  `json:"note"`
+	SortOrder int      `json:"sort_order"`
+}
+
+// toolInput is a single tool in a create/update request.
+type toolInput struct {
+	Name      string `json:"name"`
+	SortOrder int    `json:"sort_order"`
+}
+
+// stepInput is a single step in a create/update request.
+type stepInput struct {
+	Type          string  `json:"type"`
+	Text          string  `json:"text"`
+	TimerSeconds  *int    `json:"timer_seconds"`
+	MeanwhileText *string `json:"meanwhile_text"`
+	SortOrder     int     `json:"sort_order"`
+}
+
+// createRecipeRequest is the request body for POST /api/recipes.
+type createRecipeRequest struct {
+	Name        string            `json:"name"        binding:"required"`
+	Emoji       *string           `json:"emoji"`
+	Category    string            `json:"category"`
+	Notes       *string           `json:"notes"`
+	Servings    *float64          `json:"servings"`
+	Calories    *int              `json:"calories"`
+	ProteinG    *float64          `json:"protein_g"`
+	CarbsG      *float64          `json:"carbs_g"`
+	FatG        *float64          `json:"fat_g"`
+	Ingredients []ingredientInput `json:"ingredients"`
+	Tools       []toolInput       `json:"tools"`
+	Steps       []stepInput       `json:"steps"`
+}
+
+// updateRecipeRequest is the request body for PUT /api/recipes/:id.
+// Sub-lists, when present, fully replace the existing ones.
+type updateRecipeRequest struct {
+	Name        *string            `json:"name"`
+	Emoji       *string            `json:"emoji"`
+	Category    *string            `json:"category"`
+	Notes       *string            `json:"notes"`
+	Servings    *float64           `json:"servings"`
+	Calories    *int               `json:"calories"`
+	ProteinG    *float64           `json:"protein_g"`
+	CarbsG      *float64           `json:"carbs_g"`
+	FatG        *float64           `json:"fat_g"`
+	Ingredients *[]ingredientInput `json:"ingredients"`
+	Tools       *[]toolInput       `json:"tools"`
+	Steps       *[]stepInput       `json:"steps"`
+}
+
+// validRecipeCategories is the set of allowed values for the recipe_category enum.
+// Reject unknown values before hitting the DB.
+var validRecipeCategories = map[string]bool{
+	"breakfast": true,
+	"lunch":     true,
+	"dinner":    true,
+	"dessert":   true,
+	"snack":     true,
+	"other":     true,
+}
+
 // calorieLogFavorite is a saved item template for quick re-logging.
 // Stored in calorie_log_favorites; returned by GET /api/calorie-log/favorites.
 type calorieLogFavorite struct {
@@ -209,6 +345,7 @@ type createCalorieLogItemRequest struct {
 	ProteinG *float64 `json:"protein_g"`
 	CarbsG   *float64 `json:"carbs_g"`
 	FatG     *float64 `json:"fat_g"`
+	RecipeID *int     `json:"recipe_id"`
 }
 
 // patchUserSettingsRequest is the request body for PATCH /api/calorie-log/user-settings.

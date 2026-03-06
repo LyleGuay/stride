@@ -1,37 +1,43 @@
 // AppShell is the main layout wrapper for all authenticated pages.
 // Sidebar: fixed on desktop (lg+), slide-out overlay on mobile.
-// Header: sticky top bar with hamburger toggle, app title, and profile dropdown.
-// Page content renders via <Outlet />.
+// Mobile toggle state is managed via SidebarContext so each page's
+// sticky header can wire its own hamburger button independently.
+// Profile/account actions live in a footer at the bottom of the sidebar.
+// Page content renders via <Outlet /> with no top bar — each page owns its header.
 
-import { useState } from 'react'
 import { Outlet, NavLink } from 'react-router'
+import { SidebarProvider, useSidebar } from './SidebarContext'
 import ProfileDropdown from './ProfileDropdown'
-export default function AppShell() {
-  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+function Shell() {
+  const { open, setOpen } = useSidebar()
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Sidebar overlay (mobile) */}
-      {sidebarOpen && (
+      {open && (
         <div
-          className="fixed inset-0 bg-black/40 z-40 lg:hidden transition-opacity"
-          onClick={() => setSidebarOpen(false)}
+          className="fixed inset-0 bg-black/40 z-40 lg:hidden"
+          onClick={() => setOpen(false)}
         />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-50 transition-transform lg:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-50 flex flex-col transition-transform lg:translate-x-0 ${
+          open ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="p-5 border-b border-gray-100">
+        {/* Logo — h-14 matches all page sticky headers to create one continuous chrome line */}
+        <div className="h-14 flex items-center px-5 border-b border-gray-200 shrink-0">
           <h1 className="text-xl font-bold text-stride-600">Stride</h1>
         </div>
-        <nav className="p-3">
+
+        {/* Nav */}
+        <nav className="p-3 flex-1">
           <NavLink
             to="/calorie-log"
-            onClick={() => setSidebarOpen(false)}
+            onClick={() => setOpen(false)}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm ${
                 isActive ? 'bg-stride-50 text-stride-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
@@ -45,7 +51,7 @@ export default function AppShell() {
           </NavLink>
           <NavLink
             to="/habits"
-            onClick={() => setSidebarOpen(false)}
+            onClick={() => setOpen(false)}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mt-1 ${
                 isActive ? 'bg-stride-50 text-stride-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
@@ -58,8 +64,22 @@ export default function AppShell() {
             Habits
           </NavLink>
           <NavLink
+            to="/recipes"
+            onClick={() => setOpen(false)}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mt-1 ${
+                isActive ? 'bg-stride-50 text-stride-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
+              }`
+            }
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+            </svg>
+            Recipes
+          </NavLink>
+          <NavLink
             to="/settings"
-            onClick={() => setSidebarOpen(false)}
+            onClick={() => setOpen(false)}
             className={({ isActive }) =>
               `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mt-1 ${
                 isActive ? 'bg-stride-50 text-stride-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
@@ -73,28 +93,26 @@ export default function AppShell() {
             Settings
           </NavLink>
         </nav>
+
+        {/* Profile footer — positioned at the bottom of the sidebar */}
+        <div className="border-t border-gray-200 p-3 shrink-0">
+          <ProfileDropdown />
+        </div>
       </aside>
 
-      {/* Main content area */}
+      {/* Main content — pages own their sticky headers */}
       <main className="lg:ml-64 min-h-screen">
-        {/* Top bar */}
-        <header className="sticky top-0 bg-white/80 backdrop-blur border-b border-gray-200 z-30 px-4 py-3 flex items-center gap-3">
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-1 -ml-1 rounded-md hover:bg-gray-100 lg:hidden"
-          >
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-            </svg>
-          </button>
-          <span className="font-semibold text-gray-800">Stride</span>
-          <div className="ml-auto relative">
-            <ProfileDropdown />
-          </div>
-        </header>
-
         <Outlet />
       </main>
     </div>
+  )
+}
+
+// AppShell wraps Shell in SidebarProvider so useSidebar() works anywhere in the tree.
+export default function AppShell() {
+  return (
+    <SidebarProvider>
+      <Shell />
+    </SidebarProvider>
   )
 }

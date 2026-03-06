@@ -69,16 +69,23 @@
 
     <!-- Sticky header: tab segment control + date nav -->
     <div class="sticky top-0 z-20 bg-white">
-      <!-- Tab row — h-14, matches sidebar logo height -->
-      <div class="h-14 flex items-center px-6 border-b border-gray-200">
-        <div class="flex bg-gray-100 rounded-lg p-1 gap-0.5">
-          <button id="tab-daily" onclick="switchTab('daily')"
-            class="px-4 py-1.5 text-sm font-medium rounded-md bg-white text-gray-800 shadow-sm transition-all">Daily</button>
-          <button id="tab-weekly" onclick="switchTab('weekly')"
-            class="px-4 py-1.5 text-sm font-medium rounded-md text-gray-500 hover:text-gray-700 transition-all">Weekly</button>
-          <button id="tab-progress" onclick="switchTab('progress')"
-            class="px-4 py-1.5 text-sm font-medium rounded-md text-gray-500 hover:text-gray-700 transition-all">Progress</button>
-        </div>
+      <!-- Tab row — h-14, matches sidebar logo height. Variant C: bold underline + icon -->
+      <div class="flex items-end px-6 border-b border-gray-200" style="height:56px;">
+        <button id="tab-daily" onclick="switchTab('daily')"
+          class="px-4 h-full flex items-center gap-1.5 text-sm font-semibold text-gray-900 border-b-[3px] border-gray-900 -mb-px transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Daily
+        </button>
+        <button id="tab-weekly" onclick="switchTab('weekly')"
+          class="px-4 h-full flex items-center gap-1.5 text-sm font-medium text-gray-400 border-b-[3px] border-transparent hover:text-gray-600 -mb-px transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+          Weekly
+        </button>
+        <button id="tab-progress" onclick="switchTab('progress')"
+          class="px-4 h-full flex items-center gap-1.5 text-sm font-medium text-gray-400 border-b-[3px] border-transparent hover:text-gray-600 -mb-px transition-colors">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+          Progress
+        </button>
       </div>
       <!-- Date navigator — Daily tab only -->
       <div id="date-nav" class="flex items-center justify-between px-6 py-2 border-b border-gray-200">
@@ -491,8 +498,10 @@ function switchTab(tab) {
   ['daily','weekly','progress'].forEach(t => {
     document.getElementById(`content-${t}`).classList.toggle('hidden', t !== tab)
     const btn = document.getElementById(`tab-${t}`)
-    if (btn) btn.className = `px-4 py-1.5 text-sm font-medium rounded-md transition-all ${
-      t === tab ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+    if (btn) btn.className = `px-4 h-full flex items-center gap-1.5 text-sm -mb-px transition-colors border-b-[3px] ${
+      t === tab
+        ? 'font-semibold text-gray-900 border-gray-900'
+        : 'font-medium text-gray-400 border-transparent hover:text-gray-600'
     }`
   })
   document.getElementById('date-nav').classList.toggle('hidden', tab !== 'daily')

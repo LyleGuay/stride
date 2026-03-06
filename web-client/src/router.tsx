@@ -7,6 +7,9 @@ import CalorieLog from './pages/CalorieLog'
 import Habits from './pages/Habits'
 import Login from './pages/Login'
 import Settings from './pages/settings'
+import RecipeList from './pages/RecipeList'
+import RecipeDetail from './pages/RecipeDetail'
+import RecipeExecution from './pages/RecipeExecution'
 import RequireAuth from './components/RequireAuth'
 
 export default function Router() {
@@ -25,6 +28,9 @@ export default function Router() {
           <Route path="calorie-log" element={<CalorieLog />} />
           <Route path="habits" element={<Habits />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="recipes" element={<RecipeList />} />
+          <Route path="recipes/:id" element={<RecipeDetail />} />
+          <Route path="recipes/:id/cook" element={<RecipeExecution />} />
         </Route>
       </Routes>
     </BrowserRouter>

@@ -17,6 +17,7 @@ import {
   type CalorieLogFavorite,
 } from '../api'
 import { useDailySummary } from '../hooks/useDailySummary'
+import { useSidebar } from '../components/SidebarContext'
 import { todayString, getMondayOf } from '../utils/dates'
 import { getRangeDates, type ProgressRange } from '../utils/progressGrouping'
 import { ITEM_TYPES } from '../constants'
@@ -306,23 +307,81 @@ export default function CalorieLog() {
 
   const { start: progressStart, end: progressEnd } = getRangeDates(progressRange, earliestLogDate ?? null)
   const userUnits = summary?.settings?.units ?? 'imperial'
+  const { setOpen: setSidebarOpen } = useSidebar()
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-4 pb-24">
+    <div className="pb-24">
 
-      {/* Segment control — always visible regardless of tab or load state */}
-      <div className="flex bg-gray-100 rounded-lg p-1 mb-4">
-        {(['daily', 'weekly', 'progress'] as const).map(t => (
+      {/* ── Sticky header: tabs + conditional date nav ─────────────────── */}
+      <div className="sticky top-0 z-20 bg-white">
+        {/* Tab row — h-14 matches sidebar logo height for a continuous chrome line */}
+        <div className="flex items-end px-6 border-b border-gray-200" style={{ height: 56 }}>
+          {/* Hamburger (mobile only) */}
           <button
-            key={t}
-            onClick={() => setTab(t)}
-            className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-colors
-              ${tab === t ? 'bg-white text-gray-800 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+            onClick={() => setSidebarOpen(true)}
+            className="p-1 -ml-1 mr-3 rounded-md hover:bg-gray-100 lg:hidden self-center"
           >
-            {t === 'daily' ? 'Daily' : t === 'weekly' ? 'Weekly' : 'Progress'}
+            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+            </svg>
           </button>
-        ))}
+
+          {/* Daily tab */}
+          <button
+            onClick={() => setTab('daily')}
+            className={`px-4 h-full flex items-center gap-1.5 text-sm -mb-px transition-colors border-b-[3px] ${
+              tab === 'daily'
+                ? 'font-semibold text-gray-900 border-gray-900'
+                : 'font-medium text-gray-400 border-transparent hover:text-gray-600'
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+            </svg>
+            Daily
+          </button>
+
+          {/* Weekly tab */}
+          <button
+            onClick={() => setTab('weekly')}
+            className={`px-4 h-full flex items-center gap-1.5 text-sm -mb-px transition-colors border-b-[3px] ${
+              tab === 'weekly'
+                ? 'font-semibold text-gray-900 border-gray-900'
+                : 'font-medium text-gray-400 border-transparent hover:text-gray-600'
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+            </svg>
+            Weekly
+          </button>
+
+          {/* Progress tab */}
+          <button
+            onClick={() => setTab('progress')}
+            className={`px-4 h-full flex items-center gap-1.5 text-sm -mb-px transition-colors border-b-[3px] ${
+              tab === 'progress'
+                ? 'font-semibold text-gray-900 border-gray-900'
+                : 'font-medium text-gray-400 border-transparent hover:text-gray-600'
+            }`}
+          >
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
+            </svg>
+            Progress
+          </button>
+        </div>
+
+        {/* Date navigator — shown only on Daily tab */}
+        {tab === 'daily' && (
+          <div className="border-b border-gray-200">
+            <DateHeader date={date} onDateChange={setDate} />
+          </div>
+        )}
       </div>
+
+      {/* ── Tab content ────────────────────────────────────────────────── */}
+      <div className="max-w-3xl mx-auto px-4 py-4">
 
       {/* ── Weekly tab ─────────────────────────────────────────────────── */}
       {tab === 'weekly' && (
@@ -369,7 +428,6 @@ export default function CalorieLog() {
 
           {summary && (
             <>
-              <DateHeader date={date} onDateChange={setDate} />
               <DailySummary summary={summary} />
               <ItemTable
                 items={summary.items}
@@ -421,6 +479,7 @@ export default function CalorieLog() {
         onDelete={handleDeleteFavorite}
         onClose={() => setManageFavoritesOpen(false)}
       />
+      </div>{/* end max-w-3xl content */}
     </div>
   )
 }

@@ -332,14 +332,15 @@ func (h *Handler) createCalorieLogItem(c *gin.Context) {
 	}
 
 	item, err := queryOne[calorieLogItem](h.db, c,
-		`INSERT INTO calorie_log_items (user_id, date, item_name, type, qty, uom, calories, protein_g, carbs_g, fat_g)
-		 VALUES (@userID, @date, @itemName, @type, @qty, @uom, @calories, @proteinG, @carbsG, @fatG)
+		`INSERT INTO calorie_log_items (user_id, date, item_name, type, qty, uom, calories, protein_g, carbs_g, fat_g, recipe_id)
+		 VALUES (@userID, @date, @itemName, @type, @qty, @uom, @calories, @proteinG, @carbsG, @fatG, @recipeID)
 		 RETURNING *`,
 		pgx.NamedArgs{
 			"userID": userID, "date": body.Date, "itemName": body.ItemName,
 			"type": body.Type, "qty": body.Qty, "uom": body.Uom,
 			"calories": body.Calories, "proteinG": body.ProteinG,
 			"carbsG": body.CarbsG, "fatG": body.FatG,
+			"recipeID": body.RecipeID,
 		})
 	if err != nil {
 		apiError(c, http.StatusInternalServerError, "failed to create item")
@@ -365,6 +366,7 @@ func (h *Handler) updateCalorieLogItem(c *gin.Context) {
 		ProteinG *float64 `json:"protein_g"`
 		CarbsG   *float64 `json:"carbs_g"`
 		FatG     *float64 `json:"fat_g"`
+		RecipeID *int     `json:"recipe_id"`
 	}
 	if err := c.ShouldBindJSON(&body); err != nil {
 		apiError(c, http.StatusBadRequest, "invalid request body")
@@ -382,6 +384,7 @@ func (h *Handler) updateCalorieLogItem(c *gin.Context) {
 			protein_g = COALESCE(@proteinG, protein_g),
 			carbs_g = COALESCE(@carbsG, carbs_g),
 			fat_g = COALESCE(@fatG, fat_g),
+			recipe_id = COALESCE(@recipeID, recipe_id),
 			updated_at = now()
 		 WHERE id = @id AND user_id = @userID
 		 RETURNING *`,
@@ -390,6 +393,7 @@ func (h *Handler) updateCalorieLogItem(c *gin.Context) {
 			"date": body.Date, "itemName": body.ItemName, "type": body.Type,
 			"qty": body.Qty, "uom": body.Uom, "calories": body.Calories,
 			"proteinG": body.ProteinG, "carbsG": body.CarbsG, "fatG": body.FatG,
+			"recipeID": body.RecipeID,
 		})
 	if err != nil {
 		apiError(c, http.StatusNotFound, "item not found")

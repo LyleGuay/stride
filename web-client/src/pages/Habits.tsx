@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useSidebar } from '../components/SidebarContext'
 
 interface Habit {
   id: string
@@ -10,6 +11,7 @@ interface Habit {
 export default function Habits() {
   const [habits, setHabits] = useState<Habit[]>([])
   const [newHabitName, setNewHabitName] = useState('')
+  const { setOpen: setSidebarOpen } = useSidebar()
 
   const today = new Date().toISOString().split('T')[0]
 
@@ -42,6 +44,19 @@ export default function Habits() {
   }
 
   return (
+    <div>
+      {/* Sticky h-14 header — matches sidebar logo height for continuous chrome line */}
+      <div className="sticky top-0 z-20 bg-white h-14 flex items-center px-6 border-b border-gray-200">
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="p-1 -ml-1 mr-3 rounded-md hover:bg-gray-100 lg:hidden"
+        >
+          <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+          </svg>
+        </button>
+        <h2 className="text-sm font-semibold text-gray-800">Habits</h2>
+      </div>
     <div className="max-w-md mx-auto p-4">
       <div className="flex gap-2 mb-6">
         <input
@@ -104,6 +119,7 @@ export default function Habits() {
           })}
         </ul>
       )}
+    </div>
     </div>
   )
 }

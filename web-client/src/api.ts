@@ -1,10 +1,10 @@
 // API service layer — all backend calls go through request() which handles
 // auth headers, 401 redirects, and consistent error extraction.
 
-import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite } from './types'
+import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput } from './types'
 
 // Re-export types so existing imports from api.ts keep working.
-export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite }
+export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput }
 
 function getToken(): string | null {
   return localStorage.getItem('token')
@@ -148,6 +148,109 @@ export function createFavorite(fav: Omit<CalorieLogFavorite, 'id' | 'user_id' | 
 export function deleteFavorite(id: number) {
   return request<void>(`/api/calorie-log/favorites/${id}`, { method: 'DELETE' })
 }
+
+/* ─── Recipe API ──────────────────────────────────────────────────── */
+
+// fetchRecipes returns all recipes for the current user, ordered by last updated.
+export function fetchRecipes() {
+  return request<RecipeListItem[]>('/api/recipes')
+}
+
+// fetchRecipe returns the full detail for a single recipe (includes ingredients, tools, steps).
+export function fetchRecipe(id: number) {
+  return request<RecipeDetail>(`/api/recipes/${id}`)
+}
+
+// createRecipe inserts a new recipe with its sub-lists and returns the full detail.
+export function createRecipe(data: CreateRecipeInput) {
+  return request<RecipeDetail>('/api/recipes', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+// updateRecipe updates a recipe's fields and optionally replaces its sub-lists.
+export function updateRecipe(id: number, data: UpdateRecipeInput) {
+  return request<RecipeDetail>(`/api/recipes/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+// deleteRecipe deletes a recipe (FK cascade removes sub-tables).
+export function deleteRecipe(id: number) {
+  return request<void>(`/api/recipes/${id}`, { method: 'DELETE' })
+}
+
+// duplicateRecipe copies a recipe and all its sub-lists into a new record.
+export function duplicateRecipe(id: number) {
+  return request<RecipeDetail>(`/api/recipes/${id}/duplicate`, { method: 'POST' })
+}
+
+// generateRecipe calls OpenAI to create a new recipe from a text prompt,
+// inserts it into the DB, and returns the full detail.
+export function generateRecipe(prompt: string) {
+  return request<RecipeDetail>('/api/recipes/generate', {
+    method: 'POST',
+    body: JSON.stringify({ prompt }),
+  })
+}
+
+// aiModifyRecipe asks OpenAI to apply a modification to the current recipe.
+// The server does NOT save the result — the caller applies it to the local draft
+// and must call updateRecipe to persist.
+export function aiModifyRecipe(id: number, prompt: string) {
+  return request<CreateRecipeInput>(`/api/recipes/${id}/ai-modify`, {
+    method: 'POST',
+    body: JSON.stringify({ prompt }),
+  })
+}
+
+// aiCopyRecipe asks OpenAI to create a variation of the current recipe.
+// Same as aiModifyRecipe — result is a draft; caller saves as new via createRecipe.
+export function aiCopyRecipe(id: number, prompt: string) {
+  return request<CreateRecipeInput>(`/api/recipes/${id}/ai-copy`, {
+    method: 'POST',
+    body: JSON.stringify({ prompt }),
+  })
+}
+
+// aiNutrition estimates nutrition totals for the recipe's ingredient list.
+// Returns per-serving macros without saving anything.
+export function aiNutrition(id: number) {
+  return request<{ calories: number; protein_g: number; carbs_g: number; fat_g: number }>(
+    `/api/recipes/${id}/ai-nutrition`,
+    { method: 'POST' },
+  )
+}
+
+// logFromRecipe creates a calorie log item from a recipe, scaling macros by the
+// given servings multiplier and linking the entry back to the recipe via recipe_id.
+export function logFromRecipe(
+  recipe: RecipeDetail,
+  servings: number,
+  mealType: string,
+  date: string,
+) {
+  const scale = servings / recipe.servings
+  return request<CalorieLogItem>('/api/calorie-log/items', {
+    method: 'POST',
+    body: JSON.stringify({
+      date,
+      item_name: recipe.name,
+      type: mealType,
+      qty: servings,
+      uom: 'serving',
+      calories: recipe.calories != null ? Math.round(recipe.calories * scale) : 0,
+      protein_g: recipe.protein_g != null ? Math.round(recipe.protein_g * scale * 10) / 10 : null,
+      carbs_g: recipe.carbs_g != null ? Math.round(recipe.carbs_g * scale * 10) / 10 : null,
+      fat_g: recipe.fat_g != null ? Math.round(recipe.fat_g * scale * 10) / 10 : null,
+      recipe_id: recipe.id,
+    }),
+  })
+}
+
+/* ─── AI calorie suggestion ───────────────────────────────────────── */
 
 // fetchSuggestion asks the AI to parse a food/exercise description into structured
 // nutrition data. Returns the suggestion, or null if the food was unrecognized.

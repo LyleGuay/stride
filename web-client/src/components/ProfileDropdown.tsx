@@ -9,7 +9,7 @@ function initials(username: string): string {
   return (username[0] ?? 'U').toUpperCase()
 }
 
-// Avatar button with dropdown for settings and sign out.
+// Sidebar profile footer row with an upward-opening dropdown for settings and sign out.
 export default function ProfileDropdown() {
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
@@ -34,18 +34,26 @@ export default function ProfileDropdown() {
   }
 
   return (
-    <div ref={ref}>
+    <div ref={ref} className="relative">
+      {/* Trigger: full-width sidebar row with avatar + username + chevron */}
       <button
         onClick={() => setOpen(!open)}
-        className="w-8 h-8 rounded-full bg-stride-600 text-white flex items-center justify-center text-sm font-medium hover:bg-stride-700 transition-colors"
+        className="flex items-center gap-3 w-full px-2 py-2 rounded-lg hover:bg-gray-50 transition-colors text-left"
       >
-        {avatar}
+        <div className="w-8 h-8 rounded-full bg-stride-600 text-white flex items-center justify-center text-sm font-medium shrink-0">
+          {avatar}
+        </div>
+        <span className="flex-1 text-sm font-medium text-gray-700 truncate">{username}</span>
+        <svg className="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 15 12 18.75 15.75 15m-7.5-6L12 5.25 15.75 9" />
+        </svg>
       </button>
 
+      {/* Dropdown opens upward since this is at the bottom of the sidebar */}
       {open && (
-        <div className="absolute right-0 top-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px] z-60">
+        <div className="absolute bottom-full left-0 right-0 mb-1 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-60">
           <button
-            onClick={() => setOpen(false)}
+            onClick={() => { setOpen(false); navigate('/settings') }}
             className="flex items-center gap-2 w-full px-3.5 py-1.5 text-[13px] text-gray-700 hover:bg-gray-100"
           >
             <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
