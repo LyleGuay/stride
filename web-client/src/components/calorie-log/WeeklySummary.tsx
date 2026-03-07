@@ -72,14 +72,8 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
   // Project the tracked-day rate to a full week for comparison with target pace
   const weeklyRate   = tdee > 0 && dataDays.length > 0 ? (weightImpact / dataDays.length) * 7 : 0
 
-  // totalLeft is used only for the budget progress bar (separate from weight impact)
   const totalLeft    = dataDays.reduce((s, d) => s + d.calories_left, 0)
-
-  // Progress bar: net calories consumed vs period budget (budget × tracked days)
   const netConsumed  = dataDays.reduce((s, d) => s + d.net_calories, 0)
-  const periodBudget = budget * dataDays.length
-  const barPct       = periodBudget > 0 ? Math.min(100, (netConsumed / periodBudget) * 100) : 0
-  const isOverBudget = netConsumed > periodBudget
 
   /* ─── SVG chart scale ──────────────────────────────────────────────── */
 
@@ -140,8 +134,59 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
             </div>
             <div className="bg-white rounded-xl border border-gray-200 p-3 text-center shadow-sm">
               <div className="text-[11px] text-gray-400 mb-1 font-medium uppercase tracking-wide">Budget</div>
-              <div className="text-xl font-bold text-gray-900 leading-tight">{weeklyBudget.toLocaleString()}</div>
-              <div className="text-[10px] text-gray-400 mt-0.5">cal / week</div>
+              <div className={`text-xl font-bold leading-tight ${netConsumed > weeklyBudget ? 'text-red-600' : 'text-gray-900'}`}>
+                {netConsumed.toLocaleString()}
+              </div>
+              <div className="text-[10px] text-gray-400 mt-0.5">/ {weeklyBudget.toLocaleString()} net</div>
+              {dataDays.length > 0 && (
+                <div className="mt-2 h-1 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className={`h-full rounded-full ${netConsumed > weeklyBudget ? 'bg-red-400' : 'bg-green-400'}`}
+                    style={{ width: `${Math.min(100, (netConsumed / weeklyBudget) * 100)}%` }}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* ── Estimated Weight Impact ───────────────────────────────────── */}
+          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <h3 className="text-sm font-semibold text-gray-700">Estimated Weight Impact</h3>
+                <p className="text-[11px] text-gray-400 mt-0.5">
+                  Based on {dataDays.length} of 7 days tracked this week
+                </p>
+              </div>
+              {/* Right: big impact number + pace boxes — only shown when TDEE is known */}
+              {dataDays.length > 0 && tdee > 0 && (
+                <div className="text-right flex-shrink-0">
+                  <div className={`text-2xl font-bold leading-tight ${weightImpactColor(weightImpact, settings?.weight_lbs, settings?.target_weight_lbs)}`}>
+                    {(-weeklyRate) >= 0 ? '+' : ''}{(-weeklyRate).toFixed(1)} lbs/wk
+                  </div>
+                  {settings?.pace_lbs_per_week != null && (() => {
+                    const pace = settings.pace_lbs_per_week!
+                    const diff = weeklyRate + pace
+                    const diffColor = weightImpactColor(diff, settings.weight_lbs, settings.target_weight_lbs)
+                    return (
+                      <div className="flex gap-1.5 mt-1.5 justify-end">
+                        <div className="bg-gray-50 rounded px-1.5 py-1 text-center">
+                          <div className="text-[9px] text-gray-400 leading-none mb-0.5">Target</div>
+                          <div data-testid="weekly-target-pace" className="text-[11px] font-semibold text-gray-600">
+                            {pace > 0 ? '+' : ''}{pace.toFixed(1)} lbs/wk
+                          </div>
+                        </div>
+                        <div className="bg-gray-50 rounded px-1.5 py-1 text-center">
+                          <div className="text-[9px] text-gray-400 leading-none mb-0.5">vs Target</div>
+                          <div className={`text-[11px] font-semibold ${diffColor}`}>
+                            {(-diff) >= 0 ? '+' : ''}{(-diff).toFixed(1)} lbs/wk
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
+                </div>
+              )}
             </div>
           </div>
 
@@ -299,69 +344,6 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
               <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded bg-gray-200" />No data
               </div>
-            </div>
-          </div>
-
-          {/* ── Estimated Weight Impact ───────────────────────────────────── */}
-          <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
-            <div className="flex items-start gap-3">
-              {/* Left: heading, tracked days count, progress bar */}
-              <div className="flex-1 min-w-0">
-                <h3 className="text-sm font-semibold text-gray-700">Estimated Weight Impact</h3>
-                <p className="text-[11px] text-gray-400 mt-0.5">
-                  Based on {dataDays.length} of 7 days tracked this week
-                </p>
-                {dataDays.length > 0 && (
-                  <div className="mt-2.5">
-                    <div className="flex justify-between text-[11px] text-gray-400 mb-1">
-                      <span>{netConsumed.toLocaleString()} net cal consumed</span>
-                      <span>{periodBudget.toLocaleString()} budget ({dataDays.length} days)</span>
-                    </div>
-                    <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
-                      <div
-                        className={`h-full rounded-full ${isOverBudget ? 'bg-red-400' : 'bg-green-400'}`}
-                        style={{ width: `${barPct}%` }}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-              {/* Right: big impact number + pace boxes — only shown when TDEE is known */}
-              {dataDays.length > 0 && tdee > 0 && (
-                <div className="text-right flex-shrink-0">
-                  <div className={`text-2xl font-bold leading-tight ${weightImpactColor(weightImpact, settings?.weight_lbs, settings?.target_weight_lbs)}`}>
-                    {/* Display as projected lbs/wk (weight-change convention: + = gaining, - = losing).
-                        weeklyRate is in deficit convention, so negate: -weeklyRate matches daily view's sign. */}
-                    {(-weeklyRate) >= 0 ? '+' : ''}{(-weeklyRate).toFixed(1)} lbs/wk
-                  </div>
-                  {/* Target pace and diff from target */}
-                  {settings?.pace_lbs_per_week != null && (() => {
-                    const pace = settings.pace_lbs_per_week!
-                    // weeklyRate: positive = calorie deficit = losing weight; negative = surplus = gaining.
-                    // pace: negative = loss goal, positive = gain goal (opposite sign to weeklyRate convention).
-                    // diff = weeklyRate + pace converts pace to same convention: >0 means ahead, <0 means behind.
-                    const diff = weeklyRate + pace
-                    const diffColor = weightImpactColor(diff, settings.weight_lbs, settings.target_weight_lbs)
-                    return (
-                      <div className="flex gap-1.5 mt-1.5 justify-end">
-                        <div className="bg-gray-50 rounded px-1.5 py-1 text-center">
-                          <div className="text-[9px] text-gray-400 leading-none mb-0.5">Target</div>
-                          <div data-testid="weekly-target-pace" className="text-[11px] font-semibold text-gray-600">
-                            {pace > 0 ? '+' : ''}{pace.toFixed(1)} lbs/wk
-                          </div>
-                        </div>
-                        <div className="bg-gray-50 rounded px-1.5 py-1 text-center">
-                          <div className="text-[9px] text-gray-400 leading-none mb-0.5">vs Target</div>
-                          <div className={`text-[11px] font-semibold ${diffColor}`}>
-                            {/* Negate diff to match weight-change convention: +X = gaining above target, -X = ahead (losing faster) */}
-                            {(-diff) >= 0 ? '+' : ''}{(-diff).toFixed(1)} lbs/wk
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })()}
-                </div>
-              )}
             </div>
           </div>
 

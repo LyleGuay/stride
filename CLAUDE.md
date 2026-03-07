@@ -98,7 +98,7 @@ This is not optional. Outdated docs actively mislead, so treat doc updates as pa
 - Run the relevant linter/typecheck after making changes. Fix issues before moving on.
 - Run relevant tests after changes. Do not mark work as done if tests fail.
 - Do not modify test expectations to make tests pass unless the test was wrong. If a test fails, fix the code.
-- **Every feature or bug fix should include corresponding tests.** When building a plan, explicitly scope out what tests are needed — Go unit tests for pure logic, Vitest tests for web-client hooks/utilities, Jest/RNTL tests for mobile-client logic, Playwright E2E for new critical web flows, and manual test steps for mobile UX flows. Test tasks belong in the same phase as the code they cover, not a separate phase at the end.
+- **Every feature or bug fix should include corresponding tests.** When building a plan, explicitly scope out what tests are needed — Go unit tests for pure logic, Vitest tests for web-client hooks/utilities, Playwright E2E for new critical web flows (including a `Mobile Chrome` project for mobile viewport coverage), and manual test steps for native device UX flows. Test tasks belong in the same phase as the code they cover, not a separate phase at the end.
 
 ## Testing Strategy
 
@@ -144,21 +144,15 @@ Covers critical user flows only — happy paths that verify the app works end-to
 - Edit an item inline → verify change persists on reload
 - Settings save → verify calorie budget updates
 
-### Mobile Client (`mobile-client/`)
+### Android / Capacitor (`web-client/` built with Capacitor)
 
-**Tools:** Jest + React Native Testing Library (via Expo's default Jest preset).
+Mobile is tested at two levels:
 
-**What to test:**
-- Pure utility functions and business logic (same rule as web-client — if there are real edge cases, test them).
-- Custom hooks with non-trivial state or side-effect logic.
-- Components with complex conditional logic that would be hard to catch manually (e.g. multi-step flows, form validation).
+**Playwright `Mobile Chrome` project** — runs the full E2E suite against a Pixel 7 viewport in a desktop browser. Catches responsive layout bugs (breakpoint-gated components, column hiding, etc.) without needing a real device. Add `{ name: 'Mobile Chrome', use: { ...devices['Pixel 7'] } }` to `e2e/playwright.config.ts` and write mobile-specific specs in `e2e/tests/*-mobile.spec.ts` where behaviour diverges from desktop.
 
-**What to skip:**
-- Purely presentational components — manual device testing covers what matters.
-- Navigation flows — too tied to the RN/Expo runtime to be worth mocking.
-- Anything that requires the native layer (camera, sensors, etc.) — test those manually.
+**Manual testing on physical Pixel** — required for anything touching Capacitor native APIs (safe area insets, haptics, camera, status bar) or genuine touch UX (scrolling feel, keyboard avoiding, gesture nav). When writing tasks, specify: "Manually verify on Android (physical Pixel): ..."
 
-**Manual testing:** For UI/UX flows and anything touching native APIs, test manually on a device or simulator. When writing tasks, specify the platform: iOS simulator, Android emulator, or physical device.
+`mobile-client/` (Expo) is not actively developed and has no test requirements.
 
 ### CI Order of Operations
 
@@ -188,11 +182,11 @@ Stride is a personal life & productivity dashboard — habits, tasks, goals, cal
 ## Modules
 
 - **`go-api/`** — Go backend (Gin + PostgreSQL via pgx). This is the active backend.
-- **`web-client/`** — React frontend (Vite + Tailwind CSS + PWA). **Desktop primary.** Mobile is tolerated as a fallback (e.g. if the mobile app is broken) but not optimized for.
-- **`mobile-client/`** — Expo React Native app. **Android only** (Google Pixel) — no iOS, no tablet/desktop support.
+- **`web-client/`** — React frontend (Vite + Tailwind CSS + PWA). **Desktop primary, Android via Capacitor.** The same codebase is built as a native Android APK using Capacitor (`npm run cap:sync`). Platform-specific behaviour is gated via `src/platform/index.ts`.
+- **`mobile-client/`** — Expo React Native scaffold. **Not actively developed** — mobile is handled via Capacitor in `web-client/`.
 - **`packages/shared/`** — Shared TypeScript types and pure utilities consumed by both clients.
 
-**`web-client` mobile policy:** Don't actively break mobile — avoid fixed pixel widths and hover-only primary actions. Hover is fine for progressive disclosure (tooltips, info popovers). Do not add responsive breakpoints, mobile-specific variants, or optimize layouts for small screens. If something looks bad on mobile, that's acceptable.
+**`web-client` mobile policy:** Desktop and Android are both first-class targets. Use Tailwind responsive breakpoints (`sm:`) to adapt layouts — the `sm` breakpoint (640px) is the primary desktop/mobile split. Hide desktop-only interactions (e.g. `InlineAddRow`) below `sm`. Gate native-only behaviour (e.g. haptics, camera) on `platform.isNative` from `src/platform/index.ts`. Hover interactions are fine for progressive disclosure on desktop; ensure primary actions are also accessible via tap on mobile.
 
 ## Commands
 

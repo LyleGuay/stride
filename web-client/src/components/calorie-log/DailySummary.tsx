@@ -55,7 +55,7 @@ function paceColor(gaining: boolean, deficit: number, weightLbs?: number | null,
 
 export default function DailySummary({ summary }: Props) {
   const {
-    net_calories, calories_left, calories_food, calories_exercise,
+    net_calories, calories_food, calories_exercise,
     calorie_budget, protein_g, carbs_g, fat_g, items, settings,
   } = summary
 
@@ -82,8 +82,8 @@ export default function DailySummary({ summary }: Props) {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-lg font-bold">{calories_left.toLocaleString()}</span>
-          <span className="text-[10px] text-gray-400">left</span>
+          <span className="text-lg font-bold">{net_calories.toLocaleString()}</span>
+          <span className="text-[10px] text-gray-400">net</span>
         </div>
       </div>
 
