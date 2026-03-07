@@ -6,7 +6,7 @@
 
 import { useState } from 'react'
 import type { WeekDaySummary, CalorieLogUserSettings } from '../../types'
-import { todayString, getMondayOf, shiftWeek, formatWeekRange, dayLabel, dayNumber } from '../../utils/dates'
+import { todayString, shiftWeek, formatWeekRange, dayLabel, dayNumber } from '../../utils/dates'
 
 interface WeeklySummaryProps {
   days: WeekDaySummary[]
@@ -52,9 +52,6 @@ const slotCenter = (i: number) => X_START + (i + 0.5) * SLOT_W
 
 export default function WeeklySummary({ days, loading, error, weekStart, onWeekChange, onNavigateToDay, settings }: WeeklySummaryProps) {
   const [tooltipIdx, setTooltipIdx] = useState(-1)
-
-  const currentWeekStart = getMondayOf(todayString())
-  const isCurrentWeek = weekStart === currentWeekStart
 
   /* ─── Aggregate stats (only over days that have data) ─────────────── */
 
@@ -106,36 +103,6 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
 
   return (
     <div className="space-y-4">
-
-      {/* ── Week navigator ─────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={() => onWeekChange(shiftWeek(weekStart, -1))}
-          className="p-2 rounded-lg hover:bg-gray-100 text-gray-500 active:bg-gray-200"
-          aria-label="Previous week"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/>
-          </svg>
-        </button>
-        <div className="text-center">
-          <div className="font-semibold text-gray-900">{formatWeekRange(weekStart)}</div>
-          {isCurrentWeek
-            ? <div className="text-xs text-blue-600 font-medium">Current week</div>
-            : <div className="text-xs text-gray-400">&nbsp;</div>
-          }
-        </div>
-        <button
-          onClick={() => onWeekChange(shiftWeek(weekStart, 1))}
-          disabled={isCurrentWeek}
-          className="p-2 rounded-lg text-gray-500 hover:bg-gray-100 active:bg-gray-200 disabled:text-gray-200 disabled:cursor-not-allowed"
-          aria-label="Next week"
-        >
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
-          </svg>
-        </button>
-      </div>
 
       {/* ── Loading spinner ─────────────────────────────────────────────── */}
       {loading && (

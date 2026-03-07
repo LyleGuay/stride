@@ -8,6 +8,7 @@
 // Progress tab: renders ProgressView with calorie trend chart, weight log, and stats.
 
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router'
 import {
   fetchWeekSummary, createCalorieLogItem, updateCalorieLogItem, deleteCalorieLogItem,
   fetchProgress, fetchEarliestLogDate, fetchWeightLog,
@@ -18,10 +19,11 @@ import {
 } from '../api'
 import { useDailySummary } from '../hooks/useDailySummary'
 import { useSidebar } from '../components/SidebarContext'
-import { todayString, getMondayOf } from '../utils/dates'
+import { todayString, getMondayOf, shiftWeek, formatWeekRange } from '../utils/dates'
 import { getRangeDates, type ProgressRange } from '../utils/progressGrouping'
 import { ITEM_TYPES } from '../constants'
 import DateHeader from '../components/calorie-log/DateHeader'
+import { RANGE_LABELS } from '../components/calorie-log/ProgressView'
 import DailySummary from '../components/calorie-log/DailySummary'
 import ItemTable from '../components/calorie-log/ItemTable'
 import AddItemSheet from '../components/calorie-log/AddItemSheet'
@@ -370,14 +372,78 @@ export default function CalorieLog() {
             </svg>
             Progress
           </button>
+
+          {/* Settings gear — right-aligned, always visible in the header */}
+          <Link
+            to="/settings"
+            title="Settings"
+            className="ml-auto self-center p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors hidden lg:flex"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z" />
+              <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z" />
+            </svg>
+          </Link>
         </div>
 
-        {/* Date navigator — shown only on Daily tab */}
-        {tab === 'daily' && (
-          <div className="border-b border-gray-200">
+        {/* Tab sub-header — date/week navigator or range selector depending on active tab */}
+        <div className="border-b border-gray-200">
+          {tab === 'daily' && (
             <DateHeader date={date} onDateChange={setDate} />
-          </div>
-        )}
+          )}
+          {tab === 'weekly' && (() => {
+            const isCurrentWeek = getMondayOf(todayString()) === weekStart
+            return (
+              <div className="flex items-center justify-center py-2.5">
+                <div className="flex items-center bg-gray-100 rounded-full px-1 py-1">
+                  <button
+                    onClick={() => setWeekStart(shiftWeek(weekStart, -1))}
+                    className="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors flex items-center"
+                    aria-label="Previous week"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+                    </svg>
+                  </button>
+                  {/* Fixed-width center so the capsule doesn't jump as the week label changes */}
+                  <div className="flex items-center justify-center px-2 min-w-[196px]">
+                    <span className="text-sm font-semibold text-gray-800">{formatWeekRange(weekStart)}</span>
+                    {isCurrentWeek && (
+                      <span className="text-[10px] font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full ml-2 leading-none">now</span>
+                    )}
+                  </div>
+                  <button
+                    onClick={() => setWeekStart(shiftWeek(weekStart, 1))}
+                    disabled={isCurrentWeek}
+                    className="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors flex items-center disabled:text-gray-300 disabled:cursor-not-allowed"
+                    aria-label="Next week"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )
+          })()}
+          {tab === 'progress' && (
+            <div className="flex items-center justify-center py-2.5">
+              <div className="flex items-center bg-gray-100 rounded-full px-1 py-1">
+                {(Object.keys(RANGE_LABELS) as ProgressRange[]).map(r => (
+                  <button
+                    key={r}
+                    onClick={() => setProgressRange(r)}
+                    className={`px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                      progressRange === r ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    {RANGE_LABELS[r]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Tab content ────────────────────────────────────────────────── */}
@@ -400,7 +466,6 @@ export default function CalorieLog() {
       {tab === 'progress' && (
         <ProgressView
           range={progressRange}
-          onRangeChange={setProgressRange}
           progressData={progressData}
           weightEntries={weightEntries}
           loading={progressLoading}

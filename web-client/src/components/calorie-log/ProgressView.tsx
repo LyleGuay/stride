@@ -18,7 +18,6 @@ import LogWeightSheet from './LogWeightSheet'
 
 export interface ProgressViewProps {
   range: ProgressRange
-  onRangeChange: (r: ProgressRange) => void
   progressData: ProgressResponse | null
   weightEntries: WeightEntry[]
   loading: boolean
@@ -72,8 +71,8 @@ function weightUnitLabel(units: string): string {
 
 /* ─── Range labels ───────────────────────────────────────────────────────── */
 
-// Maps each ProgressRange to its compact pill label.
-const RANGE_LABELS: Record<ProgressRange, string> = {
+// Maps each ProgressRange to its compact pill label (also used by CalorieLog's sub-header).
+export const RANGE_LABELS: Record<ProgressRange, string> = {
   month: '1M',
   '6months': '6M',
   ytd: 'YTD',
@@ -84,7 +83,7 @@ const RANGE_LABELS: Record<ProgressRange, string> = {
 /* ─── Component ─────────────────────────────────────────────────────────── */
 
 export default function ProgressView({
-  range, onRangeChange,
+  range,
   progressData, weightEntries,
   loading, error,
   rangeStart, rangeEnd,
@@ -252,21 +251,9 @@ export default function ProgressView({
 
       {/* ── Period Summary — always rendered so range selector stays accessible */}
       <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
-        {/* Card header: title + range pills */}
-        <div className="flex items-center justify-between px-4 pt-4 pb-3 border-b border-gray-100">
+        {/* Card header */}
+        <div className="px-4 pt-4 pb-3 border-b border-gray-100">
           <h3 className="text-sm font-semibold text-gray-800">Period Summary</h3>
-          <div className="flex items-center gap-1">
-            {(Object.keys(RANGE_LABELS) as ProgressRange[]).map(r => (
-              <button
-                key={r}
-                onClick={e => { e.stopPropagation(); onRangeChange(r) }}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors
-                  ${range === r ? 'bg-gray-800 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-              >
-                {RANGE_LABELS[r]}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* Stats body — hidden during loading/error */}

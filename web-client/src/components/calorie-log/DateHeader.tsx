@@ -1,29 +1,31 @@
-// DateHeader — left/right arrows with "Today"/"Yesterday" or formatted date.
-// Sub-label shows full date (e.g. "Thu, Feb 13, 2026").
+// DateHeader — date navigator capsule with prev/next arrows.
+// "Today"/"Yesterday"/"Tomorrow" is shown in blue when applicable; plain date otherwise.
 
 interface Props {
   date: string // YYYY-MM-DD
   onDateChange: (date: string) => void
 }
 
-// Formats a YYYY-MM-DD string into a primary label and sub-label.
+// Formats a YYYY-MM-DD string into display labels.
+// isSpecial is true for Today/Yesterday/Tomorrow — the label is shown in blue.
 function getDateLabels(dateStr: string) {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const date = new Date(dateStr + 'T00:00:00')
   const diffDays = Math.round((today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24))
 
-  let primary: string
+  let primary = ''
+  let isSpecial = true
   if (diffDays === 0) primary = 'Today'
   else if (diffDays === 1) primary = 'Yesterday'
   else if (diffDays === -1) primary = 'Tomorrow'
-  else primary = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  else isSpecial = false
 
   const sub = date.toLocaleDateString('en-US', {
     weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
   })
 
-  return { primary, sub }
+  return { primary, sub, isSpecial }
 }
 
 // Shifts a YYYY-MM-DD string forward or backward by a number of days.
@@ -34,24 +36,41 @@ function shiftDate(dateStr: string, days: number): string {
 }
 
 export default function DateHeader({ date, onDateChange }: Props) {
-  const { primary, sub } = getDateLabels(date)
+  const { primary, sub, isSpecial } = getDateLabels(date)
 
   return (
-    <div className="flex items-center justify-between mb-4">
-      <button onClick={() => onDateChange(shiftDate(date, -1))} className="p-1.5 rounded hover:bg-gray-100">
-        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
-        </svg>
-      </button>
-      <div className="text-center">
-        <span className="text-base font-semibold">{primary}</span>
-        <span className="text-xs text-gray-500 ml-2">{sub}</span>
+    <div className="flex items-center justify-center py-2.5">
+      <div className="flex items-center bg-gray-100 rounded-full px-1 py-1">
+        <button
+          onClick={() => onDateChange(shiftDate(date, -1))}
+          className="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors flex items-center"
+          aria-label="Previous day"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5" />
+          </svg>
+        </button>
+        {/* Fixed-width center so the capsule doesn't jump as the date label changes */}
+        <div className="flex items-center justify-center px-2 min-w-[196px]">
+          {isSpecial ? (
+            <>
+              <span className="text-sm font-semibold text-blue-600">{primary}</span>
+              <span className="text-xs text-gray-500 ml-2">{sub}</span>
+            </>
+          ) : (
+            <span className="text-sm font-semibold text-gray-800">{sub}</span>
+          )}
+        </div>
+        <button
+          onClick={() => onDateChange(shiftDate(date, 1))}
+          className="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors flex items-center"
+          aria-label="Next day"
+        >
+          <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+          </svg>
+        </button>
       </div>
-      <button onClick={() => onDateChange(shiftDate(date, 1))} className="p-1.5 rounded hover:bg-gray-100">
-        <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
-        </svg>
-      </button>
     </div>
   )
 }

@@ -37,7 +37,6 @@ const mockProgressData: ProgressResponse = {
 function defaultProps(overrides: Partial<ProgressViewProps> = {}): ProgressViewProps {
   return {
     range: 'month',
-    onRangeChange: noop as unknown as (r: ProgressViewProps['range']) => void,
     progressData: mockProgressData,
     weightEntries: [],
     loading: false,
@@ -55,51 +54,7 @@ function defaultProps(overrides: Partial<ProgressViewProps> = {}): ProgressViewP
 /* ─── Tests ──────────────────────────────────────────────────────────────── */
 
 describe('ProgressView', () => {
-  describe('range selector', () => {
-    it('renders all five range buttons', () => {
-      render(<ProgressView {...defaultProps()} />)
-      expect(screen.getByRole('button', { name: '1M' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: '6M' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'YTD' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: '1Y' })).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'All' })).toBeInTheDocument()
-    })
-
-    it('calls onRangeChange with "ytd" when "YTD" is clicked', () => {
-      const onRangeChange = vi.fn()
-      render(<ProgressView {...defaultProps({ onRangeChange })} />)
-      fireEvent.click(screen.getByRole('button', { name: 'YTD' }))
-      expect(onRangeChange).toHaveBeenCalledWith('ytd')
-    })
-
-    it('calls onRangeChange with "all" when "All" is clicked', () => {
-      const onRangeChange = vi.fn()
-      render(<ProgressView {...defaultProps({ onRangeChange })} />)
-      fireEvent.click(screen.getByRole('button', { name: 'All' }))
-      expect(onRangeChange).toHaveBeenCalledWith('all')
-    })
-
-    it('calls onRangeChange with "month" when "1M" is clicked', () => {
-      const onRangeChange = vi.fn()
-      render(<ProgressView {...defaultProps({ range: 'ytd', onRangeChange })} />)
-      fireEvent.click(screen.getByRole('button', { name: '1M' }))
-      expect(onRangeChange).toHaveBeenCalledWith('month')
-    })
-
-    it('calls onRangeChange with "6months" when "6M" is clicked', () => {
-      const onRangeChange = vi.fn()
-      render(<ProgressView {...defaultProps({ onRangeChange })} />)
-      fireEvent.click(screen.getByRole('button', { name: '6M' }))
-      expect(onRangeChange).toHaveBeenCalledWith('6months')
-    })
-
-    it('calls onRangeChange with "lastyear" when "1Y" is clicked', () => {
-      const onRangeChange = vi.fn()
-      render(<ProgressView {...defaultProps({ onRangeChange })} />)
-      fireEvent.click(screen.getByRole('button', { name: '1Y' }))
-      expect(onRangeChange).toHaveBeenCalledWith('lastyear')
-    })
-  })
+  // Range selector tests removed — the range pills moved to CalorieLog's sticky sub-header.
 
   describe('loading state', () => {
     it('renders a spinner when loading=true', () => {
@@ -108,11 +63,9 @@ describe('ProgressView', () => {
       expect(screen.queryByText('Calories')).not.toBeInTheDocument()
     })
 
-    it('Period Summary card (with range selector) is visible during loading', () => {
+    it('Period Summary card is visible during loading', () => {
       render(<ProgressView {...defaultProps({ loading: true })} />)
       expect(screen.getByText('Period Summary')).toBeInTheDocument()
-      // Range pills still accessible
-      expect(screen.getByRole('button', { name: '1M' })).toBeInTheDocument()
     })
 
     it('does not render stats body or chart cards when loading', () => {
@@ -129,10 +82,9 @@ describe('ProgressView', () => {
       expect(screen.getByText('Failed to load progress data')).toBeInTheDocument()
     })
 
-    it('Period Summary card (with range selector) is visible during error', () => {
+    it('Period Summary card is visible during error', () => {
       render(<ProgressView {...defaultProps({ error: 'oops' })} />)
       expect(screen.getByText('Period Summary')).toBeInTheDocument()
-      expect(screen.getByRole('button', { name: 'YTD' })).toBeInTheDocument()
     })
 
     it('does not render stats body or chart cards when in error state', () => {
