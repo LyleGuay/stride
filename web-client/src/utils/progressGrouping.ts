@@ -12,6 +12,15 @@ import { todayString } from './dates'
 // Determines both the date window (getRangeDates) and bar grouping (groupDays).
 export type ProgressRange = 'month' | '6months' | 'ytd' | 'lastyear' | 'all'
 
+// Maps each ProgressRange to its compact pill label used in the sub-header.
+export const RANGE_LABELS: Record<ProgressRange, string> = {
+  month: '1M',
+  '6months': '6M',
+  ytd: 'YTD',
+  lastyear: '1Y',
+  all: 'All',
+}
+
 /* ─── ChartBar ──────────────────────────────────────────────────────────── */
 
 // ChartBar represents one bar in the Progress tab calorie chart.

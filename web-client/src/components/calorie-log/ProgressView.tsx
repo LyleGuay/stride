@@ -69,16 +69,6 @@ function weightUnitLabel(units: string): string {
   return units === 'metric' ? 'kg' : 'lbs'
 }
 
-/* ─── Range labels ───────────────────────────────────────────────────────── */
-
-// Maps each ProgressRange to its compact pill label (also used by CalorieLog's sub-header).
-export const RANGE_LABELS: Record<ProgressRange, string> = {
-  month: '1M',
-  '6months': '6M',
-  ytd: 'YTD',
-  lastyear: '1Y',
-  all: 'All',
-}
 
 /* ─── Component ─────────────────────────────────────────────────────────── */
 
