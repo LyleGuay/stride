@@ -129,8 +129,9 @@ test.describe('Recipes', () => {
     // Calories should show 800 (2 × 400)
     await expect(page.getByTestId('scaled-calories')).toHaveText('800')
 
-    // Save to log
+    // Save to log — wait for network idle to ensure the POST completes before navigating
     await page.getByRole('button', { name: /Save to Log/i }).click()
+    await page.waitForLoadState('networkidle')
 
     // Navigate to calorie log and verify the item appears
     await page.goto('/calorie-log')
