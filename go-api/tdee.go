@@ -79,6 +79,49 @@ func computeTDEE(s *calorieLogUserSettings) (bmr, tdee, budget int, paceLbsPerWe
 	return int(math.Round(bmrF)), int(math.Round(tdeeF)), int(math.Round(budgetF)), pace, true
 }
 
+// tdeeForDay computes TDEE for a specific historical date using an explicit weight
+// and activity level string. Uses current profile (height, sex, DOB) but overrides
+// weight and computes age from DOB at asOfDate rather than today.
+// Returns (tdee, ok) — ok=false if any required profile field is nil or activity level unknown.
+func tdeeForDay(s *calorieLogUserSettings, weightLBS float64, activityLevel string, asOfDate time.Time) (float64, bool) {
+	if s.Sex == nil || s.DateOfBirth == nil || s.HeightCM == nil {
+		return 0, false
+	}
+	mult, found := activityMultipliers[activityLevel]
+	if !found {
+		return 0, false
+	}
+	// Age at asOfDate, not today — critical for historical accuracy.
+	age := asOfDate.Year() - s.DateOfBirth.Year()
+	if asOfDate.Before(s.DateOfBirth.AddDate(age, 0, 0)) {
+		age--
+	}
+	if age < 0 || age > 130 {
+		return 0, false
+	}
+	weightKG := weightLBS / 2.20462
+	bmrF := 10*weightKG + 6.25**s.HeightCM - 5*float64(age)
+	if *s.Sex == "male" {
+		bmrF += 5
+	} else {
+		bmrF -= 161
+	}
+	return bmrF * mult, true
+}
+
+// weightAtOrBefore returns the most recent weight_lbs from entries with date <= dateStr.
+// Falls back to fallback when no qualifying entry exists (e.g. no weight logged yet).
+// entries must be sorted ascending by date.
+func weightAtOrBefore(entries []weightEntry, dateStr string, fallback float64) float64 {
+	best := fallback
+	for _, e := range entries {
+		if e.Date.Format("2006-01-02") <= dateStr {
+			best = e.WeightLBS
+		}
+	}
+	return best
+}
+
 // currentMonday returns the Monday of the current week at midnight UTC.
 // Uses AddDate to safely handle month/year boundaries — direct day subtraction
 // can produce day=0 or negative, which time.Date normalizes but is confusing.

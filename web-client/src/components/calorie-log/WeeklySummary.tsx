@@ -10,6 +10,7 @@ import { todayString, shiftWeek, formatWeekRange, dayLabel, dayNumber } from '..
 
 interface WeeklySummaryProps {
   days: WeekDaySummary[]
+  estimatedWeightChangeLbs?: number  // TDEE-based weekly weight impact from backend
   loading: boolean
   error: string | null
   weekStart: string
@@ -50,7 +51,7 @@ const barX = (i: number) => X_START + i * SLOT_W + (SLOT_W - BAR_W) / 2
 // slotCenter returns the center x of slot i for labels and tooltips.
 const slotCenter = (i: number) => X_START + (i + 0.5) * SLOT_W
 
-export default function WeeklySummary({ days, loading, error, weekStart, onWeekChange, onNavigateToDay, settings }: WeeklySummaryProps) {
+export default function WeeklySummary({ days, estimatedWeightChangeLbs, loading, error, weekStart, onWeekChange, onNavigateToDay, settings }: WeeklySummaryProps) {
   const [tooltipIdx, setTooltipIdx] = useState(-1)
 
   /* ─── Aggregate stats (only over days that have data) ─────────────── */
@@ -61,16 +62,17 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
   const budget        = days[0]?.calorie_budget ?? 0
   const weeklyBudget  = budget * 7
 
-  // Weight impact: estimated actual weight change based on TDEE (consistent with daily view).
-  // Uses TDEE as the baseline rather than calorie budget — budget already has a goal deficit
-  // baked in, which would make the impact appear larger than the actual metabolic effect.
-  const tdee         = settings?.computed_tdee ?? 0
-  const totalDeficit = tdee > 0
+  // Weight impact: prefer backend TDEE-based estimate (per-day historical weight + age + config).
+  // Fall back to local estimate using current computed_tdee when backend value is absent.
+  const tdee = settings?.computed_tdee ?? 0
+  const localDeficit = tdee > 0
     ? dataDays.reduce((s, d) => s + (tdee - d.net_calories), 0)
     : 0
-  const weightImpact = tdee > 0 && dataDays.length > 0 ? totalDeficit / 3500 : 0
-  // Project the tracked-day rate to a full week for comparison with target pace
-  const weeklyRate   = tdee > 0 && dataDays.length > 0 ? (weightImpact / dataDays.length) * 7 : 0
+  const weightImpact = estimatedWeightChangeLbs != null
+    ? estimatedWeightChangeLbs
+    : (tdee > 0 && dataDays.length > 0 ? localDeficit / 3500 : 0)
+  // Project the tracked-day rate to a full week for comparison with target pace.
+  const weeklyRate = dataDays.length > 0 ? (weightImpact / dataDays.length) * 7 : 0
 
   const totalLeft    = dataDays.reduce((s, d) => s + d.calories_left, 0)
   const netConsumed  = dataDays.reduce((s, d) => s + d.net_calories, 0)
@@ -78,11 +80,11 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
   /* ─── SVG chart scale ──────────────────────────────────────────────── */
 
   // Scale bars against a round max value so grid lines land on nice numbers.
-  const dataMax = Math.max(budget, 1, ...days.map(d => d.net_calories))
+  // Include all per-day budgets so the scale stays correct when budgets vary across the week.
+  const dataMax = Math.max(1, ...days.map(d => d.net_calories), ...days.map(d => d.calorie_budget))
   // Round up to nearest 1000 for a clean grid
   const gridMax = Math.ceil(dataMax / 1000) * 1000
   const scaleY  = (v: number) => BAR_H * (Math.max(0, v) / gridMax)
-  const budgetLineY = Y_BOT - scaleY(budget)
 
   // Y-axis grid lines: 4 evenly spaced steps
   const gridSteps = [1, 0.75, 0.5, 0.25].map(f => ({
@@ -158,8 +160,8 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
                   Based on {dataDays.length} of 7 days tracked this week
                 </p>
               </div>
-              {/* Right: big impact number + pace boxes — only shown when TDEE is known */}
-              {dataDays.length > 0 && tdee > 0 && (
+              {/* Right: big impact number + pace boxes — shown when TDEE is known (backend or local) */}
+              {dataDays.length > 0 && (estimatedWeightChangeLbs != null || tdee > 0) && (
                 <div className="text-right flex-shrink-0">
                   <div className={`text-2xl font-bold leading-tight ${weightImpactColor(weightImpact, settings?.weight_lbs, settings?.target_weight_lbs)}`}>
                     {(-weeklyRate) >= 0 ? '+' : ''}{(-weeklyRate).toFixed(1)} lbs/wk
@@ -223,20 +225,6 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
                 {/* Baseline */}
                 <line x1={X_START} y1={Y_BOT} x2={X_END} y2={Y_BOT} stroke="#f3f4f6" strokeWidth={1} />
 
-                {/* Budget reference line — blue dashed */}
-                {budget > 0 && (
-                  <>
-                    <line
-                      x1={X_START} y1={budgetLineY}
-                      x2={X_END}   y2={budgetLineY}
-                      stroke="#2563eb" strokeWidth={1.5} strokeDasharray="5,3" opacity={0.7}
-                    />
-                    <text x={X_END + 2} y={budgetLineY + 3} fontSize={8} fill="#2563eb" opacity={0.8}>
-                      {budget.toLocaleString()}
-                    </text>
-                  </>
-                )}
-
                 {/* Bars + day labels */}
                 {days.map((day, i) => {
                   const isToday = day.date === todayString()
@@ -246,9 +234,11 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
 
                   const barHeight = day.has_data ? Math.max(3, scaleY(day.net_calories)) : 8
                   const barTop    = Y_BOT - barHeight
+                  // Use per-day budget for green/red determination (may differ from week default)
                   const fill = !day.has_data || isFuture
                     ? '#f3f4f6'
-                    : day.net_calories <= budget ? '#22c55e' : '#ef4444'
+                    : day.net_calories <= day.calorie_budget ? '#22c55e' : '#ef4444'
+                  const tickY = Y_BOT - scaleY(day.calorie_budget)
 
                   const labelColor = isFuture ? '#d1d5db' : isToday ? '#2563eb' : '#6b7280'
 
@@ -259,6 +249,13 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
                         fill={fill} rx={3} opacity={0.85}
                         className={day.has_data && !isFuture ? 'cursor-pointer hover:opacity-100' : ''}
                       />
+                      {/* Per-day budget tick mark */}
+                      {day.calorie_budget > 0 && (
+                        <line
+                          x1={bx - 3} y1={tickY} x2={bx + BAR_W + 3} y2={tickY}
+                          stroke="#2563eb" strokeWidth={2} opacity={0.8}
+                        />
+                      )}
                       {/* No-data placeholder dash */}
                       {!day.has_data && !isFuture && (
                         <text x={cx} y={Y_BOT - 12} textAnchor="middle" fontSize={9} fill="#d1d5db">—</text>
@@ -294,27 +291,24 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
             {/* HTML tooltip overlay — rendered outside the overflow-x-auto div so it isn't clipped */}
             {tooltipIdx >= 0 && days[tooltipIdx] && (() => {
               const day = days[tooltipIdx]
-              const delta = day.calories_left
               // Position as % of SVG viewBox width, clamped to prevent edge overflow
               const pct = Math.min(Math.max((slotCenter(tooltipIdx) / 430) * 100, 14), 86)
               return (
                 <div
                   className="absolute z-10 -translate-x-1/2 bg-gray-800 rounded-lg p-2.5 shadow-lg pointer-events-auto"
-                  style={{ left: `${pct}%`, bottom: '24%', width: 128 }}
+                  style={{ left: `${pct}%`, bottom: '24%', width: 140 }}
                   onClick={e => e.stopPropagation()}
                 >
-                  <div className="text-[10px] text-gray-400 mb-1.5">
+                  <div className="text-[10px] sm:text-xs text-gray-400 mb-1.5">
                     {new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
                   </div>
-                  <div className="flex justify-between text-[10px] mb-0.5">
+                  <div className="flex justify-between text-[10px] sm:text-xs mb-0.5">
                     <span className="text-gray-400">Net cal</span>
                     <span className="text-white font-semibold">{day.net_calories.toLocaleString()}</span>
                   </div>
-                  <div className="flex justify-between text-[10px] mb-2">
-                    <span className="text-gray-400">vs. budget</span>
-                    <span className={`font-semibold ${delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                      {delta >= 0 ? `+${delta.toLocaleString()}` : delta.toLocaleString()}
-                    </span>
+                  <div className="flex justify-between text-[10px] sm:text-xs mb-2">
+                    <span className="text-gray-400">Budget</span>
+                    <span className="text-white font-semibold">{day.calorie_budget.toLocaleString()}</span>
                   </div>
                   <button
                     className="w-full bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-medium py-1 rounded transition-colors"
@@ -337,9 +331,9 @@ export default function WeeklySummary({ days, loading, error, weekStart, onWeekC
               </div>
               <div className="flex items-center gap-1.5">
                 <svg width="16" height="8" viewBox="0 0 16 8">
-                  <line x1={0} y1={4} x2={16} y2={4} stroke="#2563eb" strokeWidth={1.5} strokeDasharray="4,2" opacity={0.7} />
+                  <line x1={0} y1={4} x2={16} y2={4} stroke="#2563eb" strokeWidth={2} opacity={0.8} />
                 </svg>
-                Budget ({budget.toLocaleString()})
+                Budget
               </div>
               <div className="flex items-center gap-1.5">
                 <div className="w-2.5 h-2.5 rounded bg-gray-200" />No data

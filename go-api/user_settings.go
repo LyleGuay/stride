@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jackc/pgx/v5"
@@ -29,6 +30,21 @@ func (h *Handler) getUserSettings(c *gin.Context) {
 	c.JSON(http.StatusOK, s)
 }
 
+// shouldRecordConfigHistory returns true if the patch request contains a change
+// to calorie_budget or activity_level that differs from the current settings.
+// Extracted as a pure function so it can be unit-tested without a DB.
+func shouldRecordConfigHistory(body patchUserSettingsRequest, cur *calorieLogUserSettings) bool {
+	if body.CalorieBudget != nil && *body.CalorieBudget != cur.CalorieBudget {
+		return true
+	}
+	if body.ActivityLevel != nil {
+		if cur.ActivityLevel == nil || *body.ActivityLevel != *cur.ActivityLevel {
+			return true
+		}
+	}
+	return false
+}
+
 // patchUserSettings updates only the provided calorie log settings fields.
 // PATCH /api/calorie-log/user-settings. Uses pointer fields in the request body
 // to distinguish "not provided" from zero — only non-nil fields get updated.
@@ -49,6 +65,42 @@ func (h *Handler) patchUserSettings(c *gin.Context) {
 		if _, ok := activityMultipliers[*body.ActivityLevel]; !ok {
 			apiError(c, http.StatusBadRequest, "activity_level must be one of: sedentary, light, moderate, active, very_active")
 			return
+		}
+	}
+
+	// If calorie_budget or activity_level is changing, snapshot the current values
+	// into calorie_config_history before overwriting them. This lets the progress
+	// endpoint resolve the correct budget/activity for any historical date.
+	if body.CalorieBudget != nil || body.ActivityLevel != nil {
+		cur, err := queryOne[calorieLogUserSettings](h.db, c,
+			"SELECT * FROM calorie_log_user_settings WHERE user_id = @userID",
+			pgx.NamedArgs{"userID": userID})
+		if err != nil {
+			log.Printf("[patchUserSettings] could not fetch current settings for history check (user %d): %v", userID, err)
+		} else if !shouldRecordConfigHistory(body, &cur) {
+			log.Printf("[patchUserSettings] skipping history record for user %d — values unchanged", userID)
+		} else {
+			yesterday := time.Now().UTC().Truncate(24 * time.Hour).AddDate(0, 0, -1)
+			log.Printf("[patchUserSettings] writing config history for user %d: valid_until=%s budget=%d activity=%v",
+				userID, yesterday.Format("2006-01-02"), cur.CalorieBudget, cur.ActivityLevel)
+			_, histErr := h.db.Exec(c,
+				`INSERT INTO calorie_config_history (user_id, valid_until, calorie_budget, activity_level)
+				 VALUES (@userID, @validUntil, @calorieBudget, @activityLevel)
+				 ON CONFLICT (user_id, valid_until) DO UPDATE
+				   SET calorie_budget  = EXCLUDED.calorie_budget,
+				       activity_level = EXCLUDED.activity_level`,
+				pgx.NamedArgs{
+					"userID":        userID,
+					"validUntil":    yesterday.Format("2006-01-02"),
+					"calorieBudget": cur.CalorieBudget,
+					"activityLevel": cur.ActivityLevel,
+				})
+			if histErr != nil {
+				// Non-fatal: log and continue — history is best-effort
+				log.Printf("[patchUserSettings] failed to write config history for user %d: %v", userID, histErr)
+			} else {
+				log.Printf("[patchUserSettings] config history written for user %d", userID)
+			}
 		}
 	}
 
@@ -149,8 +201,11 @@ func (h *Handler) patchUserSettings(c *gin.Context) {
 	}
 
 	// If budget_auto is on, compute TDEE and persist the resulting calorie_budget.
+	// If the derived budget differs from the pre-update value, snapshot the old
+	// budget into calorie_config_history so historical progress queries stay accurate.
 	if s.BudgetAuto {
 		if _, _, budget, _, ok := computeTDEE(&s); ok {
+			oldBudget := s.CalorieBudget
 			updated, err := queryOne[calorieLogUserSettings](h.db, c,
 				"UPDATE calorie_log_user_settings SET calorie_budget = @budget WHERE user_id = @userID RETURNING *",
 				pgx.NamedArgs{"budget": budget, "userID": userID})
@@ -158,6 +213,27 @@ func (h *Handler) patchUserSettings(c *gin.Context) {
 				log.Printf("[patchUserSettings] auto-budget update failed for user %d: %v", userID, err)
 			} else {
 				s = updated
+				// Record history when the auto-computed budget actually changed.
+				if s.CalorieBudget != oldBudget {
+					yesterday := time.Now().UTC().Truncate(24 * time.Hour).AddDate(0, 0, -1)
+					log.Printf("[patchUserSettings] auto-budget changed for user %d (%d → %d), writing history valid_until=%s",
+						userID, oldBudget, s.CalorieBudget, yesterday.Format("2006-01-02"))
+					_, histErr := h.db.Exec(c,
+						`INSERT INTO calorie_config_history (user_id, valid_until, calorie_budget, activity_level)
+						 VALUES (@userID, @validUntil, @calorieBudget, @activityLevel)
+						 ON CONFLICT (user_id, valid_until) DO UPDATE
+						   SET calorie_budget  = EXCLUDED.calorie_budget,
+						       activity_level = EXCLUDED.activity_level`,
+						pgx.NamedArgs{
+							"userID":        userID,
+							"validUntil":    yesterday.Format("2006-01-02"),
+							"calorieBudget": oldBudget,
+							"activityLevel": s.ActivityLevel,
+						})
+					if histErr != nil {
+						log.Printf("[patchUserSettings] failed to write auto-budget history for user %d: %v", userID, histErr)
+					}
+				}
 			}
 		}
 	}

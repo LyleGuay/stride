@@ -14,7 +14,7 @@ import {
   fetchProgress, fetchEarliestLogDate, fetchWeightLog,
   upsertWeightEntry, updateWeightEntry, deleteWeightEntry,
   fetchFavorites, createFavorite, deleteFavorite,
-  type WeekDaySummary, type CalorieLogItem, type ProgressResponse, type WeightEntry,
+  type WeekSummaryResponse, type CalorieLogItem, type ProgressResponse, type WeightEntry,
   type CalorieLogFavorite,
 } from '../api'
 import { useDailySummary } from '../hooks/useDailySummary'
@@ -69,7 +69,7 @@ export default function CalorieLog() {
 
   // Week data — fetched here so WeeklySummary can be a pure presentational component
   const [weekStart, setWeekStart] = useState(() => getMondayOf(todayString()))
-  const [weekData, setWeekData] = useState<WeekDaySummary[]>([])
+  const [weekData, setWeekData] = useState<WeekSummaryResponse | null>(null)
   const [weekLoading, setWeekLoading] = useState(false)
   const [weekError, setWeekError] = useState<string | null>(null)
 
@@ -95,7 +95,7 @@ export default function CalorieLog() {
     setWeekError(null)
     fetchWeekSummary(weekStart)
       .then(data => { setWeekData(data); setWeekLoading(false) })
-      .catch((e: Error) => { setWeekError(e.message); setWeekLoading(false) })
+      .catch((e: Error) => { setWeekData(null); setWeekError(e.message); setWeekLoading(false) })
   }, [tab, weekStart])
 
   // Fetch the earliest log date once on mount — used to set the "All Time" range start.
@@ -451,7 +451,8 @@ export default function CalorieLog() {
       {/* ── Weekly tab ─────────────────────────────────────────────────── */}
       {tab === 'weekly' && (
         <WeeklySummary
-          days={weekData}
+          days={weekData?.days ?? []}
+          estimatedWeightChangeLbs={weekData?.estimated_weight_change_lbs}
           loading={weekLoading}
           error={weekError}
           weekStart={weekStart}

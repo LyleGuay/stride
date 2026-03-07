@@ -95,6 +95,13 @@ export interface WeekDaySummary {
   has_data: boolean
 }
 
+// WeekSummaryResponse is the response from GET /api/calorie-log/week-summary.
+// EstimatedWeightChangeLbs is omitted when the TDEE profile is incomplete.
+export interface WeekSummaryResponse {
+  days: WeekDaySummary[]
+  estimated_weight_change_lbs?: number
+}
+
 // WeightEntry mirrors the weight_log DB row. One entry per user per date;
 // weight_lbs is always stored in lbs — clients convert for display only.
 export interface WeightEntry {
@@ -113,6 +120,9 @@ export interface ProgressStats {
   avg_calories_exercise: number
   avg_net_calories: number
   total_calories_left: number
+  // Present when TDEE profile is complete; uses per-day historical weight + age + config.
+  // Positive = net surplus (gaining), negative = net deficit (losing).
+  estimated_weight_change_lbs?: number
 }
 
 // ProgressResponse is the response from GET /api/calorie-log/progress.

@@ -190,9 +190,14 @@ export default function ProgressView({
   /* ─── Stats ──────────────────────────────────────────────────────────── */
 
   const stats = progressData?.stats ?? null
-  // total_calories_left > 0 = under budget = calorie deficit = losing weight.
-  // Negate to weight-change convention: positive = gaining, negative = losing.
-  const weightChange = stats ? -(stats.total_calories_left / 3500) : 0
+  // Prefer backend TDEE-based estimate (uses per-day historical weight + age + config).
+  // Fall back to budget-based approximation if TDEE profile is incomplete.
+  // Sign convention: positive = gaining, negative = losing.
+  const weightChange = stats != null
+    ? (stats.estimated_weight_change_lbs != null
+        ? stats.estimated_weight_change_lbs
+        : -(stats.total_calories_left / 3500))
+    : 0
 
   /* ─── Handlers ───────────────────────────────────────────────────────── */
 
@@ -451,6 +456,7 @@ export default function ProgressView({
             {bars.length === 0 ? (
               <div className="py-8 text-center text-gray-400 text-sm">No data for this period</div>
             ) : (
+              <div className="relative">
               <div className="w-full overflow-x-auto -mx-1 px-1">
                 <svg
                   viewBox={`0 0 ${totalW} ${VB_H}`}
@@ -497,32 +503,37 @@ export default function ProgressView({
                       </g>
                     )
                   })}
-
-                  {/* Tooltip — dark callout above clicked bar */}
-                  {tooltipIdx >= 0 && tooltipIdx < bars.length && (() => {
-                    const bar = bars[tooltipIdx]
-                    const cx  = slotCenter(tooltipIdx, slotW)
-                    const barHeight = bar.trackedDays > 0 ? Math.max(3, scaleY(bar.netCalories)) : 6
-                    const tipY = Math.max(8, Y_BOT - barHeight - 56)
-                    const tx   = Math.min(Math.max(cx, X_START + 55), totalW - 70)
-                    const delta = bar.budget - bar.netCalories  // positive = under budget
-                    return (
-                      <g>
-                        <rect x={tx - 55} y={tipY} width={110} height={48} rx={5} fill="#1f2937" />
-                        <text x={tx - 47} y={tipY + 14} fontSize={9} fill="#9ca3af">{bar.label}</text>
-                        <text x={tx - 47} y={tipY + 27} fontSize={9} fill="#9ca3af">Net calories</text>
-                        <text x={tx + 47} y={tipY + 27} fontSize={9} fill="white" textAnchor="end" fontWeight="600">
-                          {bar.netCalories.toLocaleString()}
-                        </text>
-                        <text x={tx - 47} y={tipY + 40} fontSize={9} fill="#9ca3af">vs. budget</text>
-                        <text x={tx + 47} y={tipY + 40} fontSize={9} textAnchor="end" fontWeight="600"
-                          fill={delta >= 0 ? '#22c55e' : '#ef4444'}>
-                          {delta >= 0 ? `+${delta.toLocaleString()}` : delta.toLocaleString()}
-                        </text>
-                      </g>
-                    )
-                  })()}
                 </svg>
+              </div>
+
+              {/* HTML tooltip overlay — outside overflow-x-auto so it isn't clipped.
+                  HTML allows responsive text sizing (sm:) unlike SVG text elements. */}
+              {tooltipIdx >= 0 && tooltipIdx < bars.length && (() => {
+                const bar = bars[tooltipIdx]
+                const cx  = slotCenter(tooltipIdx, slotW)
+                const delta = bar.budget - bar.netCalories  // positive = under budget
+                // Position as % of SVG width, clamped to prevent edge overflow
+                const pct = Math.min(Math.max((cx / totalW) * 100, 16), 84)
+                return (
+                  <div
+                    className="absolute z-10 -translate-x-1/2 bg-gray-800 rounded-lg p-2.5 shadow-lg pointer-events-auto"
+                    style={{ left: `${pct}%`, top: '4%', width: 140 }}
+                    onClick={e => e.stopPropagation()}
+                  >
+                    <div className="text-[10px] sm:text-xs text-gray-400 mb-1.5">{bar.label}</div>
+                    <div className="flex justify-between text-[10px] sm:text-xs mb-0.5">
+                      <span className="text-gray-400">Net cal</span>
+                      <span className="text-white font-semibold">{bar.netCalories.toLocaleString()}</span>
+                    </div>
+                    <div className="flex justify-between text-[10px] sm:text-xs">
+                      <span className="text-gray-400">vs. budget</span>
+                      <span className={`font-semibold ${delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                        {delta >= 0 ? `+${delta.toLocaleString()}` : delta.toLocaleString()}
+                      </span>
+                    </div>
+                  </div>
+                )
+              })()}
               </div>
             )}
 

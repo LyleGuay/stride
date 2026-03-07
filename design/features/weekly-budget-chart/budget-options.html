@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Weekly Budget Chart Options</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-6 font-sans">
+
+  <h1 class="text-lg font-bold text-gray-800 mb-1">Weekly Budget Chart — Display Options</h1>
+  <p class="text-sm text-gray-500 mb-6">Scenario: Budget was 2,300 Mon–Wed, then changed to 2,000 Thu–Sun</p>
+
+  <div class="space-y-6 max-w-md">
+
+    <!-- CURRENT: single line -->
+    <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+      <h2 class="text-sm font-semibold text-gray-700 mb-1">Current (single line)</h2>
+      <p class="text-xs text-gray-400 mb-3">One horizontal line — doesn't reflect mid-week budget change</p>
+      <svg viewBox="0 0 380 150" class="w-full">
+        <defs>
+          <pattern id="grid0" width="54" height="10" patternUnits="userSpaceOnUse">
+          </pattern>
+        </defs>
+
+        <!-- Grid lines -->
+        <line x1="30" y1="20" x2="365" y2="20" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="47" x2="365" y2="47" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="74" x2="365" y2="74" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="101" x2="365" y2="101" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="128" x2="365" y2="128" stroke="#f3f4f6" stroke-width="1"/>
+
+        <!-- Y axis labels -->
+        <text x="26" y="23" text-anchor="end" font-size="8" fill="#d1d5db">3k</text>
+        <text x="26" y="50" text-anchor="end" font-size="8" fill="#d1d5db">2k</text>
+        <text x="26" y="77" text-anchor="end" font-size="8" fill="#d1d5db">1k</text>
+
+        <!-- Bars (net calories): Mon=1800, Tue=2100, Wed=2400, Thu=1700, Fri=2200, Sat=1500, Sun=no data -->
+        <!-- budget line at 2300 = y: 128 - (2300/3000)*108 = 128 - 82.8 = 45.2 -->
+        <!-- scaleY(v) = 108 * v/3000; barTop = 128 - scaleY(v) -->
+
+        <!-- Mon 1800: barTop=128-64.8=63.2, h=64.8 — under budget → green -->
+        <rect x="42" y="63" width="30" height="65" fill="#22c55e" rx="3" opacity="0.85"/>
+        <!-- Tue 2100: barTop=128-75.6=52.4, h=75.6 — under budget → green -->
+        <rect x="96" y="52" width="30" height="76" fill="#22c55e" rx="3" opacity="0.85"/>
+        <!-- Wed 2400: barTop=128-86.4=41.6, h=86.4 — over budget → red -->
+        <rect x="150" y="42" width="30" height="86" fill="#ef4444" rx="3" opacity="0.85"/>
+        <!-- Thu 1700: barTop=128-61.2=66.8 — under 2000 budget but shown vs 2300 line -->
+        <rect x="204" y="67" width="30" height="61" fill="#22c55e" rx="3" opacity="0.85"/>
+        <!-- Fri 2200: under 2300 budget but shown vs 2300 line -->
+        <rect x="258" y="49" width="30" height="79" fill="#22c55e" rx="3" opacity="0.85"/>
+        <!-- Sat 1500 -->
+        <rect x="312" y="74" width="30" height="54" fill="#22c55e" rx="3" opacity="0.85"/>
+        <!-- Sun: no data -->
+        <rect x="343" y="120" width="30" height="8" fill="#f3f4f6" rx="3" opacity="0.85"/>
+
+        <!-- Single budget line at 2300 -->
+        <line x1="30" y1="45" x2="365" y2="45" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7"/>
+        <text x="367" y="48" font-size="8" fill="#2563eb">2,300</text>
+
+        <!-- Day labels -->
+        <text x="57" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Mon</text>
+        <text x="111" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Tue</text>
+        <text x="165" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Wed</text>
+        <text x="219" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Thu</text>
+        <text x="273" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Fri</text>
+        <text x="327" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Sat</text>
+        <text x="358" y="142" text-anchor="middle" font-size="9" fill="#9ca3af">Sun</text>
+      </svg>
+      <p class="text-xs text-orange-500 mt-1">Problem: Thu/Fri appear "under budget" vs 2,300 line, but their actual budget was 2,000</p>
+    </div>
+
+    <!-- OPTION A: Stepped line -->
+    <div class="bg-white rounded-xl border border-blue-200 p-4 shadow-sm ring-1 ring-blue-100">
+      <h2 class="text-sm font-semibold text-gray-700 mb-1">Option A — Stepped line</h2>
+      <p class="text-xs text-gray-400 mb-3">Line steps down when budget changes. Each segment = that day's budget</p>
+      <svg viewBox="0 0 380 150" class="w-full">
+        <!-- Grid lines -->
+        <line x1="30" y1="20" x2="365" y2="20" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="47" x2="365" y2="47" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="74" x2="365" y2="74" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="101" x2="365" y2="101" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="128" x2="365" y2="128" stroke="#f3f4f6" stroke-width="1"/>
+
+        <!-- Y axis labels -->
+        <text x="26" y="23" text-anchor="end" font-size="8" fill="#d1d5db">3k</text>
+        <text x="26" y="50" text-anchor="end" font-size="8" fill="#d1d5db">2k</text>
+        <text x="26" y="77" text-anchor="end" font-size="8" fill="#d1d5db">1k</text>
+
+        <!-- Bars — color based on CORRECT per-day budget -->
+        <!-- Mon 1800 vs budget 2300: under → green -->
+        <rect x="42" y="63" width="30" height="65" fill="#22c55e" rx="3" opacity="0.85"/>
+        <!-- Tue 2100 vs 2300: under → green -->
+        <rect x="96" y="52" width="30" height="76" fill="#22c55e" rx="3" opacity="0.85"/>
+        <!-- Wed 2400 vs 2300: over → red -->
+        <rect x="150" y="42" width="30" height="86" fill="#ef4444" rx="3" opacity="0.85"/>
+        <!-- Thu 1700 vs 2000: under → green -->
+        <rect x="204" y="67" width="30" height="61" fill="#22c55e" rx="3" opacity="0.85"/>
+        <!-- Fri 2200 vs 2000: over → red -->
+        <rect x="258" y="49" width="30" height="79" fill="#ef4444" rx="3" opacity="0.85"/>
+        <!-- Sat 1500 vs 2000: under → green -->
+        <rect x="312" y="74" width="30" height="54" fill="#22c55e" rx="3" opacity="0.85"/>
+        <!-- Sun: no data -->
+        <rect x="343" y="120" width="30" height="8" fill="#f3f4f6" rx="3" opacity="0.85"/>
+
+        <!-- Stepped budget line -->
+        <!-- Mon-Wed budget 2300: y=45. Thu-Sun budget 2000: y=56 -->
+        <!-- scaleY(2300) = 108*2300/3000 = 82.8 → y=128-82.8=45.2 -->
+        <!-- scaleY(2000) = 108*2000/3000 = 72 → y=128-72=56 -->
+        <!-- Mon slot: x 30–84, Tue: 84–138, Wed: 138–192, Thu: 192–246, Fri: 246–300, Sat: 300–354, Sun: 354–365 -->
+        <polyline
+          points="30,45 192,45 192,56 365,56"
+          fill="none" stroke="#2563eb" stroke-width="1.5" stroke-dasharray="5,3" opacity="0.7"
+        />
+        <text x="367" y="48" font-size="8" fill="#2563eb">2,300</text>
+        <text x="367" y="59" font-size="8" fill="#2563eb">2,000</text>
+
+        <!-- Day labels -->
+        <text x="57" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Mon</text>
+        <text x="111" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Tue</text>
+        <text x="165" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Wed</text>
+        <text x="219" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Thu</text>
+        <text x="273" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Fri</text>
+        <text x="327" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Sat</text>
+        <text x="358" y="142" text-anchor="middle" font-size="9" fill="#9ca3af">Sun</text>
+      </svg>
+      <p class="text-xs text-green-600 mt-1">Line visibly steps down on Thursday when budget changed. Fri correctly shows as over.</p>
+    </div>
+
+    <!-- OPTION B: Per-bar ticks -->
+    <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+      <h2 class="text-sm font-semibold text-gray-700 mb-1">Option B — Per-bar tick marks</h2>
+      <p class="text-xs text-gray-400 mb-3">Small notch on each bar at that day's budget level. No connecting line.</p>
+      <svg viewBox="0 0 380 150" class="w-full">
+        <!-- Grid lines -->
+        <line x1="30" y1="20" x2="365" y2="20" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="47" x2="365" y2="47" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="74" x2="365" y2="74" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="101" x2="365" y2="101" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="128" x2="365" y2="128" stroke="#f3f4f6" stroke-width="1"/>
+
+        <!-- Y axis labels -->
+        <text x="26" y="23" text-anchor="end" font-size="8" fill="#d1d5db">3k</text>
+        <text x="26" y="50" text-anchor="end" font-size="8" fill="#d1d5db">2k</text>
+        <text x="26" y="77" text-anchor="end" font-size="8" fill="#d1d5db">1k</text>
+
+        <!-- Bars -->
+        <rect x="42" y="63" width="30" height="65" fill="#22c55e" rx="3" opacity="0.85"/>
+        <rect x="96" y="52" width="30" height="76" fill="#22c55e" rx="3" opacity="0.85"/>
+        <rect x="150" y="42" width="30" height="86" fill="#ef4444" rx="3" opacity="0.85"/>
+        <rect x="204" y="67" width="30" height="61" fill="#22c55e" rx="3" opacity="0.85"/>
+        <rect x="258" y="49" width="30" height="79" fill="#ef4444" rx="3" opacity="0.85"/>
+        <rect x="312" y="74" width="30" height="54" fill="#22c55e" rx="3" opacity="0.85"/>
+        <rect x="343" y="120" width="30" height="8" fill="#f3f4f6" rx="3" opacity="0.85"/>
+
+        <!-- Tick marks at budget height per bar -->
+        <!-- Mon-Wed: budget 2300 → y=45 -->
+        <line x1="38" y1="45" x2="76" y2="45" stroke="#2563eb" stroke-width="2" opacity="0.8"/>
+        <line x1="92" y1="45" x2="130" y2="45" stroke="#2563eb" stroke-width="2" opacity="0.8"/>
+        <line x1="146" y1="45" x2="184" y2="45" stroke="#2563eb" stroke-width="2" opacity="0.8"/>
+        <!-- Thu-Sun: budget 2000 → y=56 -->
+        <line x1="200" y1="56" x2="238" y2="56" stroke="#2563eb" stroke-width="2" opacity="0.8"/>
+        <line x1="254" y1="56" x2="292" y2="56" stroke="#2563eb" stroke-width="2" opacity="0.8"/>
+        <line x1="308" y1="56" x2="346" y2="56" stroke="#2563eb" stroke-width="2" opacity="0.8"/>
+        <line x1="339" y1="56" x2="377" y2="56" stroke="#2563eb" stroke-width="2" opacity="0.8"/>
+
+        <!-- Day labels -->
+        <text x="57" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Mon</text>
+        <text x="111" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Tue</text>
+        <text x="165" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Wed</text>
+        <text x="219" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Thu</text>
+        <text x="273" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Fri</text>
+        <text x="327" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Sat</text>
+        <text x="358" y="142" text-anchor="middle" font-size="9" fill="#9ca3af">Sun</text>
+      </svg>
+      <p class="text-xs text-gray-500 mt-1">Disconnected — harder to see "the budget changed here." Clean but less readable at a glance.</p>
+    </div>
+
+    <!-- OPTION C: Ghost bars -->
+    <div class="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+      <h2 class="text-sm font-semibold text-gray-700 mb-1">Option C — Budget "ghost" bar</h2>
+      <p class="text-xs text-gray-400 mb-3">Faint bar shows budget height; actual net bar overlaid on top</p>
+      <svg viewBox="0 0 380 150" class="w-full">
+        <!-- Grid lines -->
+        <line x1="30" y1="20" x2="365" y2="20" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="47" x2="365" y2="47" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="74" x2="365" y2="74" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="101" x2="365" y2="101" stroke="#f3f4f6" stroke-width="1"/>
+        <line x1="30" y1="128" x2="365" y2="128" stroke="#f3f4f6" stroke-width="1"/>
+
+        <!-- Y axis labels -->
+        <text x="26" y="23" text-anchor="end" font-size="8" fill="#d1d5db">3k</text>
+        <text x="26" y="50" text-anchor="end" font-size="8" fill="#d1d5db">2k</text>
+        <text x="26" y="77" text-anchor="end" font-size="8" fill="#d1d5db">1k</text>
+
+        <!-- Ghost budget bars (Mon-Wed: 2300, Thu-Sun: 2000) -->
+        <!-- budget 2300 → height=82.8, top=45 -->
+        <rect x="42" y="45" width="30" height="83" fill="#dbeafe" rx="3"/>
+        <rect x="96" y="45" width="30" height="83" fill="#dbeafe" rx="3"/>
+        <rect x="150" y="45" width="30" height="83" fill="#dbeafe" rx="3"/>
+        <!-- budget 2000 → height=72, top=56 -->
+        <rect x="204" y="56" width="30" height="72" fill="#dbeafe" rx="3"/>
+        <rect x="258" y="56" width="30" height="72" fill="#dbeafe" rx="3"/>
+        <rect x="312" y="56" width="30" height="72" fill="#dbeafe" rx="3"/>
+        <rect x="343" y="56" width="30" height="72" fill="#dbeafe" rx="3"/>
+
+        <!-- Actual bars on top -->
+        <rect x="42" y="63" width="30" height="65" fill="#22c55e" rx="3" opacity="0.85"/>
+        <rect x="96" y="52" width="30" height="76" fill="#22c55e" rx="3" opacity="0.85"/>
+        <rect x="150" y="42" width="30" height="86" fill="#ef4444" rx="3" opacity="0.85"/>
+        <rect x="204" y="67" width="30" height="61" fill="#22c55e" rx="3" opacity="0.85"/>
+        <rect x="258" y="49" width="30" height="79" fill="#ef4444" rx="3" opacity="0.85"/>
+        <rect x="312" y="74" width="30" height="54" fill="#22c55e" rx="3" opacity="0.85"/>
+        <rect x="343" y="120" width="30" height="8" fill="#f3f4f6" rx="3" opacity="0.85"/>
+
+        <!-- Day labels -->
+        <text x="57" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Mon</text>
+        <text x="111" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Tue</text>
+        <text x="165" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Wed</text>
+        <text x="219" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Thu</text>
+        <text x="273" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Fri</text>
+        <text x="327" y="142" text-anchor="middle" font-size="9" fill="#6b7280">Sat</text>
+        <text x="358" y="142" text-anchor="middle" font-size="9" fill="#9ca3af">Sun</text>
+      </svg>
+      <p class="text-xs text-gray-500 mt-1">Shows budget as context behind each bar. More visual noise but budget is always obvious.</p>
+    </div>
+
+  </div>
+
+</body>
+</html>

@@ -63,5 +63,44 @@ export default async function globalSetup() {
     }
   }
 
+  // Seed e2e_user with a complete profile and one calorie item so tests that
+  // exercise TDEE-dependent features (weekly/progress Estimated Weight Impact)
+  // have data without requiring per-test setup.
+  log('[e2e setup] Seeding e2e_user profile and calorie data...')
+  try {
+    const loginRes = await fetch(`${apiURL}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'e2e_user', password: 'password123' }),
+    })
+    if (!loginRes.ok) throw new Error(`Login failed: ${loginRes.status}`)
+    const { token } = await loginRes.json() as { token: string }
+    const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+
+    // Set a complete profile so TDEE can be computed for EWI features
+    await fetch(`${apiURL}/api/calorie-log/user-settings`, {
+      method: 'PATCH',
+      headers: authHeaders,
+      body: JSON.stringify({
+        sex: 'male', date_of_birth: '1990-01-01', height_cm: 178,
+        weight_lbs: 175, activity_level: 'light', calorie_budget: 2300, budget_auto: false,
+      }),
+    })
+
+    // Log one food item so progress/weekly stats have at least one tracked day.
+    // Use today's date so the item falls within the current week (weekly EWI test)
+    // and within the "All" range (progress EWI test).
+    const today = new Date().toISOString().slice(0, 10)
+    await fetch(`${apiURL}/api/calorie-log/items`, {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ item_name: 'E2E Setup Item', calories: 500, type: 'breakfast', date: today }),
+    })
+
+    log('[e2e setup] e2e_user profile and calorie data seeded.')
+  } catch (err) {
+    log(`[e2e setup] Warning: e2e_user seed failed — ${(err as Error).message}`)
+  }
+
   log('[e2e setup] Done.')
 }

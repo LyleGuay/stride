@@ -1,10 +1,10 @@
 // API service layer — all backend calls go through request() which handles
 // auth headers, 401 redirects, and consistent error extraction.
 
-import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput } from './types'
+import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput } from './types'
 
 // Re-export types so existing imports from api.ts keep working.
-export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput }
+export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput }
 
 function getToken(): string | null {
   return localStorage.getItem('token')
@@ -76,9 +76,9 @@ export function deleteCalorieLogItem(id: number) {
 
 // fetchWeekSummary returns per-day calorie totals for the week starting on
 // weekStart (YYYY-MM-DD, must be a Monday). Returns 7 WeekDaySummary objects
-// ordered Mon–Sun; days with no entries have has_data=false.
+// ordered Mon–Sun plus an optional TDEE-based estimated_weight_change_lbs.
 export function fetchWeekSummary(weekStart: string) {
-  return request<WeekDaySummary[]>(`/api/calorie-log/week-summary?week_start=${weekStart}`)
+  return request<WeekSummaryResponse>(`/api/calorie-log/week-summary?week_start=${weekStart}`)
 }
 
 export function fetchUserSettings() {

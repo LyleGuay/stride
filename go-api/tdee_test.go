@@ -211,3 +211,186 @@ func TestCurrentMonday_MidnightUTC(t *testing.T) {
 		t.Errorf("currentMonday() returned non-UTC location: %v", monday.Location())
 	}
 }
+
+/* ─── tdeeForDay tests ────────────────────────────────────────────────────── */
+
+// knownProfile returns a settings struct with fully populated profile fields
+// for a male, 180 cm, moderate activity — DOB 1994-01-01, used across tests.
+func knownProfile() calorieLogUserSettings {
+	sex := "male"
+	heightCM := 180.0
+	actLevel := "moderate"
+	dob := DateOnly{time.Date(1994, 1, 1, 0, 0, 0, 0, time.UTC)}
+	return calorieLogUserSettings{
+		Sex:         &sex,
+		HeightCM:    &heightCM,
+		ActivityLevel: &actLevel,
+		DateOfBirth: &dob,
+	}
+}
+
+// TestTdeeForDay_KnownValues verifies the Mifflin-St Jeor calculation for a
+// known profile and weight. Hand-calculated:
+//
+//	age=30 (asOf 2024-06-15, DOB 1994-01-01)
+//	weightKG = 180/2.20462 ≈ 81.647
+//	BMR = 10*81.647 + 6.25*180 - 5*30 + 5 = 816.47 + 1125 - 150 + 5 = 1796.47
+//	TDEE = 1796.47 * 1.55 (moderate) ≈ 2784.53
+func TestTdeeForDay_KnownValues(t *testing.T) {
+	s := knownProfile()
+	asOf := time.Date(2024, 6, 15, 0, 0, 0, 0, time.UTC)
+	tdee, ok := tdeeForDay(&s, 180.0, "moderate", asOf)
+	if !ok {
+		t.Fatal("expected ok=true, got false")
+	}
+	expected := 2784.53
+	if math.Abs(tdee-expected) > 1.0 {
+		t.Errorf("expected TDEE ≈ %.2f, got %.2f", expected, tdee)
+	}
+}
+
+// TestTdeeForDay_MissingProfile verifies ok=false when required profile fields are nil.
+func TestTdeeForDay_MissingProfile(t *testing.T) {
+	var s calorieLogUserSettings // all nil
+	_, ok := tdeeForDay(&s, 180.0, "moderate", time.Now())
+	if ok {
+		t.Error("expected ok=false for nil profile, got true")
+	}
+}
+
+// TestTdeeForDay_UnknownActivityLevel verifies ok=false for an unrecognized level.
+func TestTdeeForDay_UnknownActivityLevel(t *testing.T) {
+	s := knownProfile()
+	_, ok := tdeeForDay(&s, 180.0, "couch_potato", time.Now())
+	if ok {
+		t.Error("expected ok=false for unknown activity level, got true")
+	}
+}
+
+// TestTdeeForDay_AgeComputedFromAsOfDate verifies that age is derived from
+// asOfDate, not today. One day before birthday → age-1; one day after → age.
+func TestTdeeForDay_AgeComputedFromAsOfDate(t *testing.T) {
+	s := knownProfile() // DOB 1994-01-01
+	// One day before 30th birthday → age should be 29
+	tdee29, ok := tdeeForDay(&s, 180.0, "moderate", time.Date(2023, 12, 31, 0, 0, 0, 0, time.UTC))
+	if !ok {
+		t.Fatal("expected ok=true for age-29 case")
+	}
+	// One day after 30th birthday → age should be 30
+	tdee30, ok := tdeeForDay(&s, 180.0, "moderate", time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC))
+	if !ok {
+		t.Fatal("expected ok=true for age-30 case")
+	}
+	// Younger age → slightly higher BMR (less deducted from -5*age term)
+	if tdee29 <= tdee30 {
+		t.Errorf("expected TDEE at age 29 (%.2f) > TDEE at age 30 (%.2f)", tdee29, tdee30)
+	}
+}
+
+/* ─── weightAtOrBefore tests ──────────────────────────────────────────────── */
+
+// makeWeightEntries builds a []weightEntry from alternating date/weight pairs.
+func makeWeightEntries(pairs ...any) []weightEntry {
+	entries := make([]weightEntry, 0, len(pairs)/2)
+	for i := 0; i < len(pairs)-1; i += 2 {
+		t, _ := time.Parse("2006-01-02", pairs[i].(string))
+		entries = append(entries, weightEntry{Date: DateOnly{t}, WeightLBS: pairs[i+1].(float64)})
+	}
+	return entries
+}
+
+// TestWeightAtOrBefore_ReturnsClosestOnOrBefore verifies the most recent entry
+// on or before the query date is returned.
+func TestWeightAtOrBefore_ReturnsClosestOnOrBefore(t *testing.T) {
+	entries := makeWeightEntries("2024-01-01", 200.0, "2024-01-10", 198.0, "2024-01-20", 196.0)
+	if w := weightAtOrBefore(entries, "2024-01-15", 999.0); w != 198.0 {
+		t.Errorf("expected 198.0, got %.1f", w)
+	}
+}
+
+// TestWeightAtOrBefore_ExactDateMatch verifies an exact date match is returned.
+func TestWeightAtOrBefore_ExactDateMatch(t *testing.T) {
+	entries := makeWeightEntries("2024-01-10", 198.0, "2024-01-20", 196.0)
+	if w := weightAtOrBefore(entries, "2024-01-10", 999.0); w != 198.0 {
+		t.Errorf("expected 198.0, got %.1f", w)
+	}
+}
+
+// TestWeightAtOrBefore_FallbackWhenNoneQualify verifies fallback is returned
+// when all entries are after the query date.
+func TestWeightAtOrBefore_FallbackWhenNoneQualify(t *testing.T) {
+	entries := makeWeightEntries("2024-06-01", 200.0)
+	if w := weightAtOrBefore(entries, "2024-01-01", 150.0); w != 150.0 {
+		t.Errorf("expected fallback 150.0, got %.1f", w)
+	}
+}
+
+// TestWeightAtOrBefore_EmptyEntries verifies fallback is returned for an empty slice.
+func TestWeightAtOrBefore_EmptyEntries(t *testing.T) {
+	if w := weightAtOrBefore([]weightEntry{}, "2024-01-01", 175.0); w != 175.0 {
+		t.Errorf("expected fallback 175.0, got %.1f", w)
+	}
+}
+
+// TestWeightAtOrBefore_MostRecentWhenMultipleQualify verifies the last qualifying
+// entry is returned when multiple entries precede the query date.
+func TestWeightAtOrBefore_MostRecentWhenMultipleQualify(t *testing.T) {
+	entries := makeWeightEntries("2024-01-01", 200.0, "2024-01-05", 199.0, "2024-01-10", 198.0)
+	if w := weightAtOrBefore(entries, "2024-01-31", 999.0); w != 198.0 {
+		t.Errorf("expected most recent 198.0, got %.1f", w)
+	}
+}
+
+/* ─── configForDate tests ─────────────────────────────────────────────────── */
+
+// makeConfigHistory builds a []calorieConfigHistory from alternating date/budget pairs.
+func makeConfigHistory(pairs ...any) []calorieConfigHistory {
+	history := make([]calorieConfigHistory, 0, len(pairs)/2)
+	for i := 0; i < len(pairs)-1; i += 2 {
+		t, _ := time.Parse("2006-01-02", pairs[i].(string))
+		history = append(history, calorieConfigHistory{
+			ValidUntil:    DateOnly{t},
+			CalorieBudget: pairs[i+1].(int),
+		})
+	}
+	return history
+}
+
+func settingsWithBudget(budget int) *calorieLogUserSettings {
+	level := "moderate"
+	return &calorieLogUserSettings{CalorieBudget: budget, ActivityLevel: &level}
+}
+
+// TestConfigForDate_UsesHistoryWhenDateInRange verifies the first history row
+// with valid_until >= query date is returned.
+func TestConfigForDate_UsesHistoryWhenDateInRange(t *testing.T) {
+	// Budget was 2200 until Jan 31, then 2000 until Feb 28, current=1800
+	history := makeConfigHistory("2024-01-31", 2200, "2024-02-28", 2000)
+	settings := settingsWithBudget(1800)
+
+	if b, _ := configForDate(history, settings, "2024-01-15"); b != 2200 {
+		t.Errorf("expected 2200 for Jan 15, got %d", b)
+	}
+	if b, _ := configForDate(history, settings, "2024-02-10"); b != 2000 {
+		t.Errorf("expected 2000 for Feb 10, got %d", b)
+	}
+}
+
+// TestConfigForDate_FallsBackToCurrentSettings verifies that dates after all
+// history records return current settings.
+func TestConfigForDate_FallsBackToCurrentSettings(t *testing.T) {
+	history := makeConfigHistory("2024-01-31", 2200)
+	settings := settingsWithBudget(1800)
+	if b, _ := configForDate(history, settings, "2024-03-01"); b != 1800 {
+		t.Errorf("expected current budget 1800 for Mar 1, got %d", b)
+	}
+}
+
+// TestConfigForDate_EmptyHistoryReturnsCurrentSettings verifies the no-history
+// case — current settings apply for any date.
+func TestConfigForDate_EmptyHistoryReturnsCurrentSettings(t *testing.T) {
+	settings := settingsWithBudget(2300)
+	if b, _ := configForDate([]calorieConfigHistory{}, settings, "2023-06-01"); b != 2300 {
+		t.Errorf("expected 2300, got %d", b)
+	}
+}

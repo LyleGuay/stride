@@ -8,6 +8,35 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
+// configForDate returns the calorie_budget and activity_level effective on the given
+// date by scanning the history slice (sorted ascending by valid_until).
+// The first history row whose valid_until >= dateStr covers that date.
+// Falls back to current settings when no history row covers the date (i.e. the date
+// is after all history records, so current settings apply).
+func configForDate(
+	history []calorieConfigHistory,
+	settings *calorieLogUserSettings,
+	dateStr string,
+) (calorieBudget int, activityLevel string) {
+	for _, h := range history {
+		if h.ValidUntil.Format("2006-01-02") >= dateStr {
+			al := ""
+			if h.ActivityLevel != nil {
+				al = *h.ActivityLevel
+			} else if settings.ActivityLevel != nil {
+				al = *settings.ActivityLevel
+			}
+			return h.CalorieBudget, al
+		}
+	}
+	// No history covers this date — use current settings.
+	al := ""
+	if settings.ActivityLevel != nil {
+		al = *settings.ActivityLevel
+	}
+	return settings.CalorieBudget, al
+}
+
 // validItemTypes is the set of allowed values for the calorie_log_item_type enum.
 // Reject unknown values with 400 rather than letting the DB return a cryptic 500.
 var validItemTypes = map[string]bool{
@@ -52,6 +81,35 @@ func (h *Handler) getDailySummary(c *gin.Context) {
 		return
 	}
 
+	// Fetch config history and weight log so we can resolve the historically
+	// correct budget and TDEE for this date (not just today's values).
+	configHistory, _ := queryMany[calorieConfigHistory](h.db, c,
+		`SELECT * FROM calorie_config_history WHERE user_id = @userID ORDER BY valid_until ASC`,
+		pgx.NamedArgs{"userID": userID})
+	weightEntries, _ := queryMany[weightEntry](h.db, c,
+		`SELECT * FROM weight_log WHERE user_id = @userID AND date <= @date ORDER BY date ASC`,
+		pgx.NamedArgs{"userID": userID, "date": date})
+
+	// Override budget with historically correct value for the requested date.
+	historicalBudget, actLevel := configForDate(configHistory, &settings, date)
+	settings.CalorieBudget = historicalBudget
+
+	// Populate computed TDEE fields (BMR, budget, pace) using today's profile —
+	// then override ComputedTDEE with the historically accurate value so the
+	// frontend's daily weight impact card reflects actual TDEE at that date.
+	populateComputedTDEE(&settings)
+
+	var fallbackWeight float64
+	if settings.WeightLBS != nil {
+		fallbackWeight = *settings.WeightLBS
+	}
+	w := weightAtOrBefore(weightEntries, date, fallbackWeight)
+	asOf, _ := time.Parse("2006-01-02", date)
+	if dayTDEE, ok := tdeeForDay(&settings, w, actLevel, asOf); ok {
+		tdeeInt := int(dayTDEE)
+		settings.ComputedTDEE = &tdeeInt
+	}
+
 	// Compute totals. Exercise calories are stored as positive integers; the
 	// type field is the source of truth for direction (food adds, exercise subtracts).
 	var caloriesFood, caloriesExercise int
@@ -72,8 +130,6 @@ func (h *Handler) getDailySummary(c *gin.Context) {
 			fatG += *item.FatG
 		}
 	}
-
-	populateComputedTDEE(&settings)
 
 	// Net = food minus exercise, left = budget minus net
 	net := caloriesFood - caloriesExercise
@@ -116,13 +172,27 @@ func (h *Handler) getWeekSummary(c *gin.Context) {
 	}
 	weekEnd := weekStart.AddDate(0, 0, 6)
 
-	// Get the user's calorie budget from settings.
+	// Fetch settings, config history, and weight log — needed for per-day budget
+	// and TDEE resolution across the 7-day window.
 	settings, err := queryOne[calorieLogUserSettings](h.db, c,
 		"SELECT * FROM calorie_log_user_settings WHERE user_id = @userID",
 		pgx.NamedArgs{"userID": userID})
 	if err != nil {
 		apiError(c, http.StatusInternalServerError, "failed to fetch settings")
 		return
+	}
+
+	configHistory, _ := queryMany[calorieConfigHistory](h.db, c,
+		`SELECT * FROM calorie_config_history WHERE user_id = @userID ORDER BY valid_until ASC`,
+		pgx.NamedArgs{"userID": userID})
+
+	weightEntries, _ := queryMany[weightEntry](h.db, c,
+		`SELECT * FROM weight_log WHERE user_id = @userID AND date <= @weekEnd ORDER BY date ASC`,
+		pgx.NamedArgs{"userID": userID, "weekEnd": weekEnd.Format("2006-01-02")})
+
+	var fallbackWeight float64
+	if settings.WeightLBS != nil {
+		fallbackWeight = *settings.WeightLBS
 	}
 
 	// Query per-day totals across the 7-day window. Exercise calories are positive
@@ -155,13 +225,17 @@ func (h *Handler) getWeekSummary(c *gin.Context) {
 	}
 
 	// Build a full 7-day response, filling zeros for days with no data.
+	// Accumulate TDEE-based deficit for the weekly weight impact estimate.
 	result := make([]weekDaySummary, 7)
+	var totalDeficit float64
+	tdeeAvailable := true
 	for i := 0; i < 7; i++ {
 		d := weekStart.AddDate(0, 0, i)
 		dateStr := d.Format("2006-01-02")
+		budget, actLevel := configForDate(configHistory, &settings, dateStr)
 		day := weekDaySummary{
 			Date:          DateOnly{d},
-			CalorieBudget: settings.CalorieBudget,
+			CalorieBudget: budget,
 		}
 		if row, ok := rowByDate[dateStr]; ok {
 			day.HasData = true
@@ -172,11 +246,36 @@ func (h *Handler) getWeekSummary(c *gin.Context) {
 			day.FatG = row.FatG
 		}
 		day.NetCalories = day.CaloriesFood - day.CaloriesExercise
-		day.CaloriesLeft = settings.CalorieBudget - day.NetCalories
+		day.CaloriesLeft = budget - day.NetCalories
+
+		// Accumulate TDEE-based deficit only for days with logged data.
+		if tdeeAvailable && day.HasData {
+			w := weightAtOrBefore(weightEntries, dateStr, fallbackWeight)
+			asOf, _ := time.Parse("2006-01-02", dateStr)
+			if dayTDEE, ok := tdeeForDay(&settings, w, actLevel, asOf); ok {
+				totalDeficit += dayTDEE - float64(day.NetCalories)
+			} else {
+				tdeeAvailable = false
+			}
+		}
 		result[i] = day
 	}
 
-	c.JSON(http.StatusOK, result)
+	// Compute weekly estimated weight change when TDEE profile is complete.
+	var estimatedWC *float64
+	dataDays := 0
+	for _, d := range result {
+		if d.HasData {
+			dataDays++
+		}
+	}
+	if tdeeAvailable && dataDays > 0 {
+		// 3500 kcal ≈ 1 lb of body fat
+		wc := totalDeficit / 3500
+		estimatedWC = &wc
+	}
+
+	c.JSON(http.StatusOK, weekSummaryResponse{Days: result, EstimatedWeightChangeLbs: estimatedWC})
 }
 
 // getProgress returns per-day calorie totals and aggregate stats for an arbitrary date range.
@@ -204,13 +303,32 @@ func (h *Handler) getProgress(c *gin.Context) {
 		return
 	}
 
-	// Get the user's calorie budget from settings.
+	// Get the user's settings, config history, and weight log in parallel via
+	// separate queries — all are needed for per-day TDEE and budget resolution.
 	settings, err := queryOne[calorieLogUserSettings](h.db, c,
 		"SELECT * FROM calorie_log_user_settings WHERE user_id = @userID",
 		pgx.NamedArgs{"userID": userID})
 	if err != nil {
 		apiError(c, http.StatusInternalServerError, "failed to fetch settings")
 		return
+	}
+
+	// Fetch all config history sorted ascending — configForDate scans from oldest
+	// to newest to find the first row whose valid_until >= the query date.
+	configHistory, _ := queryMany[calorieConfigHistory](h.db, c,
+		`SELECT * FROM calorie_config_history WHERE user_id = @userID ORDER BY valid_until ASC`,
+		pgx.NamedArgs{"userID": userID})
+
+	// Fetch weight log up to range end with no lower bound so we can find the
+	// weight "in effect" at range start even if it was logged before the range.
+	weightEntries, _ := queryMany[weightEntry](h.db, c,
+		`SELECT * FROM weight_log WHERE user_id = @userID AND date <= @end ORDER BY date ASC`,
+		pgx.NamedArgs{"userID": userID, "end": end})
+
+	// Fallback weight when no weight log entry precedes a given day.
+	var fallbackWeight float64
+	if settings.WeightLBS != nil {
+		fallbackWeight = *settings.WeightLBS
 	}
 
 	// Query per-day totals across the requested range. Same GROUP BY as getWeekSummary
@@ -234,14 +352,20 @@ func (h *Handler) getProgress(c *gin.Context) {
 	}
 
 	// Build weekDaySummary slice (same shape as getWeekSummary) and compute stats.
+	// For each day, resolve the historically correct budget and TDEE using config
+	// history and the weight log so long-range estimates are accurate.
 	days := make([]weekDaySummary, 0, len(rows))
 	var stats progressStats
+	var totalDeficit float64
+	tdeeAvailable := true
 	for _, row := range rows {
+		dateStr := row.Date.Format("2006-01-02")
+		budget, actLevel := configForDate(configHistory, &settings, dateStr)
 		net := row.CaloriesFood - row.CaloriesExercise
-		left := settings.CalorieBudget - net
+		left := budget - net
 		days = append(days, weekDaySummary{
 			Date:             row.Date,
-			CalorieBudget:    settings.CalorieBudget,
+			CalorieBudget:    budget,
 			CaloriesFood:     row.CaloriesFood,
 			CaloriesExercise: row.CaloriesExercise,
 			NetCalories:      net,
@@ -252,13 +376,24 @@ func (h *Handler) getProgress(c *gin.Context) {
 			HasData:          true,
 		})
 		stats.DaysTracked++
-		if net <= settings.CalorieBudget {
+		if net <= budget {
 			stats.DaysOnBudget++
 		}
 		stats.AvgCaloriesFood += row.CaloriesFood
 		stats.AvgCaloriesExercise += row.CaloriesExercise
 		stats.AvgNetCalories += net
 		stats.TotalCaloriesLeft += left
+
+		// Per-day TDEE using historical weight and age at that date.
+		if tdeeAvailable {
+			asOf, _ := time.Parse("2006-01-02", dateStr)
+			w := weightAtOrBefore(weightEntries, dateStr, fallbackWeight)
+			if dayTDEE, ok := tdeeForDay(&settings, w, actLevel, asOf); ok {
+				totalDeficit += dayTDEE - float64(net)
+			} else {
+				tdeeAvailable = false
+			}
+		}
 	}
 
 	// Convert totals to averages.
@@ -266,6 +401,15 @@ func (h *Handler) getProgress(c *gin.Context) {
 		stats.AvgCaloriesFood /= stats.DaysTracked
 		stats.AvgCaloriesExercise /= stats.DaysTracked
 		stats.AvgNetCalories /= stats.DaysTracked
+	}
+
+	// Set TDEE-based weight change estimate when profile is complete.
+	// Positive = calorie surplus (gaining), negative = deficit (losing).
+	if tdeeAvailable && stats.DaysTracked > 0 {
+		// 3500 kcal ≈ 1 lb of body fat; dividing cumulative deficit by this
+		// converts total calorie surplus/deficit to estimated lbs gained/lost.
+		wc := totalDeficit / 3500
+		stats.EstimatedWeightChangeLbs = &wc
 	}
 
 	c.JSON(http.StatusOK, progressResponse{Days: days, Stats: stats})

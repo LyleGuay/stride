@@ -143,6 +143,21 @@ type dailySummary struct {
 	Settings         calorieLogUserSettings `json:"settings"`
 }
 
+// calorieConfigHistory records a historical calorie budget and activity level snapshot.
+// When the user changes their budget or activity level, the previous values are written
+// here with valid_until = yesterday. The progress endpoint uses these to resolve per-day
+// config rather than applying today's settings uniformly across all historical dates.
+// To find the config for date D: select the first row with valid_until >= D;
+// fall back to current calorie_log_user_settings if no such row exists.
+type calorieConfigHistory struct {
+	ID            int        `json:"id"             db:"id"`
+	UserID        int        `json:"user_id"        db:"user_id"`
+	ValidUntil    DateOnly   `json:"valid_until"    db:"valid_until"`
+	CalorieBudget int        `json:"calorie_budget" db:"calorie_budget"`
+	ActivityLevel *string    `json:"activity_level" db:"activity_level"`
+	CreatedAt     *time.Time `json:"created_at"     db:"created_at"`
+}
+
 // weightEntry maps to the weight_log table. One entry per user per date;
 // the UNIQUE(user_id, date) constraint enables upsert via ON CONFLICT.
 type weightEntry struct {
@@ -155,12 +170,23 @@ type weightEntry struct {
 
 // progressStats holds aggregate stats computed from a date range for the Progress tab.
 type progressStats struct {
-	DaysTracked         int `json:"days_tracked"`
-	DaysOnBudget        int `json:"days_on_budget"`
-	AvgCaloriesFood     int `json:"avg_calories_food"`
-	AvgCaloriesExercise int `json:"avg_calories_exercise"`
-	AvgNetCalories      int `json:"avg_net_calories"`
-	TotalCaloriesLeft   int `json:"total_calories_left"`
+	DaysTracked              int      `json:"days_tracked"`
+	DaysOnBudget             int      `json:"days_on_budget"`
+	AvgCaloriesFood          int      `json:"avg_calories_food"`
+	AvgCaloriesExercise      int      `json:"avg_calories_exercise"`
+	AvgNetCalories           int      `json:"avg_net_calories"`
+	TotalCaloriesLeft        int      `json:"total_calories_left"`
+	// EstimatedWeightChangeLbs is the TDEE-based estimated weight change over the period.
+	// Positive = gaining, negative = losing. Omitted when TDEE profile is incomplete.
+	EstimatedWeightChangeLbs *float64 `json:"estimated_weight_change_lbs,omitempty"`
+}
+
+// weekSummaryResponse is the response for GET /api/calorie-log/week-summary.
+// EstimatedWeightChangeLbs is the TDEE-based estimate for the week; omitted when
+// the TDEE profile (sex, DOB, height, activity) is incomplete.
+type weekSummaryResponse struct {
+	Days                     []weekDaySummary `json:"days"`
+	EstimatedWeightChangeLbs *float64         `json:"estimated_weight_change_lbs,omitempty"`
 }
 
 // progressResponse is the response for GET /api/calorie-log/progress.

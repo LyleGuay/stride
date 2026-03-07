@@ -43,6 +43,21 @@ test.describe('Progress tab', () => {
     await expect(page.getByText('Calories')).toBeVisible()
   })
 
+  test('Period Summary shows estimated weight impact when data exists', async ({ page }) => {
+    await page.getByRole('button', { name: 'Progress' }).click()
+    await expect(page.getByText('Period Summary')).toBeVisible()
+
+    // Switch to All-time to maximise the chance data is present
+    await page.getByRole('button', { name: 'All' }).click()
+
+    // Wait for stats to load — "Days Tracked" cell proves data arrived
+    await expect(page.getByText('Days Tracked')).toBeVisible()
+
+    // The estimated weight impact footer should render a ±X.XX lbs figure.
+    // This proves the backend is computing and returning estimated_weight_change_lbs.
+    await expect(page.locator('text=/[+-]?\\d+\\.\\d+ lbs/')).toBeVisible()
+  })
+
   test('FAB opens log-weight modal with today pre-filled', async ({ page }) => {
     await page.getByRole('button', { name: 'Progress' }).click()
     await expect(page.getByText('Period Summary')).toBeVisible()

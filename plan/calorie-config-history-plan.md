@@ -28,7 +28,7 @@ This plan introduces a `calorie_config_history` table that records historical ca
 
 ### Phase A: Schema and History Recording
 
-- [ ] **A.1 — Create `calorie_config_history` table migration**
+- [x] **A.1 — Create `calorie_config_history` table migration**
 
   Create `go-api/db/2026-03-07-001-calorie-config-history.sql`:
 
@@ -49,7 +49,7 @@ This plan introduces a `calorie_config_history` table that records historical ca
 
   Run via `go run ./cmd/migrate` in `go-api/`.
 
-- [ ] **A.2 — Add Go struct for `calorie_config_history`**
+- [x] **A.2 — Add Go struct for `calorie_config_history`**
 
   In `go-api/models.go`, add:
 
@@ -68,7 +68,7 @@ This plan introduces a `calorie_config_history` table that records historical ca
   }
   ```
 
-- [ ] **A.3 — Write history record when budget or activity level changes**
+- [x] **A.3 — Write history record when budget or activity level changes**
 
   In `go-api/user_settings.go`, inside `patchUserSettings`, before the UPDATE executes:
 
@@ -86,7 +86,7 @@ This plan introduces a `calorie_config_history` table that records historical ca
 
 ### Phase B: Per-Day Config Resolution in the Progress Endpoint
 
-- [ ] **B.1 — Add `configForDate` helper to `go-api/calorie_log.go`**
+- [x] **B.1 — Add `configForDate` helper to `go-api/calorie_log.go`**
 
   ```go
   // configForDate returns the calorie_budget and activity_level effective on the given
@@ -117,7 +117,7 @@ This plan introduces a `calorie_config_history` table that records historical ca
   }
   ```
 
-- [ ] **B.2 — Add `tdeeForDay` and `weightAtOrBefore` helpers to `go-api/tdee.go`**
+- [x] **B.2 — Add `tdeeForDay` and `weightAtOrBefore` helpers to `go-api/tdee.go`**
 
   ```go
   // tdeeForDay computes TDEE for a specific historical date using an explicit weight
@@ -167,7 +167,7 @@ This plan introduces a `calorie_config_history` table that records historical ca
     - `weightAtOrBefore`: verify it returns the most recent entry ≤ date, returns fallback when none qualify, returns most recent when multiple qualify.
     - `configForDate`: verify it returns the correct history record for dates within range, falls back to current settings for dates after last history record.
 
-- [ ] **B.3 — Update `getProgress` to use per-day config and compute `estimated_weight_change_lbs`**
+- [x] **B.3 — Update `getProgress` to use per-day config and compute `estimated_weight_change_lbs`**
 
   In `go-api/calorie_log.go`, `getProgress` handler:
 
@@ -188,7 +188,7 @@ This plan introduces a `calorie_config_history` table that records historical ca
 
   3. After the loop, compute and set `stats.EstimatedWeightChangeLbs` if `tdeeAvailable`.
 
-- [ ] **B.4 — Update `progressStats` struct in `go-api/models.go`**
+- [x] **B.4 — Update `progressStats` struct in `go-api/models.go`**
 
   ```go
   type progressStats struct {
@@ -206,7 +206,7 @@ This plan introduces a `calorie_config_history` table that records historical ca
 
 ### Phase C: Frontend Integration
 
-- [ ] **C.1 — Update `ProgressStats` type in `packages/shared/src/types.ts`**
+- [x] **C.1 — Update `ProgressStats` type in `packages/shared/src/types.ts`**
 
   ```ts
   export interface ProgressStats {
@@ -220,7 +220,7 @@ This plan introduces a `calorie_config_history` table that records historical ca
   }
   ```
 
-- [ ] **C.2 — Use `estimated_weight_change_lbs` in `ProgressView.tsx`**
+- [x] **C.2 — Use `estimated_weight_change_lbs` in `ProgressView.tsx`**
 
   Locate the weight impact computation in `web-client/src/components/calorie-log/ProgressView.tsx`. Replace:
 
@@ -246,37 +246,194 @@ This plan introduces a `calorie_config_history` table that records historical ca
 
 ### Phase D: Historical Data Import
 
-- [ ] **D.1 — Create one-time import SQL script**
+- [x] **D.1 — Create one-time import SQL script**
 
-  Create `go-api/db/seed/import-calorie-budget-history.sql`.
+  Create `go-api/db/misc/import-calorie-budget-history.sql`.
 
-  The script imports historical budget periods extracted from `docs/legacy-calorie-log-data/Calorie Log - Day Summaries.csv`. The CSV has columns: `DATE,CALORIE BUDGET,...`. Multiple rows exist per date (duplicate date rows have the same budget); the data spans 2024-02-24 to early 2026.
+  The script imports historical budget periods extracted from `docs/legacy-calorie-log-data/Calorie Log - Day Summaries.csv`. The CSV has columns: `DATE,CALORIE BUDGET,...`. Multiple rows exist per date; data spans 2024-02-24 to early 2026.
 
   **Algorithm used to produce the INSERT values:**
-  1. Deduplicate rows by date, taking the `CALORIE BUDGET` value (same for all rows of a date).
-  2. Sort chronologically.
-  3. Identify "runs" of consecutive days with the same budget.
-  4. For each run: `valid_until` = last date of that run.
-  5. Skip the final run if it matches the current `calorie_budget` in `calorie_log_user_settings` (it would never be queried — current settings act as the default).
+  1. Deduplicate rows by date, taking the `CALORIE BUDGET` value.
+  2. Group days by ISO week (Mon–Sun), keyed by that week's Monday.
+  3. For each week: compute the average budget across all days in the week, then round to the nearest 100 (e.g. 2443 → 2400, 2457 → 2500).
+  4. Walk weeks in chronological order. When the rounded budget changes from the previous week, emit a history record. `valid_until` = Monday of the new week minus 1 day (Sunday — the last day the old budget applied).
+  5. Skip the final run if its rounded budget matches the current `calorie_budget` in settings (2300) — those weeks are covered by current settings.
 
-  **Script structure:**
-  ```sql
-  -- One-time import of historical calorie budget periods from legacy spreadsheet.
-  -- Run once: psql $DB_URL -f import-calorie-budget-history.sql
-  -- Assumes user_id = 1. Adjust if needed.
-  -- activity_level is NULL — will inherit from current settings at query time.
+  - **Manual test:** After running the script, query `SELECT * FROM calorie_config_history ORDER BY valid_until ASC` and spot-check a few dates against the CSV. Open the Progress tab for the 1Y or All range and verify the weight impact number becomes more plausible.
 
-  INSERT INTO calorie_config_history (user_id, valid_until, calorie_budget, activity_level)
-  VALUES
-    (1, '2024-02-24', 2200, NULL),
-    (1, '...', ..., NULL),
-    -- ... one row per distinct budget period
-  ON CONFLICT (user_id, valid_until) DO NOTHING;
+---
+
+### Phase E: Historical Budget and TDEE in Daily and Weekly Endpoints
+
+Both `getDailySummary` and `getWeekSummary` currently apply today's `calorie_budget` uniformly across all dates. They should resolve the historically correct budget (and compute historically accurate TDEE) using the same `configForDate` / `weightAtOrBefore` / `tdeeForDay` helpers from Phase B.
+
+- [x] **E.1 — Update `getDailySummary` to use historical budget and TDEE**
+
+  In `go-api/calorie_log.go`, after fetching settings:
+
+  1. Fetch config history (`SELECT * FROM calorie_config_history WHERE user_id = @userID ORDER BY valid_until ASC`) and weight log entries up to the requested date (`SELECT * FROM weight_log WHERE user_id = @userID AND date <= @date ORDER BY date ASC`).
+  2. Use `configForDate` to resolve the historical `calorieBudget` and `activityLevel` for the date.
+  3. Use `weightAtOrBefore` to resolve the historical weight.
+  4. Override `settings.CalorieBudget` with the historical budget before computing totals.
+  5. Compute TDEE at that date using `tdeeForDay(settings, historicalWeight, activityLevel, asOfDate)`. If ok, set `settings.ComputedTDEE = &tdee` directly — this makes the frontend's daily weight impact display (the "Estimated" pace under the per-meal table) historically accurate.
+  6. Use the overridden `settings.CalorieBudget` for `CalorieBudget` and `CaloriesLeft` in the `dailySummary` response.
+
+  No frontend changes needed — the response shape is unchanged; the frontend already reads `calorie_budget` and `computed_tdee` from the nested settings.
+
+  - **Manual tests:** Navigate to a past date where the budget was different (e.g., a date in Dec 2024). Verify the ring and budget numbers reflect the historical budget, not today's.
+
+- [x] **E.2 — Update `getWeekSummary` to use per-day historical budgets and compute weekly weight impact**
+
+  In `go-api/calorie_log.go`:
+
+  1. Wrap the response in a new struct:
+     ```go
+     // weekSummaryResponse is the response for GET /api/calorie-log/week-summary.
+     type weekSummaryResponse struct {
+       Days                     []weekDaySummary `json:"days"`
+       EstimatedWeightChangeLbs *float64         `json:"estimated_weight_change_lbs,omitempty"`
+     }
+     ```
+     Add this to `go-api/models.go`.
+
+  2. After fetching settings, fetch config history (all, ASC) and weight log entries up to weekEnd.
+
+  3. In the 7-day loop, for each day:
+     - Use `configForDate` for the day's `CalorieBudget` and `activityLevel`.
+     - Use `weightAtOrBefore` for the day's weight.
+     - Compute `dayTDEE` via `tdeeForDay`; accumulate daily deficit (`dayTDEE - net`) into `totalDeficit`.
+
+  4. After the loop, if all days had valid TDEE: `estimated_weight_change_lbs = totalDeficit / 3500`.
+
+  5. Return `weekSummaryResponse{Days: result, EstimatedWeightChangeLbs: &wc}`.
+
+- [x] **E.3 — Update frontend to handle new week summary response shape**
+
+  The week endpoint now returns `{ days: [...], estimated_weight_change_lbs?: number }` instead of a bare array.
+
+  1. **`packages/shared/src/types.ts`** — add:
+     ```ts
+     export interface WeekSummaryResponse {
+       days: WeekDaySummary[]
+       estimated_weight_change_lbs?: number
+     }
+     ```
+
+  2. **`web-client/src/api.ts`** — update `fetchWeekSummary` return type from `WeekDaySummary[]` to `WeekSummaryResponse`.
+
+  3. **`web-client/src/pages/CalorieLog.tsx`** — update to destructure `weekSummary.days` and pass `weekSummary.estimated_weight_change_lbs` as a new prop to `WeeklySummary`.
+
+  4. **`web-client/src/components/calorie-log/WeeklySummary.tsx`** — add `estimatedWeightChangeLbs?: number` to props; use it in the Estimated Weight Impact card instead of computing locally from `settings.computed_tdee`. Fall back to the local computation when the prop is absent.
+
+  - **Frontend build check:** `npm run build` in `web-client/` — no TypeScript errors.
+
+- [x] **E.4 — Update weekly bar chart to use per-bar budget tick marks**
+
+  In `web-client/src/components/calorie-log/WeeklySummary.tsx`:
+
+  1. Update `dataMax` to include all per-day budgets so the scale is correct when budgets vary across the week:
+     ```ts
+     const dataMax = Math.max(1, ...days.map(d => d.net_calories), ...days.map(d => d.calorie_budget))
+     ```
+     Remove the now-unused `budgetLineY` variable.
+
+  2. Remove the single full-width dashed budget reference line (`{budget > 0 && (...)}` block).
+
+  3. Inside the per-day `<g>` loop, after the bar `<rect>`, draw a tick mark at each day's budget height:
+     ```tsx
+     {day.calorie_budget > 0 && (
+       <line
+         x1={bx - 3} y1={Y_BOT - scaleY(day.calorie_budget)}
+         x2={bx + BAR_W + 3} y2={Y_BOT - scaleY(day.calorie_budget)}
+         stroke="#2563eb" strokeWidth={2} opacity={0.8}
+       />
+     )}
+     ```
+
+  4. Update the legend entry from `Budget ({budget.toLocaleString()})` to just `Budget` (no number, since it may vary per day).
+
+  5. In the tooltip (`tooltipIdx` overlay), replace the "vs. budget" row (which shows `calories_left` as a signed delta) with a plain "Budget" row showing `day.calorie_budget`:
+     ```tsx
+     <div className="flex justify-between text-[10px] mb-2">
+       <span className="text-gray-400">Budget</span>
+       <span className="text-white font-semibold">{day.calorie_budget.toLocaleString()}</span>
+     </div>
+     ```
+     Also bump tooltip text from `text-[10px]` to `text-[10px] sm:text-xs` (date label) and value text from `text-white font-semibold` to include `sm:text-sm` for bigger numbers on desktop. Widen the tooltip container from `width: 128` to `width: 140` on desktop using an inline `style` or a wider fixed width.
+
+- [x] **E.5 — Bigger tooltip text in Progress calorie bar chart on desktop**
+
+  The Progress view calorie bar chart tooltip is SVG-based (unlike the weekly HTML overlay). In `web-client/src/components/calorie-log/ProgressView.tsx`, convert the SVG tooltip (`<g>` with `<rect>` + `<text>` elements, lines ~502–524) to an HTML overlay positioned with `position: absolute` — the same pattern used in `WeeklySummary.tsx`.
+
+  The HTML overlay approach allows Tailwind responsive classes (`text-[10px] sm:text-xs sm:text-sm`) to scale text on desktop without affecting mobile.
+
+  Steps:
+  1. Wrap the `<svg>` in a `<div className="relative">`.
+  2. Remove the SVG `<g>` tooltip block.
+  3. Render an HTML tooltip `<div>` outside the `<svg>` (but inside the `relative` wrapper) when `tooltipIdx >= 0`, positioned using `left` as a percentage of the SVG viewBox width (same clamping logic as WeeklySummary).
+  4. Use `text-[10px] sm:text-xs` for labels and `text-xs sm:text-sm` for values.
+
+---
+
+### Phase F: E2E Tests
+
+- [x] **F.1 — E2E: progress tab shows estimated weight impact value**
+
+  In `e2e/tests/progress.spec.ts`, add a test that verifies the Period Summary card displays a numeric estimated weight impact when the user has data. The test asserts that the `Estimated Weight Impact from Calorie Balance` section renders an `lbs` value (matching `/[+-]?\d+\.\d+ lbs/`) — proving the backend is computing and returning `estimated_weight_change_lbs` end-to-end.
+
+  ```ts
+  test('Period Summary shows estimated weight impact when data exists', async ({ page }) => {
+    await page.getByRole('button', { name: 'Progress' }).click()
+    await expect(page.getByText('Period Summary')).toBeVisible()
+
+    // Switch to All-time range to maximize chance of data being present
+    await page.getByRole('button', { name: 'All' }).click()
+
+    // Estimated weight impact figure should be present (a ±X.XX lbs value)
+    const impactValue = page.locator('text=/[+-]?\\d+\\.\\d+ lbs/').first()
+    await expect(impactValue).toBeVisible()
+  })
   ```
 
-  The actual INSERT values will be computed by analyzing the CSV. Note: the CSV budget fluctuates frequently (often week to week) so there will be many records — each is a distinct `valid_until` date, the last day before the budget changes.
+- [x] **F.2 — E2E: weekly estimated weight impact is displayed**
 
-  - **Manual test:** After running the script, query `SELECT * FROM calorie_config_history ORDER BY valid_until ASC` and spot-check a few dates against the CSV. Open the Progress tab for the 1Y or All range and verify the weight impact number becomes more plausible (e.g. for a period where the budget was 2300/day and the user was close to budget, the weight impact should be near 0 or a small loss).
+  In `e2e/tests/calorie-log.spec.ts` (or a new `weekly.spec.ts`), add a test that navigates to the Weekly tab and verifies the Estimated Weight Impact card renders a `lbs/wk` value. This proves the `estimated_weight_change_lbs` field from the new week response is consumed by the frontend.
+
+  ```ts
+  test('Weekly tab shows Estimated Weight Impact', async ({ page }) => {
+    await page.getByRole('button', { name: 'Weekly' }).click()
+    await expect(page.getByText('Estimated Weight Impact')).toBeVisible()
+
+    // lbs/wk value should be rendered
+    const paceValue = page.locator('text=/[+-]?\\d+\\.\\d+ lbs\\/wk/').first()
+    await expect(paceValue).toBeVisible()
+  })
+  ```
+
+- [x] **F.3 — E2E: settings budget change propagates to daily view**
+
+  In `e2e/tests/calorie-log.spec.ts`, add a test that navigates to Settings, changes the calorie budget, returns to the Daily tab, and verifies the ring/header reflects the new budget. This tests the live (current-day) budget path end-to-end.
+
+  ```ts
+  test('changing calorie budget in settings is reflected in daily view', async ({ page }) => {
+    // Navigate to Settings and update the budget
+    await page.goto('/settings')
+    const budgetInput = page.locator('input[name="calorie_budget"], input#calorie_budget')
+    await budgetInput.fill('2150')
+    await page.getByRole('button', { name: /save/i }).click()
+
+    // Return to daily view — budget should be 2150
+    await page.goto('/calorie-log')
+    await expect(page.getByText('2,150')).toBeVisible()
+
+    // Restore original budget (cleanup)
+    await page.goto('/settings')
+    await budgetInput.fill('2300')
+    await page.getByRole('button', { name: /save/i }).click()
+  })
+  ```
+
+  - **Note:** The exact selectors for the settings form inputs will need to match the actual Settings page implementation. Adjust if the input `name` or `id` differs.
 
 ---
 
@@ -285,7 +442,7 @@ This plan introduces a `calorie_config_history` table that records historical ca
 | File | Action |
 |------|--------|
 | `go-api/db/2026-03-07-001-calorie-config-history.sql` | CREATE — schema migration |
-| `go-api/db/seed/import-calorie-budget-history.sql` | CREATE — one-time import script |
+| `go-api/db/misc/import-calorie-budget-history.sql` | CREATE — one-time import script |
 | `go-api/models.go` | MODIFY — add `calorieConfigHistory` struct; add `EstimatedWeightChangeLbs` to `progressStats` |
 | `go-api/user_settings.go` | MODIFY — write history record on budget/activity change |
 | `go-api/calorie_log.go` | MODIFY — `getProgress` uses per-day config and computes TDEE-based weight change |
@@ -302,7 +459,7 @@ This plan introduces a `calorie_config_history` table that records historical ca
 1. **Go unit tests:** `go test ./...` in `go-api/` — all helpers pass.
 2. **Go build:** `go build ./...` — no errors.
 3. **Run migration:** `go run ./cmd/migrate` — `calorie_config_history` table created.
-4. **Run import script:** `psql $DB_URL -f db/seed/import-calorie-budget-history.sql` — N rows inserted.
+4. **Run import script:** `psql $DB_URL -f db/misc/import-calorie-budget-history.sql` — N rows inserted.
 5. **Frontend build:** `npm run build` in `web-client/` — no TypeScript errors.
 6. **Manual — history recording:** Change calorie budget in Settings. Query `calorie_config_history` — one new row with `valid_until = yesterday` and the old budget.
 7. **Manual — Progress tab:** Open Progress → All Time range. Verify estimated weight change is plausible (should roughly correlate with observed weight change in the Weight chart).

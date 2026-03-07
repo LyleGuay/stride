@@ -1,4 +1,4 @@
-// CLI tool to run pending database migrations from db/.
+// CLI tool to run pending database migrations from db/migrations/.
 // Checks the migrations table to skip already-applied files.
 // Wraps each migration + record insert in a single transaction.
 // Usage: go run ./cmd/migrate (from go-api/)
@@ -34,7 +34,7 @@ func main() {
 	}
 	defer conn.Close(ctx)
 
-	dbDir := filepath.Join("..", "db")
+	dbDir := filepath.Join("..", "db", "migrations")
 	files, err := filepath.Glob(filepath.Join(dbDir, "*.sql"))
 	if err != nil || len(files) == 0 {
 		fmt.Fprintf(os.Stderr, "No migration files found in %s\n", dbDir)
