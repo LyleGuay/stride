@@ -8,6 +8,11 @@
 - **Make minimal changes.** The smallest diff that solves the problem is the best diff.
 - **If you're unsure, say so.** Flag uncertainty as an open question rather than making a best guess.
 
+## Git
+
+- **Never amend commits.** Always create a new commit for follow-up fixes. `git commit --amend` rewrites history and causes problems if the commit was already pushed.
+- **Run `npm run build && npm run lint` before committing** in `web-client/`. Don't commit code that fails either check.
+
 ## Token Efficiency
 
 - Do not read files you don't need. If the task is about `auth.controller.ts`, do not explore unrelated directories.

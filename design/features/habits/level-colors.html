@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Habit Level Color Options</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: {
+              50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe',
+              300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1',
+              600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    .habit-circle {
+      width: 44px; height: 44px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    /* Highlight selected option */
+    .option-card { transition: box-shadow 0.15s; cursor: pointer; }
+    .option-card.selected { box-shadow: 0 0 0 3px #4f46e5; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen py-8 px-4">
+
+<div class="max-w-lg mx-auto">
+  <h1 class="text-xl font-bold text-gray-900 mb-1">Level Color Options</h1>
+  <p class="text-sm text-gray-500 mb-6">L1 is always indigo (stride brand). Tap an option to preview all habits with that scheme.</p>
+
+  <!-- Option grid -->
+  <div class="grid grid-cols-2 gap-3 mb-8" id="optionGrid">
+  </div>
+
+  <!-- Live preview: habit list -->
+  <h2 class="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Preview</h2>
+  <div id="preview" class="space-y-2"></div>
+</div>
+
+<script>
+  /* ─── Color schemes ─────────────────────────────────────────────── */
+
+  const schemes = [
+    {
+      id: 'current',
+      name: 'Current',
+      desc: 'Indigo → Amber → Yellow',
+      l1: { bg: '#4f46e5', ring: '#4f46e5', badge: 'background:#e0e7ff;color:#4338ca' },
+      l2: { bg: '#f59e0b', ring: '#f59e0b', badge: 'background:#fef3c7;color:#b45309' },
+      l3: { bg: '#eab308', ring: '#ca8a04', badge: 'background:#fef9c3;color:#a16207' },
+      dots: ['#4f46e5', '#f59e0b', '#eab308'],
+    },
+    {
+      id: 'emerald',
+      name: 'Option A',
+      desc: 'Indigo → Emerald → Gold',
+      l1: { bg: '#4f46e5', ring: '#4f46e5', badge: 'background:#e0e7ff;color:#4338ca' },
+      l2: { bg: '#10b981', ring: '#10b981', badge: 'background:#d1fae5;color:#065f46' },
+      l3: { bg: '#f59e0b', ring: '#d97706', badge: 'background:#fef3c7;color:#92400e', glow: true },
+      dots: ['#4f46e5', '#10b981', '#f59e0b'],
+    },
+    {
+      id: 'violet',
+      name: 'Option B',
+      desc: 'Indigo → Violet → Amber',
+      l1: { bg: '#4f46e5', ring: '#4f46e5', badge: 'background:#e0e7ff;color:#4338ca' },
+      l2: { bg: '#8b5cf6', ring: '#8b5cf6', badge: 'background:#ede9fe;color:#5b21b6' },
+      l3: { bg: '#f59e0b', ring: '#d97706', badge: 'background:#fef3c7;color:#92400e', glow: true },
+      dots: ['#4f46e5', '#8b5cf6', '#f59e0b'],
+    },
+    {
+      id: 'teal',
+      name: 'Option C',
+      desc: 'Indigo → Teal → Emerald',
+      l1: { bg: '#4f46e5', ring: '#4f46e5', badge: 'background:#e0e7ff;color:#4338ca' },
+      l2: { bg: '#0d9488', ring: '#0d9488', badge: 'background:#ccfbf1;color:#115e59' },
+      l3: { bg: '#059669', ring: '#047857', badge: 'background:#d1fae5;color:#064e3b' },
+      dots: ['#4f46e5', '#0d9488', '#059669'],
+    },
+    {
+      id: 'rose',
+      name: 'Option D',
+      desc: 'Indigo → Rose → Orange',
+      l1: { bg: '#4f46e5', ring: '#4f46e5', badge: 'background:#e0e7ff;color:#4338ca' },
+      l2: { bg: '#f43f5e', ring: '#f43f5e', badge: 'background:#ffe4e6;color:#9f1239' },
+      l3: { bg: '#f97316', ring: '#ea580c', badge: 'background:#ffedd5;color:#9a3412', glow: true },
+      dots: ['#4f46e5', '#f43f5e', '#f97316'],
+    },
+    {
+      id: 'sky',
+      name: 'Option E',
+      desc: 'Indigo → Sky → Cyan',
+      l1: { bg: '#4f46e5', ring: '#4f46e5', badge: 'background:#e0e7ff;color:#4338ca' },
+      l2: { bg: '#0ea5e9', ring: '#0ea5e9', badge: 'background:#e0f2fe;color:#0369a1' },
+      l3: { bg: '#06b6d4', ring: '#0891b2', badge: 'background:#cffafe;color:#155e75' },
+      dots: ['#4f46e5', '#0ea5e9', '#06b6d4'],
+    },
+  ]
+
+  /* ─── Sample habits ─────────────────────────────────────────────── */
+
+  const habits = [
+    { name: 'Go outside', levels: ['Go outside', '15+ min', '30+ min'], level: 2, streak: 12, consistency: 81, avg: 2.1 },
+    { name: 'Cold shower', levels: ['Any cold', '2 min', 'Full cold'], level: 3, streak: 21, consistency: 93, avg: 2.7 },
+    { name: 'Meditate',   levels: ['5 min', '10 min', '20 min'],       level: 0, streak: 3,  consistency: 57, avg: 1.8 },
+    { name: 'Read',       levels: ['10 min', '20 min', '30 min'],      level: 1, streak: 5,  consistency: 67, avg: 1.4 },
+  ]
+
+  /* ─── Render ─────────────────────────────────────────────────────── */
+
+  let activeScheme = schemes[1] // default to Option A
+
+  function renderOptions() {
+    const grid = document.getElementById('optionGrid')
+    grid.innerHTML = ''
+    schemes.forEach(s => {
+      const card = document.createElement('div')
+      card.className = `option-card bg-white rounded-2xl p-3 border border-gray-200 ${s.id === activeScheme.id ? 'selected' : ''}`
+      card.innerHTML = `
+        <div class="flex items-center gap-1.5 mb-2">
+          ${s.dots.map(c => `<div class="w-5 h-5 rounded-full" style="background:${c}"></div>`).join('')}
+        </div>
+        <p class="text-sm font-semibold text-gray-800">${s.name}</p>
+        <p class="text-xs text-gray-400">${s.desc}</p>
+      `
+      card.addEventListener('click', () => {
+        activeScheme = s
+        renderOptions()
+        renderPreview()
+      })
+      grid.appendChild(card)
+    })
+  }
+
+  function checkSVG(color) {
+    return `<svg width="18" height="18" fill="none" stroke="${color}" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>`
+  }
+
+  function renderPreview() {
+    const s = activeScheme
+    const container = document.getElementById('preview')
+    container.innerHTML = ''
+
+    habits.forEach((h, idx) => {
+      const lvl = h.level
+      const maxLvl = h.levels.length
+      const colors = [null, s.l1, s.l2, s.l3]
+      const cur = colors[lvl]
+      const next = lvl < maxLvl ? { level: lvl + 1, label: h.levels[lvl] } : null
+
+      // Level badge text
+      const badgeText = lvl === 0 ? '' : lvl === maxLvl && maxLvl === 3 ? 'L3 ✦' : `L${lvl}`
+
+      // Circle
+      const circleBg = lvl === 0 ? '#f3f4f6' : cur.bg
+      const circleBorder = lvl === 0 ? '#d1d5db' : cur.ring
+      const circleGlow = lvl === 3 && cur.glow ? `box-shadow:0 0 0 3px ${cur.ring}33` : ''
+
+      const card = document.createElement('div')
+      card.className = 'bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden'
+
+      // Header
+      const header = document.createElement('div')
+      header.className = 'flex items-center gap-3.5 px-3.5 py-3 cursor-pointer'
+      header.addEventListener('click', () => {
+        const body = card.querySelector('.body')
+        body.classList.toggle('hidden')
+        const chev = card.querySelector('.chev')
+        chev.style.transform = body.classList.contains('hidden') ? '' : 'rotate(180deg)'
+      })
+
+      header.innerHTML = `
+        <!-- Circle -->
+        <div class="habit-circle" style="background:${circleBg};border:2.5px solid ${circleBorder};${circleGlow}">
+          ${lvl > 0 ? checkSVG('white') : ''}
+        </div>
+
+        <!-- Text -->
+        <div class="flex-1 min-w-0">
+          <div class="flex items-center gap-1.5">
+            <span class="font-semibold text-gray-900 text-sm">${h.name}</span>
+            ${lvl > 0 ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style="${cur.badge}">${badgeText}</span>` : ''}
+          </div>
+          <p class="text-xs text-gray-400 mt-0.5">
+            ${lvl === 0 ? 'Tap circle to log' : h.levels[lvl - 1]}
+          </p>
+          ${lvl > 0 && next ? `
+            <p class="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1">
+              <svg class="w-2.5 h-2.5 text-gray-300 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75"/></svg>
+              L${next.level}: ${next.label}
+            </p>
+          ` : lvl === maxLvl && maxLvl > 1 ? `<p class="text-[11px] font-semibold mt-0.5" style="color:${cur.ring}">✦ Maximum level!</p>` : ''}
+        </div>
+
+        <!-- Chevron -->
+        <button class="p-1.5 -mr-1 text-gray-300 chev" style="transition:transform 0.2s">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/>
+          </svg>
+        </button>
+      `
+
+      // Expanded body
+      const dotColors = [s.l1?.bg, s.l2?.bg, s.l3?.bg]
+      const body = document.createElement('div')
+      body.className = 'body hidden border-t border-gray-50'
+
+      const levelList = document.createElement('div')
+      levelList.className = 'px-4 pt-3 pb-1 space-y-2'
+      h.levels.forEach((label, i) => {
+        const li = i + 1
+        const isActive = lvl === li
+        const isDone = lvl > li
+        const isNext = lvl === li - 1
+        const dotColor = dotColors[i] || '#d1d5db'
+        const row = document.createElement('div')
+        row.className = `flex items-center gap-2.5 py-1.5 px-2 rounded-xl ${isActive ? 'bg-indigo-50' : isNext ? 'bg-gray-50' : ''}`
+        row.innerHTML = `
+          <div class="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style="background:${dotColor}">
+            ${isDone
+              ? `<svg class="w-2.5 h-2.5" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>`
+              : `<span class="text-[8px] font-black text-white">${li}</span>`}
+          </div>
+          <span class="text-xs flex-1 ${isActive ? 'font-semibold text-gray-900' : isDone ? 'text-gray-400 line-through' : isNext ? 'text-gray-600' : 'text-gray-400'}">${label}</span>
+          ${isActive ? `<span class="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style="${cur.badge}">current</span>` : ''}
+          ${isNext ? `<span class="text-[10px] text-gray-400">← next</span>` : ''}
+        `
+        levelList.appendChild(row)
+      })
+
+      const stats = document.createElement('div')
+      stats.className = 'grid grid-cols-3 gap-0 border-t border-gray-50 mt-2'
+      ;[
+        { label: 'Consistency', value: h.consistency + '%', color: '#4f46e5' },
+        { label: 'Streak',      value: '🔥 ' + h.streak,   color: '#111827' },
+        { label: 'Avg level',   value: h.avg.toFixed(1),    color: lvl > 0 ? cur.bg : '#9ca3af' },
+      ].forEach((stat, i) => {
+        const cell = document.createElement('div')
+        cell.className = `py-3 text-center ${i < 2 ? 'border-r border-gray-50' : ''}`
+        cell.innerHTML = `
+          <div class="text-sm font-bold" style="color:${stat.color}">${stat.value}</div>
+          <div class="text-[10px] text-gray-400 mt-0.5">${stat.label}</div>
+        `
+        stats.appendChild(cell)
+      })
+
+      body.appendChild(levelList)
+      body.appendChild(stats)
+      card.appendChild(header)
+      card.appendChild(body)
+      container.appendChild(card)
+    })
+  }
+
+  renderOptions()
+  renderPreview()
+</script>
+</body>
+</html>

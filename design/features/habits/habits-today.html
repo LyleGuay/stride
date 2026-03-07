@@ -1,0 +1,1041 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Habits · Stride</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: {
+              50: '#eef2ff', 100: '#e0e7ff', 200: '#c7d2fe',
+              300: '#a5b4fc', 400: '#818cf8', 500: '#6366f1',
+              600: '#4f46e5', 700: '#4338ca', 800: '#3730a3', 900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { box-sizing: border-box; }
+    .habit-circle {
+      width: 44px; height: 44px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      cursor: pointer; flex-shrink: 0;
+      transition: transform 0.12s ease;
+      user-select: none; -webkit-tap-highlight-color: transparent;
+    }
+    .habit-circle:active { transform: scale(0.88); }
+    .expand-body { display: none; }
+    .expand-body.open { display: block; }
+    .chevron { transition: transform 0.2s ease; }
+    .chevron.open { transform: rotate(180deg); }
+    .ctx-menu { display: none; position: fixed; z-index: 200; }
+    .ctx-menu.open { display: block; }
+  </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+<div class="min-h-screen bg-gray-50">
+
+  <!-- Sidebar -->
+  <aside class="fixed top-0 left-0 h-full w-64 bg-white border-r border-gray-200 z-50 flex-col hidden lg:flex">
+    <div class="h-14 flex items-center px-5 border-b border-gray-200 shrink-0">
+      <h1 class="text-xl font-bold text-stride-600">Stride</h1>
+    </div>
+    <nav class="p-3 flex-1">
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.362 5.214A8.252 8.252 0 0 1 12 21 8.25 8.25 0 0 1 6.038 7.047 8.287 8.287 0 0 0 9 9.601a8.983 8.983 0 0 1 3.361-6.867 8.21 8.21 0 0 0 3 2.48Z"/></svg>
+        Calorie Log
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm bg-stride-50 text-stride-700 font-medium mt-1">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+        Habits
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50 mt-1">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25"/></svg>
+        Recipes
+      </a>
+    </nav>
+    <div class="border-t border-gray-200 p-3 shrink-0">
+      <div class="flex items-center gap-3 px-3 py-2 rounded-lg">
+        <div class="w-7 h-7 rounded-full bg-stride-100 flex items-center justify-center text-stride-700 text-xs font-bold shrink-0">L</div>
+        <span class="text-sm text-gray-700 font-medium">Lyle</span>
+      </div>
+    </div>
+  </aside>
+
+  <main class="lg:ml-64 min-h-screen">
+
+    <!-- Sticky header -->
+    <div class="sticky top-0 z-20 bg-white">
+
+      <!-- Tab row — h-14, same as sidebar logo -->
+      <div class="flex items-end px-6 border-b border-gray-200" style="height:56px">
+        <!-- Hamburger (mobile) -->
+        <button class="p-1 -ml-1 mr-3 rounded-md hover:bg-gray-100 lg:hidden self-center">
+          <svg class="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
+        </button>
+
+        <!-- Today tab -->
+        <button id="tabToday" onclick="setTab('today')"
+          class="px-4 h-full flex items-center gap-1.5 text-sm -mb-px transition-colors border-b-[3px] font-semibold text-gray-900 border-gray-900">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+          Today
+        </button>
+
+        <!-- Progress tab -->
+        <button id="tabProgress" onclick="setTab('progress')"
+          class="px-4 h-full flex items-center gap-1.5 text-sm -mb-px transition-colors border-b-[3px] font-medium text-gray-400 border-transparent hover:text-gray-600">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+          Progress
+        </button>
+
+        <!-- Gear (desktop) -->
+        <button class="ml-auto self-center p-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors hidden lg:flex">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.594 3.94c.09-.542.56-.94 1.11-.94h2.593c.55 0 1.02.398 1.11.94l.213 1.281c.063.374.313.686.645.87.074.04.147.083.22.127.325.196.72.257 1.075.124l1.217-.456a1.125 1.125 0 0 1 1.37.49l1.296 2.247a1.125 1.125 0 0 1-.26 1.431l-1.003.827c-.293.241-.438.613-.43.992a7.723 7.723 0 0 1 0 .255c-.008.378.137.75.43.991l1.004.827c.424.35.534.955.26 1.43l-1.298 2.247a1.125 1.125 0 0 1-1.369.491l-1.217-.456c-.355-.133-.75-.072-1.076.124a6.47 6.47 0 0 1-.22.128c-.331.183-.581.495-.644.869l-.213 1.281c-.09.543-.56.94-1.11.94h-2.594c-.55 0-1.019-.398-1.11-.94l-.213-1.281c-.062-.374-.312-.686-.644-.87a6.52 6.52 0 0 1-.22-.127c-.325-.196-.72-.257-1.076-.124l-1.217.456a1.125 1.125 0 0 1-1.369-.49l-1.297-2.247a1.125 1.125 0 0 1 .26-1.431l1.004-.827c.292-.24.437-.613.43-.991a6.932 6.932 0 0 1 0-.255c.007-.38-.138-.751-.43-.992l-1.004-.827a1.125 1.125 0 0 1-.26-1.43l1.297-2.247a1.125 1.125 0 0 1 1.37-.491l1.216.456c.356.133.751.072 1.076-.124.072-.044.146-.086.22-.128.332-.183.582-.495.644-.869l.214-1.28Z"/>
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Sub-header — changes per tab -->
+      <div class="border-b border-gray-200" id="subHeader">
+        <!-- rendered by JS -->
+      </div>
+    </div>
+
+    <!-- Page content -->
+    <div class="max-w-3xl mx-auto px-4 py-4 pb-24" id="pageContent"></div>
+
+  </main>
+</div>
+
+<!-- FAB (Today tab only) -->
+<button id="fab" onclick="document.getElementById('addSheet').classList.remove('translate-y-full')"
+  class="fixed bottom-6 right-6 w-14 h-14 bg-stride-600 rounded-full shadow-lg flex items-center justify-center text-white hover:bg-stride-700 active:scale-95 transition-all z-30">
+  <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+  </svg>
+</button>
+
+<!-- Context menu for edit / archive / delete -->
+<div id="ctxMenu" class="ctx-menu bg-white border border-gray-200 rounded-lg shadow-lg py-1 min-w-[160px]">
+  <button onclick="ctxAction('edit')" class="flex items-center gap-2 w-full px-3.5 py-[7px] text-[13px] text-gray-700 hover:bg-gray-100">
+    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 1 1 2.652 2.652L10.582 16.07a4.5 4.5 0 0 1-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 0 1 1.13-1.897l8.932-8.931z"/></svg>
+    Edit habit
+  </button>
+  <button onclick="ctxAction('archive')" class="flex items-center gap-2 w-full px-3.5 py-[7px] text-[13px] text-gray-700 hover:bg-gray-100">
+    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 7.5l-.625 10.632a2.25 2.25 0 0 1-2.247 2.118H6.622a2.25 2.25 0 0 1-2.247-2.118L3.75 7.5M10 11.25h4M3.375 7.5h17.25c.621 0 1.125-.504 1.125-1.125v-1.5c0-.621-.504-1.125-1.125-1.125H3.375c-.621 0-1.125.504-1.125 1.125v1.5c0 .621.504 1.125 1.125 1.125z"/></svg>
+    Archive
+  </button>
+  <div class="h-px bg-gray-200 my-1"></div>
+  <button onclick="ctxAction('delete')" class="flex items-center gap-2 w-full px-3.5 py-[7px] text-[13px] text-red-600 hover:bg-red-50">
+    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 0 1-2.244 2.077H8.084a2.25 2.25 0 0 1-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 0 0-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 0 1 3.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 0 0-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 0 0-7.5 0"/></svg>
+    Delete
+  </button>
+</div>
+
+<!-- Add Habit Sheet -->
+<div id="addSheet" class="fixed inset-0 z-50 flex items-end justify-center translate-y-full transition-transform duration-300"
+     onclick="if(event.target===this)this.classList.add('translate-y-full')">
+  <div class="w-full max-w-2xl bg-white rounded-t-2xl shadow-2xl p-5 pb-10" onclick="event.stopPropagation()">
+    <div class="w-10 h-1 bg-gray-200 rounded-full mx-auto mb-5"></div>
+    <h2 class="text-base font-bold text-gray-900 mb-4">New Habit</h2>
+    <div class="flex gap-3 mb-4">
+      <button class="w-12 h-12 bg-gray-100 rounded-lg text-xl flex items-center justify-center flex-shrink-0 border border-gray-200">🌿</button>
+      <input type="text" placeholder="Habit name" value="Go outside" class="flex-1 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-stride-400">
+    </div>
+    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Frequency</p>
+    <div class="flex gap-2 mb-4">
+      <button onclick="setFreq('daily')" class="flex-1 py-2 rounded-lg text-sm font-semibold bg-stride-600 text-white">Daily</button>
+      <button onclick="setFreq('weekly')" class="flex-1 py-2 rounded-lg text-sm font-semibold bg-white text-gray-600 border border-gray-200">Weekly</button>
+    </div>
+    <p class="text-xs font-medium text-gray-500 uppercase tracking-wide mb-2">Levels</p>
+    <div class="space-y-2 mb-5">
+      <div class="flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-stride-600 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">1</span>
+        <input type="text" value="Go outside" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-stride-400" placeholder="Minimum (required)">
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">2</span>
+        <input type="text" value="Go outside 15+ min" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none" placeholder="Better (optional)">
+      </div>
+      <div class="flex items-center gap-2">
+        <span class="w-6 h-6 rounded-full bg-amber-400 flex items-center justify-center text-[9px] font-bold text-white flex-shrink-0">3</span>
+        <input type="text" value="Go outside 30+ min" class="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none" placeholder="Best (optional)">
+      </div>
+    </div>
+    <button class="w-full py-2.5 bg-stride-600 text-white rounded-lg font-semibold text-sm hover:bg-stride-700 transition-colors"
+            onclick="document.getElementById('addSheet').classList.add('translate-y-full')">Save Habit</button>
+  </div>
+</div>
+
+<script>
+/* ─── Constants ──────────────────────────────────────────────────────────── */
+const C = {
+  l1: { bg: '#4f46e5', ring: '#4338ca', badgeBg: '#e0e7ff', badgeText: '#4338ca' },
+  l2: { bg: '#10b981', ring: '#059669', badgeBg: '#d1fae5', badgeText: '#065f46' },
+  l3: { bg: '#f59e0b', ring: '#d97706', badgeBg: '#fef3c7', badgeText: '#92400e', glow: true },
+}
+const COLORS = [null, C.l1, C.l2, C.l3]
+const DOT_COLORS = ['', '#4f46e5', '#10b981', '#f59e0b']
+const DAY_NAMES = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun']
+const TODAY = new Date(2026, 2, 7) // Mar 7 2026, Saturday
+const TODAY_DAY_INDEX = TODAY.getDay() === 0 ? 6 : TODAY.getDay() - 1 // 5 = Saturday (Mon=0)
+
+/* ─── Data ───────────────────────────────────────────────────────────────── */
+const HABITS = [
+  { id:0, name:'Go outside',    emoji:'🌿', freq:'daily',  levels:['Go outside at all','Go outside 15+ min','Go outside 30+ min'], level:2, streak:12, consistency:81, avgLevel:2.1, weekDots:[3,2,2,1,3,2,null] },
+  { id:1, name:'Read',          emoji:'📖', freq:'daily',  levels:['Read for 10 min','Read for 20 min','Read for 30 min'],         level:1, streak:5,  consistency:67, avgLevel:1.4, weekDots:[1,2,1,0,1,1,null] },
+  { id:2, name:'Meditate',      emoji:'🧘', freq:'daily',  levels:['5 min','10 min','20 min'],                                     level:0, streak:3,  consistency:57, avgLevel:1.8, weekDots:[2,1,2,0,2,0,null] },
+  { id:3, name:'No added sugar',emoji:'🚫', freq:'daily',  levels:['No added sugar today'],                                        level:0, streak:8,  consistency:74, avgLevel:1.0, weekDots:[1,1,1,1,1,0,null] },
+  { id:4, name:'Cold shower',   emoji:'🚿', freq:'daily',  levels:['Any cold water','Cold for 2 min','Full cold shower'],          level:3, streak:21, consistency:93, avgLevel:2.7, weekDots:[3,3,2,3,3,3,null] },
+  { id:5, name:'Clean apartment',emoji:'🧹',freq:'weekly', weeklyTarget:1, weeklyDone:0, levels:['Quick tidy','Full clean','Deep clean'], level:0, streak:4, consistency:80, avgLevel:1.6, weekDots:[0,0,0,0,0,0,null] },
+  { id:6, name:'Gym',           emoji:'💪', freq:'weekly', weeklyTarget:3, weeklyDone:2, levels:['Show up','Full workout','PRs or extra sets'], level:0, streak:8, consistency:88, avgLevel:2.0, weekDots:[2,0,3,0,2,0,null] },
+]
+
+/* ─── Tab state ──────────────────────────────────────────────────────────── */
+let activeTab = 'today'
+let progressWeekOffset = 0
+let todayWeekOffset = 0
+let selectedDayIndex = TODAY_DAY_INDEX // which day pill is active in the Today strip
+const expandedSet = new Set()
+const firedCelebrations = new Set() // which all-same-level celebrations have fired for the current day
+let ctxTarget = null
+
+function setTab(tab) {
+  activeTab = tab
+  // Update tab button styles
+  const tabs = { today: document.getElementById('tabToday'), progress: document.getElementById('tabProgress') }
+  Object.entries(tabs).forEach(([t, btn]) => {
+    btn.className = `px-4 h-full flex items-center gap-1.5 text-sm -mb-px transition-colors border-b-[3px] ${
+      t === tab
+        ? 'font-semibold text-gray-900 border-gray-900'
+        : 'font-medium text-gray-400 border-transparent hover:text-gray-600'
+    }`
+  })
+  document.getElementById('fab').style.display = tab === 'today' ? '' : 'none'
+  renderSubHeader()
+  renderContent()
+}
+
+/* ─── Sub-header ─────────────────────────────────────────────────────────── */
+
+function renderSubHeader() {
+  const el = document.getElementById('subHeader')
+  if (activeTab === 'today') {
+    // Desktop-only week strip
+    el.className = 'border-b border-gray-200 hidden lg:block'
+    el.innerHTML = `
+      <div class="flex items-center justify-center py-2.5">
+        <div class="flex items-center bg-gray-100 rounded-full px-1 py-1">
+          <button onclick="shiftTodayWeek(-1)" class="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors flex items-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+          </button>
+          <div class="flex items-center gap-1 px-2" id="weekStrip"></div>
+          <button id="todayNextBtn" onclick="shiftTodayWeek(1)" class="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors flex items-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+          </button>
+        </div>
+      </div>`
+    renderWeekStrip()
+  } else {
+    // Progress: week navigator — always visible
+    el.className = 'border-b border-gray-200'
+    el.innerHTML = `
+      <div class="flex items-center justify-center py-2.5">
+        <div class="flex items-center bg-gray-100 rounded-full px-1 py-1">
+          <button onclick="shiftProgressWeek(-1)" class="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors flex items-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+          </button>
+          <div class="flex items-center justify-center px-3 min-w-[220px]" id="progressWeekLabel"></div>
+          <button id="progressNextBtn" onclick="shiftProgressWeek(1)" class="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors flex items-center">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+          </button>
+        </div>
+      </div>`
+    renderProgressWeekLabel()
+  }
+}
+
+/* ─── Week strip helpers ──────────────────────────────────────────────────── */
+
+const WEEK_DATA = {
+  0:   [3, 2, 2, 1, 3, 2, null],
+  '-1':[2, 3, 1, 2, 0, 3, 2],
+  '-2':[1, 2, 3, 0, 2, 1, 3],
+}
+
+function getMondayOf(offset) {
+  const dow = TODAY.getDay() === 0 ? 6 : TODAY.getDay() - 1
+  const d = new Date(TODAY)
+  d.setDate(TODAY.getDate() - dow + offset * 7)
+  return d
+}
+
+function weekRangeLabel(offset) {
+  const mon = getMondayOf(offset)
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6)
+  const m1 = mon.toLocaleDateString('en-US', { month: 'short' })
+  const m2 = sun.toLocaleDateString('en-US', { month: 'short' })
+  return m1 === m2
+    ? `${mon.getDate()} – ${sun.getDate()} ${m1}`
+    : `${mon.getDate()} ${m1} – ${sun.getDate()} ${m2}`
+}
+
+function renderWeekStrip() {
+  const strip = document.getElementById('weekStrip')
+  if (!strip) return
+  strip.innerHTML = ''
+  const mon = getMondayOf(todayWeekOffset)
+
+  // Week label
+  const lbl = document.createElement('div')
+  lbl.className = 'text-xs font-semibold text-gray-500 mr-3 whitespace-nowrap flex items-center gap-1.5'
+  lbl.textContent = weekRangeLabel(todayWeekOffset)
+  if (todayWeekOffset === 0) {
+    lbl.innerHTML += ' <span class="text-[10px] font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full leading-none">now</span>'
+  }
+  strip.appendChild(lbl)
+
+  const levels = WEEK_DATA[todayWeekOffset] ?? Array(7).fill(0)
+
+  DAY_NAMES.forEach((name, i) => {
+    const dayDate = new Date(mon); dayDate.setDate(mon.getDate() + i)
+    const isFuture = dayDate > TODAY
+    const isToday = dayDate.toDateString() === TODAY.toDateString()
+    const isSelected = i === selectedDayIndex
+    const lvl = levels[i] ?? 0
+
+    // Pills are buttons — past and today are tappable for backposting; future is disabled
+    const pill = document.createElement('button')
+    pill.disabled = isFuture
+    pill.onclick = () => selectDay(i)
+    let pillStyle = 'flex flex-col items-center gap-1 px-2 py-1.5 rounded-full transition-all '
+    if (isSelected) pillStyle += 'bg-white shadow-sm outline outline-2 outline-stride-500'
+    else if (isFuture) pillStyle += 'opacity-35 cursor-not-allowed'
+    else pillStyle += 'hover:bg-white/70 cursor-pointer'
+    pill.className = pillStyle
+
+    const letter = document.createElement('span')
+    letter.className = 'text-[10px] font-semibold pointer-events-none ' +
+      (isSelected ? 'text-stride-600' : isToday ? 'text-gray-600' : 'text-gray-400')
+    letter.textContent = name[0]
+
+    const dot = document.createElement('div')
+    dot.style.cssText = 'width:8px;height:8px;border-radius:50%;flex-shrink:0;pointer-events:none'
+    if (isFuture) {
+      dot.style.background = 'transparent'
+      dot.style.border = '1.5px dashed #d1d5db'
+    } else if (!lvl) {
+      dot.style.background = '#e5e7eb'
+    } else {
+      dot.style.background = DOT_COLORS[lvl]
+    }
+
+    pill.appendChild(letter)
+    pill.appendChild(dot)
+    strip.appendChild(pill)
+  })
+
+  if (document.getElementById('todayNextBtn')) {
+    document.getElementById('todayNextBtn').disabled = todayWeekOffset === 0
+  }
+}
+
+function shiftTodayWeek(d) {
+  if (todayWeekOffset + d > 0) return
+  todayWeekOffset += d
+  // Default to today's index for current week; last day of past weeks
+  selectedDayIndex = todayWeekOffset === 0 ? TODAY_DAY_INDEX : 6
+  firedCelebrations.clear()
+  renderWeekStrip()
+  renderContent()
+}
+
+function selectDay(index) {
+  selectedDayIndex = index
+  firedCelebrations.clear()
+  renderWeekStrip()
+  renderContent()
+}
+
+function renderProgressWeekLabel() {
+  const el = document.getElementById('progressWeekLabel')
+  if (!el) return
+  const isNow = progressWeekOffset === 0
+  el.innerHTML = isNow
+    ? `<span class="text-sm font-semibold text-gray-800">${weekRangeLabel(progressWeekOffset)}</span>
+       <span class="text-[10px] font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full ml-2 leading-none">now</span>`
+    : `<span class="text-sm font-semibold text-gray-800">${weekRangeLabel(progressWeekOffset)}</span>`
+  if (document.getElementById('progressNextBtn')) {
+    document.getElementById('progressNextBtn').disabled = isNow
+  }
+}
+
+function shiftProgressWeek(d) {
+  if (progressWeekOffset + d > 0) return
+  progressWeekOffset += d
+  renderProgressWeekLabel()
+  renderContent()
+}
+
+/* ─── Day selection helpers ─────────────────────────────────────────────── */
+
+// Returns the Date object for the currently selected day pill
+function getSelectedDate() {
+  const mon = getMondayOf(todayWeekOffset)
+  const d = new Date(mon)
+  d.setDate(mon.getDate() + selectedDayIndex)
+  return d
+}
+
+// Returns the logged level for the selected day.
+// Uses the live h.level when viewing today; weekDots otherwise (for backposting).
+function getDayLevel(h) {
+  if (todayWeekOffset === 0 && selectedDayIndex === TODAY_DAY_INDEX) return h.level
+  const val = (h.weekDots ?? [])[selectedDayIndex]
+  return (val == null || val < 0) ? 0 : val
+}
+
+/* ─── Today content ──────────────────────────────────────────────────────── */
+
+function check(color='white', size=16) {
+  return `<svg width="${size}" height="${size}" fill="none" stroke="${color}" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>`
+}
+
+function renderTodayCard(h, displayLevel) {
+  const lvl = displayLevel
+  const maxLvl = h.levels.length
+  const col = COLORS[lvl]
+  const nextLvl = lvl < maxLvl ? lvl + 1 : null
+  const isOpen = expandedSet.has(h.id)
+  const circleBg = lvl === 0 ? '#f3f4f6' : col.bg
+  const circleBorder = lvl === 0 ? '#d1d5db' : col.ring
+  const circleGlow = lvl > 0 && col.glow ? `box-shadow:0 0 0 3px ${col.ring}30;` : ''
+  const badgeLabel = lvl === 0 ? '' : (lvl === maxLvl && maxLvl === 3 ? 'L3 ✦' : `L${lvl}`)
+
+  const card = document.createElement('div')
+  card.dataset.id = h.id
+  card.className = 'bg-white border border-gray-200 rounded-lg overflow-hidden mb-2'
+
+  const header = document.createElement('div')
+  header.className = 'flex items-center gap-3 px-3 py-3 cursor-pointer select-none'
+  header.addEventListener('click', e => {
+    if (e.target.closest('[data-circle]') || e.target.closest('[data-ctx]')) return
+    toggleExpand(h.id)
+  })
+
+  const dotBgs = ['#4f46e5','#10b981','#f59e0b']
+  const levelListHTML = h.levels.map((label, i) => {
+    const li = i + 1
+    const isActive = lvl === li, isDone = lvl > li, isNext = lvl === li - 1
+    return `<div class="flex items-center gap-2.5 py-1.5 px-2 rounded-md ${isActive ? 'bg-gray-50' : ''}">
+      <div class="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center" style="background:${dotBgs[i]}">
+        ${isDone ? `<svg width="10" height="10" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>` : `<span style="font-size:8px;font-weight:900;color:white">${li}</span>`}
+      </div>
+      <span class="text-xs flex-1 ${isActive ? 'font-medium text-gray-800' : isDone ? 'text-gray-400 line-through' : 'text-gray-500'}">${label}</span>
+      ${isActive && col ? `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full ml-auto" style="background:${col.badgeBg};color:${col.badgeText}">current</span>` : ''}
+      ${isNext ? `<span class="text-[10px] text-gray-400 ml-auto">← next</span>` : ''}
+    </div>`
+  }).join('')
+
+  header.innerHTML = `
+    <div class="habit-circle" style="background:${circleBg};border:2.5px solid ${circleBorder};${circleGlow}" data-circle="${h.id}">
+      ${lvl > 0 ? check() : ''}
+    </div>
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center gap-1.5 flex-wrap">
+        <span class="text-sm font-medium text-gray-800">${h.emoji} ${h.name}</span>
+        ${lvl > 0 ? `<span class="text-[10px] font-semibold px-1.5 py-0.5 rounded-full" style="background:${col.badgeBg};color:${col.badgeText}">${badgeLabel}</span>` : ''}
+      </div>
+      <p class="text-xs text-gray-400 mt-0.5">
+        ${lvl === 0 ? (h.freq==='weekly' ? `${h.weeklyDone??0} / ${h.weeklyTarget} this week` : 'Not logged yet') : h.levels[lvl-1]}
+      </p>
+      ${lvl > 0 && nextLvl ? `<p class="text-[11px] text-gray-400 mt-0.5 flex items-center gap-1">
+        <svg class="w-2.5 h-2.5 flex-shrink-0" fill="none" stroke="#9ca3af" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12h15m0 0l-6.75-6.75M19.5 12l-6.75 6.75"/></svg>
+        L${nextLvl}: ${h.levels[nextLvl-1]}</p>` : ''}
+      ${lvl === maxLvl && maxLvl > 1 ? `<p class="text-[11px] font-semibold mt-0.5" style="color:${col.ring}">✦ Maximum level!</p>` : ''}
+    </div>
+    <!-- Overflow menu button -->
+    <button class="p-1.5 -mr-0.5 text-gray-300 hover:text-gray-500 rounded transition-colors flex-shrink-0" data-ctx="${h.id}">
+      <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+    </button>
+    <svg class="w-4 h-4 text-gray-300 flex-shrink-0 chevron ${isOpen ? 'open' : ''}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/>
+    </svg>`
+
+  header.querySelector('[data-circle]').addEventListener('click', e => { e.stopPropagation(); advanceLevel(h.id) })
+  header.querySelector('[data-ctx]').addEventListener('click', e => { e.stopPropagation(); openCtxMenu(e, h.id) })
+
+  const body = document.createElement('div')
+  body.className = `expand-body border-t border-gray-100 ${isOpen ? 'open' : ''}`
+  body.innerHTML = `
+    <div class="px-3 pt-2.5 pb-1 space-y-0.5">${levelListHTML}</div>
+    <div class="grid grid-cols-3 border-t border-gray-100 mt-2">
+      <div class="py-3 text-center border-r border-gray-100">
+        <div class="text-sm font-bold text-stride-600">${h.consistency}%</div>
+        <div class="text-[10px] text-gray-400 mt-0.5">Consistency</div>
+      </div>
+      <div class="py-3 text-center border-r border-gray-100">
+        <div class="text-sm font-bold text-gray-800">🔥 ${h.streak}</div>
+        <div class="text-[10px] text-gray-400 mt-0.5">Streak</div>
+      </div>
+      <div class="py-3 text-center">
+        <div class="text-sm font-bold" style="color:${lvl > 0 ? col.bg : '#9ca3af'}">${h.avgLevel.toFixed(1)}</div>
+        <div class="text-[10px] text-gray-400 mt-0.5">Avg level</div>
+      </div>
+    </div>`
+
+  card.appendChild(header)
+  card.appendChild(body)
+  return card
+}
+
+function renderToday() {
+  const content = document.getElementById('pageContent')
+  content.innerHTML = ''
+
+  const daily = HABITS.filter(h => h.freq === 'daily')
+  const weekly = HABITS.filter(h => h.freq === 'weekly')
+
+  // Date context banner — shown when viewing any day other than today
+  const isViewingToday = todayWeekOffset === 0 && selectedDayIndex === TODAY_DAY_INDEX
+  if (!isViewingToday) {
+    const selDate = getSelectedDate()
+    const yesterday = new Date(TODAY); yesterday.setDate(TODAY.getDate() - 1)
+    const isYesterday = selDate.toDateString() === yesterday.toDateString()
+    const dateLabel = isYesterday
+      ? 'Yesterday'
+      : selDate.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })
+    const banner = document.createElement('div')
+    banner.className = 'mb-4'
+    banner.innerHTML = `
+      <div class="flex items-center gap-2 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2">
+        <svg class="w-4 h-4 text-amber-500 flex-shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 9v7.5"/></svg>
+        <span class="text-sm font-semibold text-amber-800">${dateLabel}</span>
+        <span class="text-xs text-amber-600 ml-1">· editing past log</span>
+      </div>`
+    content.appendChild(banner)
+  }
+
+  const dailyLabel = document.createElement('p')
+  dailyLabel.className = 'text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2'
+  dailyLabel.textContent = 'Daily'
+  content.appendChild(dailyLabel)
+  daily.forEach(h => content.appendChild(renderTodayCard(h, getDayLevel(h))))
+
+  const weeklyLabel = document.createElement('p')
+  weeklyLabel.className = 'text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2 mt-5'
+  weeklyLabel.textContent = 'Weekly'
+  content.appendChild(weeklyLabel)
+  weekly.forEach(h => content.appendChild(renderTodayCard(h, getDayLevel(h))))
+}
+
+/* ─── Progress content ───────────────────────────────────────────────────── */
+
+function renderProgress() {
+  const content = document.getElementById('pageContent')
+  content.innerHTML = ''
+
+  const levels = WEEK_DATA[progressWeekOffset] ?? Array(7).fill(0)
+  const isCurrentWeek = progressWeekOffset === 0
+
+  // ── Weekly summary card ──────────────────────────────────────────────────
+  const validLevels = levels.filter(l => l !== null && l > 0)
+  const daysHit = validLevels.length
+  const totalDays = levels.filter(l => l !== null).length
+  const avgLvl = validLevels.length ? (validLevels.reduce((a,b) => a+b, 0) / validLevels.length).toFixed(1) : '—'
+  const pct = totalDays ? Math.round(daysHit / totalDays * 100) : 0
+
+  const summary = document.createElement('div')
+  summary.className = 'bg-white border border-gray-200 rounded-lg p-4 mb-4'
+  summary.innerHTML = `
+    <div class="flex items-center justify-between mb-3">
+      <p class="text-xs font-semibold text-gray-400 uppercase tracking-wide">This week</p>
+      ${isCurrentWeek ? '<span class="text-[10px] font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full">in progress</span>' : ''}
+    </div>
+    <!-- Day dots row -->
+    <div class="flex gap-2 mb-4">
+      ${DAY_NAMES.map((name, i) => {
+        const lvl = levels[i] ?? null
+        const isFuture = lvl === null
+        const isToday = i === (TODAY.getDay() === 0 ? 6 : TODAY.getDay() - 1) && isCurrentWeek
+        return `<div class="flex-1 flex flex-col items-center gap-1.5">
+          <div class="w-full h-2 rounded-full" style="${isFuture ? 'background:#f3f4f6;border:1.5px dashed #d1d5db' : `background:${lvl ? DOT_COLORS[lvl] : '#e5e7eb'}`}"></div>
+          <span class="text-[10px] font-semibold ${isToday ? 'text-stride-600' : 'text-gray-400'}">${name[0]}</span>
+        </div>`
+      }).join('')}
+    </div>
+    <!-- Stats -->
+    <div class="grid grid-cols-3 gap-4 text-center border-t border-gray-100 pt-3">
+      <div>
+        <div class="text-lg font-bold text-gray-900">${daysHit}<span class="text-sm font-medium text-gray-400"> / ${totalDays}</span></div>
+        <div class="text-[10px] text-gray-400 mt-0.5">Days on track</div>
+      </div>
+      <div>
+        <div class="text-lg font-bold text-stride-600">${pct}%</div>
+        <div class="text-[10px] text-gray-400 mt-0.5">Completion</div>
+      </div>
+      <div>
+        <div class="text-lg font-bold text-emerald-500">${avgLvl}</div>
+        <div class="text-[10px] text-gray-400 mt-0.5">Avg level</div>
+      </div>
+    </div>`
+  content.appendChild(summary)
+
+  // ── Habit list ───────────────────────────────────────────────────────────
+  const listLabel = document.createElement('p')
+  listLabel.className = 'text-xs font-semibold text-gray-400 uppercase tracking-widest mb-2'
+  listLabel.textContent = 'Habits'
+  content.appendChild(listLabel)
+
+  HABITS.forEach(h => {
+    const weekDots = h.weekDots ?? Array(7).fill(0)
+    const daysLogged = weekDots.filter(d => d !== null && d > 0).length
+    const totalLogged = weekDots.filter(d => d !== null).length
+    const habAvg = daysLogged ? (weekDots.filter(d=>d!==null&&d>0).reduce((a,b)=>a+b,0)/daysLogged).toFixed(1) : '—'
+    const isHabExpanded = expandedSet.has(`p-${h.id}`)
+
+    const card = document.createElement('div')
+    card.className = 'bg-white border border-gray-200 rounded-lg overflow-hidden mb-2'
+    card.dataset.progressId = h.id
+
+    const header = document.createElement('div')
+    header.className = 'flex items-center gap-3 px-3 py-3 cursor-pointer select-none'
+    header.addEventListener('click', e => {
+      if (e.target.closest('[data-ctx]')) return
+      toggleProgressExpand(h.id)
+    })
+
+    header.innerHTML = `
+      <!-- Emoji + name -->
+      <div class="flex-1 min-w-0">
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-sm font-medium text-gray-800">${h.emoji} ${h.name}</span>
+          ${h.freq === 'weekly' ? `<span class="text-[10px] text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded-full">${h.weeklyDone??0}/${h.weeklyTarget}×/wk</span>` : ''}
+        </div>
+        <!-- Dot strip: daily = 7 weekday dots, weekly = N target slots filled by completion -->
+        <div class="flex gap-1.5">
+          ${h.freq === 'weekly' ? (() => {
+            // Collect completed days in chronological order (non-null, non-zero entries)
+            const completions = weekDots
+              .map((lvl, i) => ({ lvl, day: DAY_NAMES[i] }))
+              .filter(e => e.lvl !== null && e.lvl > 0)
+            return Array.from({ length: h.weeklyTarget }, (_, slot) => {
+              const comp = completions[slot]
+              return `<div class="flex flex-col items-center gap-0.5">
+                <div class="w-4 h-4 rounded-sm" style="background:${comp ? DOT_COLORS[comp.lvl] : '#e5e7eb'}"></div>
+                <span style="font-size:8px;color:#9ca3af;font-weight:400">${comp ? comp.day[0] : ''}</span>
+              </div>`
+            }).join('')
+          })() : DAY_NAMES.map((name, i) => {
+            const lvl = weekDots[i] ?? null
+            const isFuture = lvl === null
+            const isToday = i === (TODAY.getDay()===0?6:TODAY.getDay()-1) && isCurrentWeek
+            return `<div class="flex flex-col items-center gap-0.5">
+              <div class="w-4 h-4 rounded-sm" style="${isFuture ? 'background:#f3f4f6;border:1.5px dashed #d1d5db' : `background:${lvl ? DOT_COLORS[lvl] : '#e5e7eb'}`}"></div>
+              <span style="font-size:8px;color:${isToday?'#4f46e5':'#9ca3af'};font-weight:${isToday?700:400}">${name[0]}</span>
+            </div>`
+          }).join('')}
+        </div>
+      </div>
+      <!-- Stats -->
+      <div class="flex items-center gap-4 text-right flex-shrink-0 mr-1">
+        <div>
+          <div class="text-sm font-bold text-gray-800">${daysLogged}/${totalLogged}</div>
+          <div class="text-[10px] text-gray-400">days</div>
+        </div>
+        <div>
+          <div class="text-sm font-bold text-gray-800">🔥 ${h.streak}</div>
+          <div class="text-[10px] text-gray-400">streak</div>
+        </div>
+        <div>
+          <div class="text-sm font-bold text-emerald-500">${habAvg}</div>
+          <div class="text-[10px] text-gray-400">avg lvl</div>
+        </div>
+      </div>
+      <!-- Overflow + chevron -->
+      <button class="p-1.5 text-gray-300 hover:text-gray-500 rounded flex-shrink-0" data-ctx="${h.id}">
+        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="19" cy="12" r="1.5"/></svg>
+      </button>
+      <svg class="w-4 h-4 text-gray-300 flex-shrink-0 chevron ${isHabExpanded ? 'open' : ''}" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/>
+      </svg>`
+
+    header.querySelector('[data-ctx]').addEventListener('click', e => { e.stopPropagation(); openCtxMenu(e, h.id) })
+
+    // Expanded detail — mirrors habit-detail.html content inline
+    const body = document.createElement('div')
+    body.className = `expand-body border-t border-gray-100 ${isHabExpanded ? 'open' : ''}`
+    body.innerHTML = `
+      <!-- Mini stats row -->
+      <div class="grid grid-cols-4 gap-0 border-b border-gray-100">
+        <div class="py-3 text-center border-r border-gray-100">
+          <div class="text-sm font-bold text-gray-900 flex items-center justify-center gap-0.5">🔥 ${h.streak}</div>
+          <div class="text-[10px] text-gray-400 mt-0.5">Streak</div>
+        </div>
+        <div class="py-3 text-center border-r border-gray-100">
+          <div class="text-sm font-bold text-gray-900">21</div>
+          <div class="text-[10px] text-gray-400 mt-0.5">Longest</div>
+        </div>
+        <div class="py-3 text-center border-r border-gray-100">
+          <div class="text-sm font-bold text-stride-600">${h.consistency}%</div>
+          <div class="text-[10px] text-gray-400 mt-0.5">30-day %</div>
+        </div>
+        <div class="py-3 text-center">
+          <div class="text-sm font-bold text-emerald-500">${h.avgLevel.toFixed(1)}</div>
+          <div class="text-[10px] text-gray-400 mt-0.5">Avg level</div>
+        </div>
+      </div>
+      <!-- Level breakdown bars -->
+      <div class="px-4 py-3 border-b border-gray-100">
+        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Level breakdown · last 30 days</p>
+        <div class="space-y-1.5">
+          ${[['#4f46e5',7,29],['#10b981',11,46],['#f59e0b',6,25]].slice(0,h.levels.length).map(([color,count,pct],i) => `
+            <div class="flex items-center gap-2">
+              <div class="w-4 h-4 rounded-full flex-shrink-0 flex items-center justify-center" style="background:${color}">
+                <span style="font-size:7px;font-weight:900;color:white">${i+1}</span>
+              </div>
+              <div class="flex-1 bg-gray-100 rounded-full h-1.5 overflow-hidden">
+                <div class="h-full rounded-full" style="background:${color};width:${pct}%"></div>
+              </div>
+              <span class="text-[10px] font-semibold text-gray-500 w-4 text-right">${count}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+      <!-- Mini heatmap -->
+      <div class="px-4 py-3">
+        <p class="text-[10px] font-semibold text-gray-400 uppercase tracking-wide mb-2">Last 8 weeks</p>
+        <div id="miniHeatmap-${h.id}" class="space-y-1"></div>
+      </div>
+      <!-- Link to full detail -->
+      <div class="px-4 pb-3">
+        <a href="habit-detail.html" class="text-xs font-semibold text-stride-600 hover:text-stride-700 flex items-center gap-1">
+          View full history
+          <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+        </a>
+      </div>`
+
+    card.appendChild(header)
+    card.appendChild(body)
+    content.appendChild(card)
+
+    // Render mini heatmap after insertion
+    if (isHabExpanded) renderMiniHeatmap(h.id)
+  })
+}
+
+function toggleProgressExpand(id) {
+  const key = `p-${id}`
+  if (expandedSet.has(key)) expandedSet.delete(key)
+  else expandedSet.add(key)
+  renderContent()
+}
+
+function renderMiniHeatmap(habitId) {
+  const el = document.getElementById(`miniHeatmap-${habitId}`)
+  if (!el) return
+  const levelColors = ['#f3f4f6','#4f46e5','#10b981','#f59e0b']
+  for (let w = 0; w < 8; w++) {
+    const row = document.createElement('div')
+    row.className = 'flex gap-1'
+    const lbl = document.createElement('div')
+    lbl.style.cssText = 'width:20px;font-size:8px;color:#d1d5db;text-align:right;flex-shrink:0;display:flex;align-items:center;justify-content:flex-end'
+    const wd = new Date(getMondayOf(-7 + w))
+    if (w === 0 || wd.getDate() <= 7) lbl.textContent = wd.toLocaleDateString('en-US',{month:'short'})
+    row.appendChild(lbl)
+    for (let d = 0; d < 7; d++) {
+      const cell = document.createElement('div')
+      cell.style.cssText = 'flex:1;height:14px;border-radius:3px'
+      const r = Math.random()
+      const lvl = w === 7 && d > 5 ? 0 : r < 0.18 ? 0 : r < 0.45 ? 1 : r < 0.75 ? 2 : 3
+      cell.style.background = levelColors[lvl]
+      row.appendChild(cell)
+    }
+    el.appendChild(row)
+  }
+}
+
+/* ─── Shared ─────────────────────────────────────────────────────────────── */
+
+function renderContent() {
+  if (activeTab === 'today') renderToday()
+  else renderProgress()
+}
+
+function advanceLevel(id) {
+  const h = HABITS[id]
+  const isToday = todayWeekOffset === 0 && selectedDayIndex === TODAY_DAY_INDEX
+  if (isToday) {
+    h.level = (h.level + 1) % (h.levels.length + 1)
+    h.weekDots[selectedDayIndex] = h.level || null
+  } else {
+    const cur = (h.weekDots[selectedDayIndex] ?? 0)
+    h.weekDots[selectedDayIndex] = (cur + 1) % (h.levels.length + 1) || null
+  }
+
+  const newLevel = getDayLevel(h)
+
+  // Particles + sound on level-up (not on reset to 0)
+  if (newLevel > 0) {
+    const circleEl = document.querySelector(`[data-circle="${id}"]`)
+    if (circleEl) {
+      const r = circleEl.getBoundingClientRect()
+      spawnBurst(r.left + r.width / 2, r.top + r.height / 2, newLevel)
+    }
+    playCheckSound(newLevel)
+  }
+
+  rerenderCard(id)
+  renderWeekStrip() // update dot color in strip immediately
+
+  // Check if all habits are now at the same level
+  if (newLevel > 0) maybeCelebrate()
+}
+
+function toggleExpand(id) {
+  if (expandedSet.has(id)) expandedSet.delete(id)
+  else expandedSet.add(id)
+  rerenderCard(id)
+}
+
+function rerenderCard(id) {
+  const old = document.querySelector(`[data-id="${id}"]`)
+  if (old) old.replaceWith(renderTodayCard(HABITS[id], getDayLevel(HABITS[id])))
+}
+
+/* ─── Context menu ───────────────────────────────────────────────────────── */
+
+document.addEventListener('click', () => {
+  document.getElementById('ctxMenu').classList.remove('open')
+  ctxTarget = null
+})
+
+function openCtxMenu(e, id) {
+  ctxTarget = id
+  const menu = document.getElementById('ctxMenu')
+  menu.classList.add('open')
+  // Position near the button
+  const rect = e.currentTarget.getBoundingClientRect()
+  let x = rect.right, y = rect.bottom + 4
+  if (x + 160 > window.innerWidth) x = rect.left - 160
+  menu.style.left = x + 'px'
+  menu.style.top = y + 'px'
+}
+
+function ctxAction(action) {
+  document.getElementById('ctxMenu').classList.remove('open')
+  if (action === 'edit') {
+    document.getElementById('addSheet').classList.remove('translate-y-full')
+  } else if (action === 'archive') {
+    alert(`Archive "${HABITS[ctxTarget]?.name}" — hides from Today but keeps history.`)
+  } else if (action === 'delete') {
+    if (confirm(`Delete "${HABITS[ctxTarget]?.name}"? This cannot be undone.`)) {
+      alert('Deleted (not really — this is a mockup).')
+    }
+  }
+  ctxTarget = null
+}
+
+function setFreq(freq) {
+  // sheet frequency toggle — visual only
+}
+
+/* ─── Particle system ───────────────────────────────────────────────────── */
+
+const PARTICLE_COLORS = {
+  1: { base: '#4f46e5', light: '#818cf8' },
+  2: { base: '#10b981', light: '#6ee7b7' },
+  3: { base: '#f59e0b', light: '#fcd34d' },
+}
+
+// Full-screen canvas overlay, pointer-events off so it doesn't block interaction
+const pCanvas = document.createElement('canvas')
+pCanvas.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999'
+document.body.appendChild(pCanvas)
+const pCtx = pCanvas.getContext('2d')
+
+function resizeParticleCanvas() {
+  pCanvas.width = window.innerWidth
+  pCanvas.height = window.innerHeight
+}
+resizeParticleCanvas()
+window.addEventListener('resize', resizeParticleCanvas)
+
+let particles = []
+let rafId = null
+
+function spawnBurst(x, y, level, count = 22) {
+  const { base, light } = PARTICLE_COLORS[level] || {}
+  if (!base) return
+  for (let i = 0; i < count; i++) {
+    const angle = Math.random() * Math.PI * 2
+    const speed = 3 + Math.random() * 7
+    particles.push({
+      x, y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 2, // slight upward bias
+      alpha: 1,
+      r: 2.5 + Math.random() * 3.5,
+      color: Math.random() > 0.45 ? base : light,
+      decay: 0.035 + Math.random() * 0.025,
+    })
+  }
+  kickParticles()
+}
+
+function spawnCelebration(x, y, level) {
+  const { base, light } = PARTICLE_COLORS[level] || {}
+  if (!base) return
+  // Dense upward fountain from day pill
+  for (let i = 0; i < 70; i++) {
+    const angle = -Math.PI / 2 + (Math.random() - 0.5) * Math.PI * 1.1
+    const speed = 5 + Math.random() * 11
+    particles.push({
+      x: x + (Math.random() - 0.5) * 20,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      alpha: 1,
+      r: 3 + Math.random() * 5,
+      color: Math.random() > 0.4 ? base : light,
+      decay: 0.018 + Math.random() * 0.015,
+    })
+  }
+  kickParticles()
+}
+
+function kickParticles() {
+  if (!rafId) rafId = requestAnimationFrame(tickParticles)
+}
+
+function tickParticles() {
+  pCtx.clearRect(0, 0, pCanvas.width, pCanvas.height)
+  particles = particles.filter(p => p.alpha > 0.01)
+  for (const p of particles) {
+    pCtx.save()
+    pCtx.globalAlpha = p.alpha
+    pCtx.fillStyle = p.color
+    pCtx.beginPath()
+    pCtx.arc(p.x, p.y, p.r, 0, Math.PI * 2)
+    pCtx.fill()
+    pCtx.restore()
+    p.x += p.vx
+    p.y += p.vy
+    p.vy += 0.18  // gravity
+    p.vx *= 0.97  // friction
+    p.alpha -= p.decay
+  }
+  rafId = particles.length > 0 ? requestAnimationFrame(tickParticles) : null
+}
+
+/* ─── Sound ─────────────────────────────────────────────────────────────── */
+
+let audioCtx = null
+function ac() {
+  if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)()
+  return audioCtx
+}
+
+// Short rising chime for a single habit check
+function playCheckSound(level) {
+  try {
+    const a = ac()
+    // Each level gets a higher, brighter pitch
+    const freqs = [0, [523.25, 783.99], [659.25, 987.77], [880, 1318.51]][level]
+    if (!freqs) return
+    freqs.forEach((freq, i) => {
+      const osc = a.createOscillator()
+      const g = a.createGain()
+      osc.connect(g); g.connect(a.destination)
+      osc.type = 'sine'
+      const t = a.currentTime + i * 0.06
+      osc.frequency.setValueAtTime(freq, t)
+      osc.frequency.exponentialRampToValueAtTime(freq * 1.3, t + 0.08)
+      g.gain.setValueAtTime(0.22, t)
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.25)
+      osc.start(t); osc.stop(t + 0.25)
+    })
+  } catch {}
+}
+
+// Ascending arpeggio chord for the all-same-level celebration
+function playCelebrationSound(level) {
+  try {
+    const a = ac()
+    const chords = [
+      [523.25, 659.25, 783.99, 1046.5],  // C E G C — L1
+      [659.25, 830.61, 987.77, 1318.51], // E G# B E — L2
+      [880, 1108.73, 1318.51, 1760],     // A C# E A — L3
+    ]
+    const freqs = chords[level - 1] || chords[0]
+    freqs.forEach((freq, i) => {
+      const osc = a.createOscillator()
+      const g = a.createGain()
+      osc.connect(g); g.connect(a.destination)
+      osc.type = 'sine'
+      const t = a.currentTime + i * 0.09
+      osc.frequency.setValueAtTime(freq, t)
+      g.gain.setValueAtTime(0, t)
+      g.gain.linearRampToValueAtTime(0.2, t + 0.03)
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.6)
+      osc.start(t); osc.stop(t + 0.6)
+    })
+  } catch {}
+}
+
+/* ─── Celebration check ─────────────────────────────────────────────────── */
+
+// Returns the level if all visible habits are at the same non-zero level; else null
+function checkAllSameLevel() {
+  const levels = HABITS.map(h => getDayLevel(h))
+  if (levels.some(l => !l)) return null           // at least one unlogged
+  const first = levels[0]
+  if (!levels.every(l => l === first)) return null // not all equal
+  return first
+}
+
+function maybeCelebrate() {
+  const level = checkAllSameLevel()
+  if (!level || firedCelebrations.has(level)) return
+  firedCelebrations.add(level)
+
+  // Find the selected day pill and burst from it
+  const pillBtns = document.querySelectorAll('#weekStrip button')
+  const pill = pillBtns[selectedDayIndex]
+  if (pill) {
+    const rect = pill.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    // Flash the pill background with the level color then fade back
+    const { base } = PARTICLE_COLORS[level]
+    pill.style.transition = 'background 0.1s'
+    pill.style.background = base
+    pill.style.outline = 'none'
+    setTimeout(() => {
+      pill.style.transition = 'background 0.6s'
+      pill.style.background = ''
+      // Re-apply the ring outline after the flash
+      setTimeout(() => { pill.style.transition = ''; pill.style.outline = '' }, 650)
+    }, 350)
+    spawnCelebration(cx, cy, level)
+    playCelebrationSound(level)
+  } else {
+    // Fallback: burst from center-top of screen
+    spawnCelebration(window.innerWidth / 2, 120, level)
+    playCelebrationSound(level)
+  }
+}
+
+/* ─── Init ───────────────────────────────────────────────────────────────── */
+setTab('today')
+</script>
+</body>
+</html>
