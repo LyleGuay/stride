@@ -14,6 +14,8 @@ export interface CalorieLogItem {
   protein_g: number | null
   carbs_g: number | null
   fat_g: number | null
+  // Set when this item was logged from a recipe; null for manually-added items.
+  recipe_id: number | null
   created_at: string
   updated_at: string
 }

@@ -40,12 +40,14 @@ interface Props {
   }) => void
   onUpdateItem: (id: number, field: string, value: unknown) => Promise<boolean>
   onItemAction: (item: CalorieLogItem, position: { x: number; y: number }) => void
+  // Called when the user clicks the recipe icon on a recipe-sourced item.
+  onOpenIngredients: (item: CalorieLogItem) => void
   favorites: CalorieLogFavorite[]
   onManageFavorites: () => void
 }
 
 export default function ItemTable({ items, netCalories, netProtein, netCarbs, netFat,
-  onInlineAdd, onUpdateItem, onItemAction, favorites, onManageFavorites }: Props) {
+  onInlineAdd, onUpdateItem, onItemAction, onOpenIngredients, favorites, onManageFavorites }: Props) {
   // Group items by meal type
   const grouped: Record<string, CalorieLogItem[]> = Object.fromEntries(
     ITEM_TYPES.map(t => [t, items.filter(i => i.type === t)])
@@ -149,6 +151,7 @@ export default function ItemTable({ items, netCalories, netProtein, netCarbs, ne
               onCancelEdit={cancelEdit}
               onTabEdit={tabToNext}
               onItemAction={onItemAction}
+              onOpenIngredients={onOpenIngredients}
               onInlineAdd={(fields) => onInlineAdd(type, fields)}
               isAddOpen={activeAddType === type}
               onAddOpen={() => setActiveAddType(type)}
@@ -182,7 +185,7 @@ export default function ItemTable({ items, netCalories, netProtein, netCarbs, ne
 // MealSection renders a meal header row, its item rows, and an inline-add row.
 function MealSection({ type, items, editing, editValue, flashKey, skipBlurRef,
   onStartEdit, onEditChange, onCommitEdit, onCancelEdit, onTabEdit,
-  onItemAction, onInlineAdd, isAddOpen, onAddOpen, onAddClose, favorites, onManageFavorites,
+  onItemAction, onOpenIngredients, onInlineAdd, isAddOpen, onAddOpen, onAddClose, favorites, onManageFavorites,
 }: {
   type: string
   items: CalorieLogItem[]
@@ -196,6 +199,7 @@ function MealSection({ type, items, editing, editValue, flashKey, skipBlurRef,
   onCancelEdit: () => void
   onTabEdit: (item: CalorieLogItem, field: string, reverse: boolean) => void
   onItemAction: (item: CalorieLogItem, position: { x: number; y: number }) => void
+  onOpenIngredients: (item: CalorieLogItem) => void
   onInlineAdd: (fields: {
     name: string; qty: number | null; uom: string | null; calories: number
     protein_g: number | null; carbs_g: number | null; fat_g: number | null
@@ -246,6 +250,7 @@ function MealSection({ type, items, editing, editValue, flashKey, skipBlurRef,
           onCancelEdit={onCancelEdit}
           onTabEdit={onTabEdit}
           onItemAction={onItemAction}
+          onOpenIngredients={onOpenIngredients}
         />
       ))}
 
@@ -266,9 +271,10 @@ function MealSection({ type, items, editing, editValue, flashKey, skipBlurRef,
 /* ─── ItemRow ──────────────────────────────────────────────────────────── */
 
 // ItemRow renders a single item with editable cells, right-click context menu,
-// and a mobile "···" action button.
+// and a mobile "···" action button. Recipe-sourced items show a book icon with
+// a tooltip and click handler to view ingredients.
 function ItemRow({ item, isExercise, editing, editValue, flashKey, skipBlurRef,
-  onStartEdit, onEditChange, onCommitEdit, onCancelEdit, onTabEdit, onItemAction,
+  onStartEdit, onEditChange, onCommitEdit, onCancelEdit, onTabEdit, onItemAction, onOpenIngredients,
 }: {
   item: CalorieLogItem
   isExercise: boolean
@@ -282,6 +288,7 @@ function ItemRow({ item, isExercise, editing, editValue, flashKey, skipBlurRef,
   onCancelEdit: () => void
   onTabEdit: (item: CalorieLogItem, field: string, reverse: boolean) => void
   onItemAction: (item: CalorieLogItem, position: { x: number; y: number }) => void
+  onOpenIngredients: (item: CalorieLogItem) => void
 }) {
   // Right-click handler — opens the context menu
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -318,6 +325,24 @@ function ItemRow({ item, isExercise, editing, editValue, flashKey, skipBlurRef,
         onStartEdit={onStartEdit} onEditChange={onEditChange}
         onCommitEdit={onCommitEdit} onCancelEdit={onCancelEdit} onTabEdit={onTabEdit}
       >
+        {/* Recipe icon — shown only on items logged from a recipe */}
+        {item.recipe_id != null && (
+          <span className="relative group inline-flex items-center ml-1.5 align-middle">
+            <button
+              onClick={e => { e.stopPropagation(); onOpenIngredients(item) }}
+              className="text-stride-400 hover:text-stride-600 transition-colors"
+              aria-label="View recipe ingredients"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+              </svg>
+            </button>
+            {/* Tooltip: shows the recipe name (item_name is the recipe name when logged from a recipe) */}
+            <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 px-2 py-1 rounded bg-gray-800 text-white text-[10px] whitespace-nowrap opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity z-10">
+              {item.item_name}
+            </span>
+          </span>
+        )}
         {/* Mobile "···" action button — hidden on desktop */}
         <button
           onClick={handleMobileAction}

@@ -56,7 +56,7 @@ export function fetchDailySummary(date: string) {
   return request<DailySummary>(`/api/calorie-log/daily?date=${date}`)
 }
 
-export function createCalorieLogItem(item: Omit<CalorieLogItem, 'id' | 'user_id' | 'created_at' | 'updated_at'>) {
+export function createCalorieLogItem(item: Omit<CalorieLogItem, 'id' | 'user_id' | 'recipe_id' | 'created_at' | 'updated_at'>) {
   return request<CalorieLogItem>('/api/calorie-log/items', {
     method: 'POST',
     body: JSON.stringify(item),

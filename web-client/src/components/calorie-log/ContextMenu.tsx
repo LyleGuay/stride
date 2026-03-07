@@ -1,5 +1,6 @@
 // ContextMenu — fixed-position menu shown on right-click (desktop) or "···" tap
 // (mobile) on an item row. Options: Edit item, Duplicate, Save as Favorite, Delete.
+// When the item was logged from a recipe, also shows "Open Recipe".
 // Click outside or Escape closes it.
 
 import { useEffect, useRef } from 'react'
@@ -12,9 +13,12 @@ interface Props {
   onFavorite: () => void
   onDelete: () => void
   onClose: () => void
+  // Optional recipe actions — only rendered when the item was logged from a recipe.
+  recipeId?: number | null
+  onOpenRecipe?: () => void
 }
 
-export default function ContextMenu({ x, y, onEdit, onDuplicate, onFavorite, onDelete, onClose }: Props) {
+export default function ContextMenu({ x, y, onEdit, onDuplicate, onFavorite, onDelete, onClose, recipeId, onOpenRecipe }: Props) {
   const ref = useRef<HTMLDivElement>(null)
 
   // Close on click outside or Escape
@@ -76,6 +80,17 @@ export default function ContextMenu({ x, y, onEdit, onDuplicate, onFavorite, onD
         <span className="w-4 text-center">★</span>
         Save as Favorite
       </button>
+      {recipeId != null && onOpenRecipe && (
+        <button
+          onClick={() => { onOpenRecipe(); onClose() }}
+          className="flex items-center gap-2 w-full px-3.5 py-[7px] text-[13px] text-gray-700 hover:bg-gray-100"
+        >
+          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+          </svg>
+          Open Recipe
+        </button>
+      )}
       <div className="h-px bg-gray-200 my-1" />
       <button
         onClick={onDelete}

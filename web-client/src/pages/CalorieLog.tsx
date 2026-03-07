@@ -8,7 +8,7 @@
 // Progress tab: renders ProgressView with calorie trend chart, weight log, and stats.
 
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router'
+import { Link, useNavigate } from 'react-router'
 import {
   fetchWeekSummary, createCalorieLogItem, updateCalorieLogItem, deleteCalorieLogItem,
   fetchProgress, fetchEarliestLogDate, fetchWeightLog,
@@ -31,6 +31,7 @@ import ContextMenu from '../components/calorie-log/ContextMenu'
 import WeeklySummary from '../components/calorie-log/WeeklySummary'
 import ProgressView from '../components/calorie-log/ProgressView'
 import ManageFavoritesModal from '../components/calorie-log/ManageFavoritesModal'
+import RecipeIngredientsModal from '../components/calorie-log/RecipeIngredientsModal'
 
 /* ─── CalorieLog ─────────────────────────────────────────────────────────── */
 
@@ -66,6 +67,9 @@ export default function CalorieLog() {
 
   // Manage favorites modal state
   const [manageFavoritesOpen, setManageFavoritesOpen] = useState(false)
+
+  // Recipe ingredients modal — open when user clicks the recipe icon on an item.
+  const [recipeModal, setRecipeModal] = useState<{ recipeId: number } | null>(null)
 
   // Week data — fetched here so WeeklySummary can be a pure presentational component
   const [weekStart, setWeekStart] = useState(() => getMondayOf(todayString()))
@@ -309,6 +313,7 @@ export default function CalorieLog() {
   const { start: progressStart, end: progressEnd } = getRangeDates(progressRange, earliestLogDate ?? null)
   const userUnits = summary?.settings?.units ?? 'imperial'
   const { setOpen: setSidebarOpen } = useSidebar()
+  const navigate = useNavigate()
 
   return (
     <div className="pb-24">
@@ -503,6 +508,7 @@ export default function CalorieLog() {
                 onInlineAdd={handleInlineAdd}
                 onUpdateItem={handleUpdateItem}
                 onItemAction={handleItemAction}
+                onOpenIngredients={item => setRecipeModal({ recipeId: item.recipe_id! })}
                 favorites={favorites}
                 onManageFavorites={() => setManageFavoritesOpen(true)}
               />
@@ -534,6 +540,11 @@ export default function CalorieLog() {
           onFavorite={handleCtxFavorite}
           onDelete={handleCtxDelete}
           onClose={closeCtxMenu}
+          recipeId={ctxMenu.item.recipe_id}
+          onOpenRecipe={ctxMenu.item.recipe_id != null
+            ? () => navigate(`/recipes/${ctxMenu.item.recipe_id}`)
+            : undefined
+          }
         />
       )}
 
@@ -544,6 +555,14 @@ export default function CalorieLog() {
         onDelete={handleDeleteFavorite}
         onClose={() => setManageFavoritesOpen(false)}
       />
+
+      {/* Recipe ingredients modal — opened by clicking the recipe icon on an item */}
+      {recipeModal && (
+        <RecipeIngredientsModal
+          recipeId={recipeModal.recipeId}
+          onClose={() => setRecipeModal(null)}
+        />
+      )}
       </div>{/* end max-w-3xl content */}
     </div>
   )
