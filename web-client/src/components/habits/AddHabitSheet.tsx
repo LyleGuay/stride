@@ -74,12 +74,10 @@ export default function AddHabitSheet({ open, onClose, onSave, editHabit, onDele
   }, [editHabit])
 
   // Reset or pre-fill when the sheet opens.
-  // setTimeout(fn, 0) defers the setState calls to avoid the lint rule that
-  // prohibits synchronous setState in effect bodies.
   useEffect(() => {
     if (!open) return
-    const id = setTimeout(initForm, 0)
-    return () => clearTimeout(id)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    initForm()
   }, [open, initForm])
 
   const handleSubmit = (e: FormEvent) => {

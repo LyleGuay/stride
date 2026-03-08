@@ -88,7 +88,7 @@ export default function HabitCard({
   )
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 overflow-visible">
+    <div className="bg-white rounded-xl border border-gray-200 overflow-visible" data-testid="habit-card">
       {/* ── Collapsed row ───────────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-4 py-3">
         {/* Level circle — tap advances, long-press resets */}
