@@ -227,7 +227,7 @@ React 19 + TypeScript + Vite 7 + Tailwind CSS 4. Configured as a PWA (`vite-plug
 
 ### Database
 
-PostgreSQL (hosted on Neon). Current tables: `users`, `calorie_log_items`, `calorie_log_user_settings`. Enum types follow the pattern `{table}_{column}` (e.g. `calorie_log_item_type`). Migration tracking via a `migrations` table (keyed by filename).
+PostgreSQL (hosted on Neon). Current tables: `users`, `calorie_log_items`, `calorie_log_user_settings`, `habits`, `habit_logs`. Enum types follow the pattern `{table}_{column}` (e.g. `calorie_log_item_type`, `habit_frequency`). Migration tracking via a `migrations` table (keyed by filename).
 
 ## Environment Variables
 

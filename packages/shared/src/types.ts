@@ -255,3 +255,57 @@ export interface CreateRecipeInput {
 
 // UpdateRecipeInput is the body for PUT /api/recipes/:id — all fields optional.
 export type UpdateRecipeInput = Partial<CreateRecipeInput>
+
+/* ─── Habits ─────────────────────────────────────────────────────────────── */
+
+// Habit mirrors the habits DB row. Habits have 1–3 levels of completion;
+// level1_label is required, level2_label/level3_label are optional stretch goals.
+export interface Habit {
+  id: number
+  user_id: number
+  name: string
+  emoji: string | null
+  color: string | null
+  frequency: 'daily' | 'weekly'
+  weekly_target: number | null  // null for daily habits; 1–7 for weekly habits
+  level1_label: string
+  level2_label: string | null
+  level3_label: string | null
+  sort_order: number
+  archived_at: string | null
+  created_at: string
+  updated_at: string
+}
+
+// HabitLog mirrors a single habit_logs DB row. Sparse model — absence means not done.
+export interface HabitLog {
+  id: number
+  user_id: number
+  habit_id: number
+  date: string      // YYYY-MM-DD
+  level: 1 | 2 | 3
+}
+
+// HabitWithLog is returned by GET /api/habits?date= — the habit plus today's log
+// entry (null if not logged) and computed streak/consistency stats.
+export interface HabitWithLog extends Habit {
+  log: HabitLog | null
+  current_streak: number
+  longest_streak: number
+  consistency_30d: number  // 0–100 percentage
+  avg_level_30d: number
+}
+
+// HabitWeekEntry is one element of GET /api/habits/week — a habit with stats
+// (streak/consistency) and all its logs for the requested 7-day window.
+// habit.log will be null (no single-date log in week view; use logs array instead).
+export interface HabitWeekEntry {
+  habit: HabitWithLog
+  logs: HabitLog[]
+}
+
+// CreateHabitInput is the body for POST /api/habits.
+export type CreateHabitInput = Omit<Habit, 'id' | 'user_id' | 'archived_at' | 'created_at' | 'updated_at'>
+
+// UpdateHabitInput is the body for PATCH /api/habits/:id — all fields optional.
+export type UpdateHabitInput = Partial<CreateHabitInput>

@@ -65,6 +65,21 @@ function Shell() {
             </Link>
           </div>
           <NavLink
+            to="/habits"
+            onClick={() => setOpen(false)}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mt-1 ${
+                isActive ? 'bg-stride-50 text-stride-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
+              }`
+            }
+          >
+            {/* Circle with checkmark — habit tracker icon */}
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            Habits
+          </NavLink>
+          <NavLink
             to="/recipes"
             onClick={() => setOpen(false)}
             className={({ isActive }) =>

@@ -1,10 +1,10 @@
 // API service layer — all backend calls go through request() which handles
 // auth headers, 401 redirects, and consistent error extraction.
 
-import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput } from './types'
+import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput } from './types'
 
 // Re-export types so existing imports from api.ts keep working.
-export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput }
+export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput }
 
 function getToken(): string | null {
   return localStorage.getItem('token')
@@ -248,6 +248,61 @@ export function logFromRecipe(
       recipe_id: recipe.id,
     }),
   })
+}
+
+/* ─── Habit API ───────────────────────────────────────────────────── */
+
+// fetchHabits returns all active habits with today's log entry (null if not logged)
+// and computed streak/consistency stats for the given date (YYYY-MM-DD).
+export function fetchHabits(date: string) {
+  return request<HabitWithLog[]>(`/api/habits?date=${date}`)
+}
+
+// createHabit creates a new habit and returns it.
+export function createHabit(input: CreateHabitInput) {
+  return request<Habit>('/api/habits', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+// updateHabit patches the given fields on a habit and returns the updated record.
+export function updateHabit(id: number, input: UpdateHabitInput) {
+  return request<Habit>(`/api/habits/${id}`, {
+    method: 'PATCH',
+    body: JSON.stringify(input),
+  })
+}
+
+// archiveHabit sets archived_at on a habit, hiding it from the active list.
+export function archiveHabit(id: number) {
+  return request<void>(`/api/habits/${id}/archive`, { method: 'POST' })
+}
+
+// deleteHabit permanently deletes a habit and all its logs.
+export function deleteHabit(id: number) {
+  return request<void>(`/api/habits/${id}`, { method: 'DELETE' })
+}
+
+// upsertHabitLog sets the level for a habit on a given date. level=0 deletes the log
+// (resets to not done). Returns the upserted log, or null after a delete.
+export function upsertHabitLog(habitId: number, date: string, level: 0 | 1 | 2 | 3) {
+  return request<HabitLog | null>('/api/habit-logs', {
+    method: 'PUT',
+    body: JSON.stringify({ habit_id: habitId, date, level }),
+  })
+}
+
+// fetchHabitsWeek returns all active habits with their logs for the 7-day window
+// starting at weekStart (YYYY-MM-DD, must be a Monday). Used by the Progress tab.
+export function fetchHabitsWeek(weekStart: string) {
+  return request<HabitWeekEntry[]>(`/api/habits/week?week_start=${weekStart}`)
+}
+
+// fetchHabitLogs returns all logs for a single habit in [from, to] (YYYY-MM-DD).
+// Used by the Habit Detail heatmap (90-day window).
+export function fetchHabitLogs(habitId: number, from: string, to: string) {
+  return request<HabitLog[]>(`/api/habits/${habitId}/logs?from=${from}&to=${to}`)
 }
 
 /* ─── AI calorie suggestion ───────────────────────────────────────── */

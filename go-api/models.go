@@ -197,6 +197,94 @@ type progressResponse struct {
 	Stats progressStats    `json:"stats"`
 }
 
+/* ─── Habit structs ──────────────────────────────────────────────────── */
+
+// habit maps to the habits table. Levels are stored inline (level1–3_label)
+// because max 3 levels is a fixed product constraint, not a dynamic list.
+// archived_at is non-nil when the habit has been soft-deleted.
+type habit struct {
+	ID           int        `json:"id"            db:"id"`
+	UserID       int        `json:"user_id"       db:"user_id"`
+	Name         string     `json:"name"          db:"name"`
+	Emoji        *string    `json:"emoji"         db:"emoji"`
+	Color        *string    `json:"color"         db:"color"`
+	Frequency    string     `json:"frequency"     db:"frequency"` // 'daily' | 'weekly'
+	WeeklyTarget *int       `json:"weekly_target" db:"weekly_target"`
+	Level1Label  string     `json:"level1_label"  db:"level1_label"`
+	Level2Label  *string    `json:"level2_label"  db:"level2_label"`
+	Level3Label  *string    `json:"level3_label"  db:"level3_label"`
+	SortOrder    int        `json:"sort_order"    db:"sort_order"`
+	ArchivedAt   *time.Time `json:"archived_at"   db:"archived_at"`
+	CreatedAt    time.Time  `json:"created_at"    db:"created_at"`
+	UpdatedAt    time.Time  `json:"updated_at"    db:"updated_at"`
+}
+
+// habitLog maps to the habit_logs table. Sparse model: no row = not completed.
+// level is 1–3; the CHECK constraint on the DB enforces this.
+type habitLog struct {
+	ID        int      `json:"id"         db:"id"`
+	UserID    int      `json:"user_id"    db:"user_id"`
+	HabitID   int      `json:"habit_id"   db:"habit_id"`
+	Date      DateOnly `json:"date"       db:"date"`
+	Level     int      `json:"level"      db:"level"`
+	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// habitWithLog is the response shape for GET /api/habits. Extends habit with
+// the log entry for the requested date and precomputed streak/consistency stats.
+type habitWithLog struct {
+	habit
+	Log            *habitLog `json:"log"`
+	CurrentStreak  int       `json:"current_streak"`
+	LongestStreak  int       `json:"longest_streak"`
+	Consistency30d int       `json:"consistency_30d"` // 0–100 percentage
+	AvgLevel30d    float64   `json:"avg_level_30d"`
+}
+
+// habitWeekEntry is one item in the GET /api/habits/week response.
+// Habit includes streak/stats computed from the last 30 days (Log is nil — use Logs instead).
+// Logs contains every log in the requested 7-day window for this habit.
+type habitWeekEntry struct {
+	Habit habitWithLog `json:"habit"`
+	Logs  []habitLog   `json:"logs"`
+}
+
+// createHabitRequest is the request body for POST /api/habits.
+type createHabitRequest struct {
+	Name         string  `json:"name"          binding:"required"`
+	Emoji        *string `json:"emoji"`
+	Color        *string `json:"color"`
+	Frequency    string  `json:"frequency"`     // 'daily' | 'weekly'; defaults to 'daily'
+	WeeklyTarget *int    `json:"weekly_target"` // required when frequency='weekly'
+	Level1Label  string  `json:"level1_label"  binding:"required"`
+	Level2Label  *string `json:"level2_label"`
+	Level3Label  *string `json:"level3_label"`
+	SortOrder    int     `json:"sort_order"`
+}
+
+// updateHabitRequest is the request body for PATCH /api/habits/:id.
+// All fields are optional — only non-nil values are written to the DB.
+type updateHabitRequest struct {
+	Name         *string  `json:"name"`
+	Emoji        *string  `json:"emoji"`
+	Color        *string  `json:"color"`
+	Frequency    *string  `json:"frequency"`
+	WeeklyTarget *int     `json:"weekly_target"`
+	Level1Label  *string  `json:"level1_label"`
+	Level2Label  *string  `json:"level2_label"`
+	Level3Label  *string  `json:"level3_label"`
+	SortOrder    *int     `json:"sort_order"`
+}
+
+// upsertHabitLogRequest is the request body for PUT /api/habit-logs.
+// Level=0 deletes the log row (reset); 1–3 upserts it.
+type upsertHabitLogRequest struct {
+	HabitID int    `json:"habit_id" binding:"required"`
+	Date    string `json:"date"     binding:"required"` // YYYY-MM-DD
+	Level   int    `json:"level"`                       // 0 = delete, 1–3 = upsert
+}
+
 /* ─── Recipe structs ─────────────────────────────────────────────────── */
 
 // recipe maps to the recipes table — top-level recipe record.
