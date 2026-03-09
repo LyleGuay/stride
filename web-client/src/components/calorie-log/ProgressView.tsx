@@ -11,7 +11,7 @@
 
 import { useState } from 'react'
 import type { ProgressResponse, WeightEntry } from '../../types'
-import { groupDays, type ProgressRange } from '../../utils/progressGrouping'
+import { groupDays, getSlotDates, groupWeightToSlots, type ProgressRange } from '../../utils/progressGrouping'
 import LogWeightSheet from './LogWeightSheet'
 
 /* ─── Props ─────────────────────────────────────────────────────────────── */
@@ -30,6 +30,8 @@ export interface ProgressViewProps {
   onDeleteWeight: (id: number) => Promise<void>
   // User unit preference ('imperial' or 'metric') — drives weight display
   units: string
+  // Navigate to a specific day in the Daily tab (used by 1M bar tooltip "Go to day" button)
+  onNavigateToDay?: (date: string) => void
 }
 
 /* ─── SVG chart constants ────────────────────────────────────────────────── */
@@ -79,8 +81,10 @@ export default function ProgressView({
   rangeStart, rangeEnd,
   onLogWeight, onUpdateWeight, onDeleteWeight,
   units,
+  onNavigateToDay,
 }: ProgressViewProps) {
   const [tooltipIdx, setTooltipIdx] = useState(-1)
+  const [combinedTooltipIdx, setCombinedTooltipIdx] = useState(-1)
   const [weightTab, setWeightTab] = useState<'graph' | 'table'>('graph')
   const [weightSheetOpen, setWeightSheetOpen] = useState(false)
   const [editingWeight, setEditingWeight] = useState<WeightEntry | null>(null)
@@ -109,6 +113,18 @@ export default function ProgressView({
 
   /* ─── Weight chart data ──────────────────────────────────────────────── */
 
+  // Slot dates mirror calorie bar positions so the two charts are x-aligned.
+  // weightEntries may include pre-range entries (fetched by CalorieLog with an
+  // extended window) which act as interpolation anchors for the first slot.
+  const weightSlotDates = getSlotDates(range, rangeStart, rangeEnd)
+  const weightSlotValues = groupWeightToSlots(weightEntries, weightSlotDates)
+
+  // Non-null slots become chart points; used for Y-scale and legend display.
+  const nonNullSlots = weightSlotValues
+    .map((v, i) => v !== null ? { slotIdx: i, value: lbsForDisplay(v, units) } : null)
+    .filter((x): x is { slotIdx: number; value: number } => x !== null)
+
+  // For the table and single-entry views, we still want the range-filtered entries.
   const weightInRange = weightEntries.filter(e => e.date >= rangeStart && e.date <= rangeEnd)
   const sortedWeight  = [...weightInRange].sort((a, b) => a.date.localeCompare(b.date))
 
@@ -126,51 +142,61 @@ export default function ProgressView({
 
   /* ─── Weight SVG chart ───────────────────────────────────────────────── */
 
-  const WGT_X_START = 40
-  const WGT_X_END   = 410
-  const WGT_Y_TOP   = 15
-  const WGT_Y_BOT   = 120
-  const WGT_H       = WGT_Y_BOT - WGT_Y_TOP
-  const WGT_VB_W    = 430
-  const WGT_VB_H    = 140
+  // The weight chart uses the same SVG x-coordinate system as the calorie bar
+  // chart (same slotW and totalW) so both charts are pixel-aligned horizontally.
+  const WGT_Y_TOP = 15
+  const WGT_Y_BOT = 120
+  const WGT_H     = WGT_Y_BOT - WGT_Y_TOP
+  const WGT_VB_H  = 140
 
   let weightSvg: React.ReactNode = null
-  if (sortedWeight.length >= 2) {
-    const weights = sortedWeight.map(e => lbsForDisplay(e.weight_lbs, units))
-    const wMin = Math.min(...weights)
-    const wMax = Math.max(...weights)
+  if (nonNullSlots.length >= 2) {
+    const wVals = nonNullSlots.map(s => s.value)
+    const wMin  = Math.min(...wVals)
+    const wMax  = Math.max(...wVals)
     const wRange = Math.max(wMax - wMin, 1)  // avoid divide-by-zero
     const pad = wRange * 0.15
     const lo = wMin - pad
     const hi = wMax + pad
 
-    const pts = sortedWeight.map((_, i) => {
-      const x = WGT_X_START + (i / (sortedWeight.length - 1)) * (WGT_X_END - WGT_X_START)
-      const y = WGT_Y_BOT - WGT_H * ((weights[i] - lo) / (hi - lo))
-      return { x, y, entry: sortedWeight[i], w: weights[i] }
-    })
+    // Map each non-null slot to its x position using the same slotCenter formula
+    // as the calorie chart so both charts line up.
+    const pts = nonNullSlots.map(s => ({
+      x: slotCenter(s.slotIdx, slotW),
+      y: WGT_Y_BOT - WGT_H * ((s.value - lo) / (hi - lo)),
+      w: s.value,
+      // Find the actual weight entry nearest this slot date for tooltip display
+      date: weightSlotDates[s.slotIdx],
+    }))
 
-    const linePath = pts.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x.toFixed(1)} ${p.y.toFixed(1)}`).join(' ')
+    // Build line segments — skip gaps between consecutive non-null slots
+    // by only drawing "L" (line) when the two points are adjacent slots.
+    const lineParts: string[] = []
+    for (let i = 0; i < pts.length; i++) {
+      const isContiguous = i > 0 && nonNullSlots[i].slotIdx === nonNullSlots[i - 1].slotIdx + 1
+      lineParts.push(`${isContiguous ? 'L' : 'M'} ${pts[i].x.toFixed(1)} ${pts[i].y.toFixed(1)}`)
+    }
+    const linePath = lineParts.join(' ')
     const areaPath = `${linePath} L ${pts[pts.length - 1].x.toFixed(1)} ${WGT_Y_BOT} L ${pts[0].x.toFixed(1)} ${WGT_Y_BOT} Z`
 
     weightSvg = (
-      <svg viewBox={`0 0 ${WGT_VB_W} ${WGT_VB_H}`} className="w-full" style={{ minWidth: 280 }}>
+      <svg viewBox={`0 0 ${totalW} ${WGT_VB_H}`} style={{ width: totalW, display: 'block' }}>
         {/* Area fill */}
         <path d={areaPath} fill="#3b82f6" opacity={0.08} />
         {/* Line */}
         <path d={linePath} fill="none" stroke="#3b82f6" strokeWidth={1.8} />
         {/* Dots — clickable tooltips */}
         {pts.map((p, i) => (
-          <g key={sortedWeight[i].id} onClick={e => { e.stopPropagation(); setTooltipIdx(tooltipIdx === 1000 + i ? -1 : 1000 + i) }}>
+          <g key={i} onClick={e => { e.stopPropagation(); setTooltipIdx(tooltipIdx === 1000 + i ? -1 : 1000 + i) }}>
             <circle cx={p.x} cy={p.y} r={5} fill="white" stroke="#3b82f6" strokeWidth={1.8} className="cursor-pointer" />
             {tooltipIdx === 1000 + i && (() => {
-              const tx = Math.min(Math.max(p.x, WGT_X_START + 50), WGT_X_END - 50)
+              const tx = Math.min(Math.max(p.x, X_START + 50), totalW - 65)
               const ty = Math.max(p.y - 52, WGT_Y_TOP)
               return (
                 <g>
                   <rect x={tx - 50} y={ty} width={100} height={42} rx={4} fill="#1f2937" />
                   <text x={tx} y={ty + 14} textAnchor="middle" fontSize={8.5} fill="#9ca3af">
-                    {new Date(p.entry.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    {new Date(p.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                   </text>
                   <text x={tx} y={ty + 29} textAnchor="middle" fontSize={10} fill="white" fontWeight="600">
                     {p.w.toFixed(1)} {weightUnitLabel(units)}
@@ -181,8 +207,8 @@ export default function ProgressView({
           </g>
         ))}
         {/* Y-axis min/max labels */}
-        <text x={WGT_X_START - 4} y={WGT_Y_BOT} textAnchor="end" fontSize={8} fill="#d1d5db">{wMin.toFixed(1)}</text>
-        <text x={WGT_X_START - 4} y={WGT_Y_TOP + 5} textAnchor="end" fontSize={8} fill="#d1d5db">{wMax.toFixed(1)}</text>
+        <text x={X_START - 4} y={WGT_Y_BOT} textAnchor="end" fontSize={8} fill="#d1d5db">{wMin.toFixed(1)}</text>
+        <text x={X_START - 4} y={WGT_Y_TOP + 5} textAnchor="end" fontSize={8} fill="#d1d5db">{wMax.toFixed(1)}</text>
       </svg>
     )
   }
@@ -228,7 +254,7 @@ export default function ProgressView({
   /* ─── Render ─────────────────────────────────────────────────────────── */
 
   return (
-    <div className="space-y-4" onClick={() => setTooltipIdx(-1)}>
+    <div className="space-y-4" onClick={() => { setTooltipIdx(-1); setCombinedTooltipIdx(-1) }}>
 
       {/* ── Loading ─────────────────────────────────────────────────────── */}
       {loading && (
@@ -361,7 +387,7 @@ export default function ProgressView({
             </div>
 
             {weightTab === 'graph' && (
-              sortedWeight.length === 0 ? (
+              nonNullSlots.length === 0 ? (
                 <div className="py-6 text-center text-gray-400 text-sm">
                   No weight entries for this period.
                   <button
@@ -371,10 +397,10 @@ export default function ProgressView({
                     Log your first weight entry
                   </button>
                 </div>
-              ) : sortedWeight.length === 1 ? (
+              ) : nonNullSlots.length === 1 ? (
                 <div className="py-6 text-center text-gray-400 text-sm">
-                  {lbsForDisplay(sortedWeight[0].weight_lbs, units).toFixed(1)} {weightUnitLabel(units)} on{' '}
-                  {new Date(sortedWeight[0].date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.
+                  {nonNullSlots[0].value.toFixed(1)} {weightUnitLabel(units)} on{' '}
+                  {new Date(weightSlotDates[nonNullSlots[0].slotIdx] + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}.
                   <div className="text-xs mt-1">Log more entries to see a trend.</div>
                 </div>
               ) : (
@@ -511,9 +537,18 @@ export default function ProgressView({
               {tooltipIdx >= 0 && tooltipIdx < bars.length && (() => {
                 const bar = bars[tooltipIdx]
                 const cx  = slotCenter(tooltipIdx, slotW)
-                const delta = bar.budget - bar.netCalories  // positive = under budget
                 // Position as % of SVG width, clamped to prevent edge overflow
                 const pct = Math.min(Math.max((cx / totalW) * 100, 16), 84)
+
+                // For the 1M range, derive the bar's calendar date from the slot index
+                // so we can offer a "Go to day" navigation link.
+                let barDate: string | null = null
+                if (range === 'month' && onNavigateToDay) {
+                  const d = new Date(rangeStart + 'T00:00:00Z')
+                  d.setUTCDate(d.getUTCDate() + tooltipIdx)
+                  barDate = d.toISOString().slice(0, 10)
+                }
+
                 return (
                   <div
                     className="absolute z-10 -translate-x-1/2 bg-gray-800 rounded-lg p-2.5 shadow-lg pointer-events-auto"
@@ -525,12 +560,19 @@ export default function ProgressView({
                       <span className="text-gray-400">Net cal</span>
                       <span className="text-white font-semibold">{bar.netCalories.toLocaleString()}</span>
                     </div>
-                    <div className="flex justify-between text-[10px] sm:text-xs">
-                      <span className="text-gray-400">vs. budget</span>
-                      <span className={`font-semibold ${delta >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                        {delta >= 0 ? `+${delta.toLocaleString()}` : delta.toLocaleString()}
-                      </span>
+                    <div className="flex justify-between text-[10px] sm:text-xs mb-0.5">
+                      <span className="text-gray-400">Budget</span>
+                      <span className="text-white font-semibold">{bar.budget.toLocaleString()}</span>
                     </div>
+                    {/* "Go to day" button — only shown in 1M view so user can jump to Daily tab */}
+                    {barDate && (
+                      <button
+                        onClick={() => { onNavigateToDay!(barDate!); setTooltipIdx(-1) }}
+                        className="mt-1 w-full text-left text-[10px] sm:text-xs text-blue-400 hover:text-blue-300 font-medium"
+                      >
+                        Go to day →
+                      </button>
+                    )}
                   </div>
                 )
               })()}
@@ -550,6 +592,233 @@ export default function ProgressView({
               </div>
             </div>
           </div>
+
+          {/* ── Combined chart: calories + weight overlay ────────────────── */}
+          {bars.length > 0 && (() => {
+            // SVG constants — taller than the individual charts to accommodate
+            // both y-axes; extra 28px on the right for weight axis labels.
+            const COMB_Y_TOP  = 15
+            const COMB_Y_BOT  = 130
+            const COMB_H      = COMB_Y_BOT - COMB_Y_TOP  // 115 usable px
+            const COMB_LBL_Y  = 144
+            const COMB_VB_H   = 157
+            const RIGHT_AXIS_W = 28  // reserved for right y-axis labels
+            const combVbW     = totalW + RIGHT_AXIS_W
+
+            // Left (calorie) y-scale — only tracked slots contribute to the scale;
+            // empty slots (trackedDays=0) are skipped in the line so they don't
+            // artificially pull the scale down to 0.
+            const trackedNetCals = bars.filter(b => b.trackedDays > 0).map(b => b.netCalories)
+            const combDataMax  = Math.max(1, ...trackedNetCals)
+            const combDataMin  = trackedNetCals.length > 0 ? Math.min(...trackedNetCals) : 0
+            const calPad       = Math.max(combDataMax - combDataMin, 500) * 0.15
+            const calLo        = Math.max(0, combDataMin - calPad)
+            const calHi        = combDataMax + calPad
+            const scaleCombY   = (v: number) => COMB_Y_BOT - COMB_H * ((v - calLo) / (calHi - calLo))
+            const combGridSteps = [combDataMax, Math.round((calLo + calHi) / 2)].map(v => ({
+              y: scaleCombY(v),
+              label: v >= 1000 ? `${(v / 1000).toFixed(v % 1000 === 0 ? 0 : 1)}k` : String(v),
+            }))
+
+            // Right (weight) y-scale — derived from non-null weight slots
+            const hasWeightData = nonNullSlots.length >= 1
+            let wLo = 0, wHi = 1, scaleWY: (v: number) => number = () => COMB_Y_TOP
+            const wGridLabels: { y: number; label: string }[] = []
+            if (hasWeightData) {
+              const wVals  = nonNullSlots.map(s => s.value)
+              const wMin   = Math.min(...wVals)
+              const wMax   = Math.max(...wVals)
+              const wPad   = Math.max(wMax - wMin, 1) * 0.2
+              wLo = wMin - wPad
+              wHi = wMax + wPad
+              scaleWY = (v: number) => COMB_Y_BOT - COMB_H * ((v - wLo) / (wHi - wLo))
+              // Two reference labels on the right axis (min and max visible)
+              wGridLabels.push(
+                { y: COMB_Y_BOT, label: wMin.toFixed(1) },
+                { y: COMB_Y_TOP + 5, label: wMax.toFixed(1) },
+              )
+            }
+
+            // Calorie line — one point per slot that has tracked data; gaps where
+            // trackedDays=0 so empty slots don't drag the line down to zero.
+            const calTrackedSlots = bars
+              .map((bar, i) => bar.trackedDays > 0 ? { slotIdx: i, value: bar.netCalories } : null)
+              .filter((x): x is { slotIdx: number; value: number } => x !== null)
+
+            let calLinePath = ''
+            let calAreaPath = ''
+            if (calTrackedSlots.length >= 2) {
+              const pts = calTrackedSlots.map(s => ({
+                x: slotCenter(s.slotIdx, slotW),
+                y: scaleCombY(s.value),
+              }))
+              const parts: string[] = []
+              for (let i = 0; i < pts.length; i++) {
+                const contiguous = i > 0 && calTrackedSlots[i].slotIdx === calTrackedSlots[i - 1].slotIdx + 1
+                parts.push(`${contiguous ? 'L' : 'M'} ${pts[i].x.toFixed(1)} ${pts[i].y.toFixed(1)}`)
+              }
+              calLinePath = parts.join(' ')
+              calAreaPath = `${calLinePath} L ${pts[pts.length - 1].x.toFixed(1)} ${COMB_Y_BOT} L ${pts[0].x.toFixed(1)} ${COMB_Y_BOT} Z`
+            }
+
+            // Weight line path — same slot indices as calorie bars
+            let combLinePath = ''
+            let combAreaPath = ''
+            if (hasWeightData && nonNullSlots.length >= 2) {
+              const wPts = nonNullSlots.map(s => ({
+                x: slotCenter(s.slotIdx, slotW),
+                y: scaleWY(s.value),
+              }))
+              const parts: string[] = []
+              for (let i = 0; i < wPts.length; i++) {
+                const contiguous = i > 0 && nonNullSlots[i].slotIdx === nonNullSlots[i - 1].slotIdx + 1
+                parts.push(`${contiguous ? 'L' : 'M'} ${wPts[i].x.toFixed(1)} ${wPts[i].y.toFixed(1)}`)
+              }
+              combLinePath = parts.join(' ')
+              combAreaPath = `${combLinePath} L ${wPts[wPts.length - 1].x.toFixed(1)} ${COMB_Y_BOT} L ${wPts[0].x.toFixed(1)} ${COMB_Y_BOT} Z`
+            }
+
+            return (
+              <div className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="text-sm font-semibold text-gray-700">Calories vs. Weight</h3>
+                  <div className="flex items-center gap-3 text-[11px] text-gray-500">
+                    <div className="flex items-center gap-1.5">
+                      <div className="w-5 border-t-2 border-green-500" />Cal
+                    </div>
+                    {hasWeightData && (
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-5 border-t-2 border-blue-400" />Weight
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="relative">
+                  <div className="w-full overflow-x-auto -mx-1 px-1">
+                    <svg
+                      viewBox={`0 0 ${combVbW} ${COMB_VB_H}`}
+                      style={{ width: combVbW, display: 'block' }}
+                      onClick={e => e.stopPropagation()}
+                    >
+                      {/* Horizontal grid lines (calorie scale) */}
+                      {combGridSteps.map(({ y, label }) => (
+                        <g key={label}>
+                          <line x1={X_START} y1={y} x2={totalW - 15} y2={y} stroke="#f3f4f6" strokeWidth={1} />
+                          <text x={X_START - 3} y={y + 3} textAnchor="end" fontSize={7.5} fill="#d1d5db">{label}</text>
+                        </g>
+                      ))}
+                      {/* Baseline */}
+                      <line x1={X_START} y1={COMB_Y_BOT} x2={totalW - 15} y2={COMB_Y_BOT} stroke="#e5e7eb" strokeWidth={1} />
+
+                      {/* Invisible per-slot click targets — full slot height so the
+                          user can tap anywhere in the column to open the tooltip. */}
+                      {bars.map((_, i) => (
+                        <rect
+                          key={i}
+                          x={slotCenter(i, slotW) - slotW / 2}
+                          y={COMB_Y_TOP}
+                          width={slotW}
+                          height={COMB_H}
+                          fill="transparent"
+                          className="cursor-pointer"
+                          onClick={e => { e.stopPropagation(); setCombinedTooltipIdx(i === combinedTooltipIdx ? -1 : i) }}
+                        />
+                      ))}
+
+                      {/* X-axis labels */}
+                      {bars.map((bar, i) => i % labelStep === 0 && (
+                        <text key={i} x={slotCenter(i, slotW)} y={COMB_LBL_Y} textAnchor="middle" fontSize={7.5} fill="#9ca3af">
+                          {bar.label}
+                        </text>
+                      ))}
+
+                      {/* Calorie line — area fill then stroke on top */}
+                      {calAreaPath && <path d={calAreaPath} fill="#22c55e" opacity={0.08} />}
+                      {calLinePath && <path d={calLinePath} fill="none" stroke="#22c55e" strokeWidth={2} />}
+                      {/* Calorie dots at each tracked slot */}
+                      {calTrackedSlots.map((s, i) => (
+                        <circle
+                          key={i}
+                          cx={slotCenter(s.slotIdx, slotW)}
+                          cy={scaleCombY(s.value)}
+                          r={3}
+                          fill="white" stroke="#22c55e" strokeWidth={1.8}
+                          className="cursor-pointer"
+                          onClick={e => { e.stopPropagation(); setCombinedTooltipIdx(s.slotIdx === combinedTooltipIdx ? -1 : s.slotIdx) }}
+                        />
+                      ))}
+
+                      {/* Weight line — rendered above calorie line */}
+                      {hasWeightData && combAreaPath && (
+                        <path d={combAreaPath} fill="#3b82f6" opacity={0.06} />
+                      )}
+                      {hasWeightData && combLinePath && (
+                        <path d={combLinePath} fill="none" stroke="#3b82f6" strokeWidth={2} />
+                      )}
+                      {/* Weight dots at each non-null slot */}
+                      {hasWeightData && nonNullSlots.map((s, i) => (
+                        <circle
+                          key={i}
+                          cx={slotCenter(s.slotIdx, slotW)}
+                          cy={scaleWY(s.value)}
+                          r={3}
+                          fill="white" stroke="#3b82f6" strokeWidth={1.8}
+                          className="cursor-pointer"
+                          onClick={e => { e.stopPropagation(); setCombinedTooltipIdx(s.slotIdx === combinedTooltipIdx ? -1 : s.slotIdx) }}
+                        />
+                      ))}
+
+                      {/* Right y-axis weight labels */}
+                      {wGridLabels.map(({ y, label }) => (
+                        <text key={label} x={totalW - 12} y={y} textAnchor="start" fontSize={7.5} fill="#93c5fd">
+                          {label}
+                        </text>
+                      ))}
+                    </svg>
+                  </div>
+
+                  {/* Combined tooltip — shows net cal + budget + weight for the clicked slot */}
+                  {combinedTooltipIdx >= 0 && combinedTooltipIdx < bars.length && (() => {
+                    const bar         = bars[combinedTooltipIdx]
+                    const slotWt      = weightSlotValues[combinedTooltipIdx]
+                    const cx          = slotCenter(combinedTooltipIdx, slotW)
+                    const pct         = Math.min(Math.max((cx / combVbW) * 100, 16), 84)
+                    const tooltipH    = slotWt !== null ? 82 : 65
+                    return (
+                      <div
+                        className="absolute z-10 -translate-x-1/2 bg-gray-800 rounded-lg p-2.5 shadow-lg pointer-events-auto"
+                        style={{ left: `${pct}%`, top: '4%', width: 148, minHeight: tooltipH }}
+                        onClick={e => e.stopPropagation()}
+                      >
+                        <div className="text-[10px] sm:text-xs text-gray-400 mb-1.5">{bar.label}</div>
+                        <div className="flex justify-between text-[10px] sm:text-xs mb-0.5">
+                          <span className="text-gray-400">Net cal</span>
+                          <span className="text-white font-semibold">
+                            {bar.trackedDays > 0 ? bar.netCalories.toLocaleString() : '—'}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-[10px] sm:text-xs mb-0.5">
+                          <span className="text-gray-400">Budget</span>
+                          <span className="text-white font-semibold">
+                            {bar.trackedDays > 0 ? bar.budget.toLocaleString() : '—'}
+                          </span>
+                        </div>
+                        {slotWt !== null && (
+                          <div className="flex justify-between text-[10px] sm:text-xs border-t border-gray-700 mt-1 pt-1">
+                            <span className="text-blue-400">Weight</span>
+                            <span className="text-blue-300 font-semibold">
+                              {lbsForDisplay(slotWt, units).toFixed(1)} {weightUnitLabel(units)}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })()}
+                </div>
+              </div>
+            )
+          })()}
         </>
       )}
 

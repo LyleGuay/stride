@@ -36,11 +36,11 @@ test.describe('Progress tab', () => {
     await page.getByRole('button', { name: 'YTD' }).click()
 
     // The Calories card should still render (chart or no-data placeholder)
-    await expect(page.getByText('Calories')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Calories', exact: true })).toBeVisible()
 
     // Click "All"
     await page.getByRole('button', { name: 'All' }).click()
-    await expect(page.getByText('Calories')).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Calories', exact: true })).toBeVisible()
   })
 
   test('Period Summary shows estimated weight impact when data exists', async ({ page }) => {

@@ -336,7 +336,9 @@ function ProgressHabitCard({
         {/* Stats */}
         <div className="flex items-center gap-4 text-right flex-shrink-0 mr-1">
           <div>
-            <div className="text-sm font-bold text-gray-800">{daysLogged}/{totalDays}</div>
+            <div className="text-sm font-bold text-gray-800">
+              {daysLogged}/{habit.frequency === 'weekly' ? (habit.weekly_target ?? 1) : totalDays}
+            </div>
             <div className="text-[10px] text-gray-400">days</div>
           </div>
           <div>
