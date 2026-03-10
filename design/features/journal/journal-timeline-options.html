@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Journal — Timeline Style Options</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: { 50:'#eef2ff', 100:'#e0e7ff', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f1f5f9; }
+
+    /* ── Style A: dot & line ── */
+    .tl-a-track { position:relative; padding-left:2.5rem; }
+    .tl-a-track::before {
+      content:''; position:absolute; left:15px; top:8px; bottom:0;
+      width:2px; background:linear-gradient(to bottom,#e2e8f0,transparent);
+    }
+    .tl-a-dot {
+      position:absolute; left:0; top:2px;
+      width:32px; height:32px; border-radius:50%;
+      border:2px solid white; box-shadow:0 1px 4px rgba(0,0,0,.15);
+      display:flex; align-items:center; justify-content:center;
+      font-size:14px; z-index:1;
+    }
+
+    /* ── Style C: compact log ── */
+    .compact-dot {
+      width:10px; height:10px; border-radius:50%; flex-shrink:0; margin-top:4px;
+    }
+
+    /* ── Style D: chat bubbles ── */
+    .bubble {
+      border-radius:18px 18px 18px 4px;
+      position:relative;
+    }
+
+    /* ── Style E: split (alternating) ── */
+    .split-line {
+      position:absolute; left:50%; top:0; bottom:0;
+      width:2px; background:linear-gradient(to bottom,#e2e8f0 80%,transparent);
+      transform:translateX(-50%);
+    }
+    .split-dot {
+      position:absolute; left:50%; top:12px;
+      width:14px; height:14px; border-radius:50%;
+      border:2px solid white; box-shadow:0 0 0 2px currentColor;
+      transform:translateX(-50%);
+    }
+  </style>
+</head>
+<body class="p-4 sm:p-8">
+
+<div class="max-w-5xl mx-auto space-y-12">
+
+  <!-- Page header -->
+  <div>
+    <div class="text-xs font-semibold text-stride-600 uppercase tracking-widest mb-1">Journal Design Exploration</div>
+    <h1 class="text-2xl font-bold text-gray-900">Timeline Style Options</h1>
+    <p class="text-sm text-gray-500 mt-1">5 layout directions — same entries, different feel. Sunday, March 9 · 4 entries</p>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════════
+       STYLE A — Dot & Line (current, refined)
+  ═════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="flex items-center gap-3 mb-4">
+      <span class="w-7 h-7 rounded-full bg-gray-900 text-white text-xs font-bold flex items-center justify-center shrink-0">A</span>
+      <div>
+        <div class="text-sm font-semibold text-gray-900">Dot & Line <span class="text-gray-400 font-normal ml-1">— current direction, refined</span></div>
+        <div class="text-xs text-gray-400">Emoji dot on a vertical track, time label above each card</div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-6">
+      <div class="tl-a-track space-y-6">
+
+        <!-- Entry 1 -->
+        <div class="relative">
+          <div class="tl-a-dot" style="background:linear-gradient(135deg,#4ade80,#2dd4bf)">😊</div>
+          <div class="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-1.5">8:32 AM</div>
+          <div class="bg-gray-50 rounded-xl p-3.5 border border-gray-100">
+            <div class="flex flex-wrap gap-1.5 mb-2">
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">😊 Happy</span>
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">💪 Motivated</span>
+              <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-200 text-gray-500">💭 Thoughts</span>
+            </div>
+            <p class="text-sm text-gray-700 leading-relaxed">Starting the day feeling really good. Woke up before my alarm and had time to make a proper breakfast.</p>
+            <div class="mt-2 pt-2 border-t border-gray-200 text-[11px] text-gray-400">🔗 Habit: <span class="text-indigo-600 font-medium">Morning Routine</span> ✓</div>
+          </div>
+        </div>
+
+        <!-- Entry 2 -->
+        <div class="relative">
+          <div class="tl-a-dot bg-amber-400">⚡</div>
+          <div class="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-1.5">12:15 PM</div>
+          <div class="bg-gray-50 rounded-xl p-3.5 border border-gray-100">
+            <div class="flex flex-wrap gap-1.5 mb-2">
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⚡ Energized</span>
+              <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-200 text-gray-500">💡 Idea</span>
+            </div>
+            <p class="text-sm text-gray-700 leading-relaxed">What if I built the weekly review right into Stride? Habits, calories, mood score — all in one view.</p>
+          </div>
+        </div>
+
+        <!-- Entry 3 -->
+        <div class="relative">
+          <div class="tl-a-dot bg-violet-400">😰</div>
+          <div class="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-1.5">3:50 PM</div>
+          <div class="bg-gray-50 rounded-xl p-3.5 border border-gray-100">
+            <div class="flex flex-wrap gap-1.5 mb-2">
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">😰 Anxious</span>
+              <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-200 text-gray-500">💬 Venting</span>
+            </div>
+            <p class="text-sm text-gray-700 leading-relaxed">Afternoon slump. Keep second-guessing the project direction. Not sure if it's fatigue or a real concern.</p>
+          </div>
+        </div>
+
+        <!-- Entry 4 -->
+        <div class="relative">
+          <div class="tl-a-dot" style="background:linear-gradient(135deg,#94a3b8,#4ade80)">😌</div>
+          <div class="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-1.5">9:02 PM</div>
+          <div class="bg-gray-50 rounded-xl p-3.5 border border-gray-100">
+            <div class="flex flex-wrap gap-1.5 mb-2">
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">😌 Neutral</span>
+              <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">😊 Happy</span>
+              <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-200 text-gray-500">🔄 Life Update</span>
+            </div>
+            <p class="text-sm text-gray-700 leading-relaxed">End of day. The anxious spell passed. 5/7 journalling, 7/7 workouts. Solid week.</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════
+       STYLE B — Time Gutter
+  ═════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="flex items-center gap-3 mb-4">
+      <span class="w-7 h-7 rounded-full bg-gray-900 text-white text-xs font-bold flex items-center justify-center shrink-0">B</span>
+      <div>
+        <div class="text-sm font-semibold text-gray-900">Time Gutter <span class="text-gray-400 font-normal ml-1">— fixed left column for time, no connecting line</span></div>
+        <div class="text-xs text-gray-400">Clean and editorial. Time is a fixed column; cards are borderless, full-width</div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-6 space-y-px">
+
+      <!-- Row 1 -->
+      <div class="flex gap-4 py-4 border-b border-gray-100">
+        <div class="w-16 shrink-0 text-right">
+          <div class="text-xs font-semibold text-gray-400">8:32</div>
+          <div class="text-[10px] text-gray-300">AM</div>
+        </div>
+        <div class="w-3 shrink-0 flex flex-col items-center pt-1">
+          <div class="w-2.5 h-2.5 rounded-full mt-0.5 shrink-0" style="background:linear-gradient(135deg,#4ade80,#2dd4bf)"></div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex flex-wrap gap-1.5 mb-1.5">
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">😊 Happy</span>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">💪 Motivated</span>
+            <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">💭 Thoughts</span>
+          </div>
+          <p class="text-sm text-gray-700 leading-relaxed">Starting the day feeling really good. Woke up before my alarm and had time to make a proper breakfast.</p>
+          <div class="mt-1.5 text-[11px] text-gray-400">🔗 <span class="text-indigo-600 font-medium">Morning Routine</span> ✓</div>
+        </div>
+      </div>
+
+      <!-- Row 2 -->
+      <div class="flex gap-4 py-4 border-b border-gray-100">
+        <div class="w-16 shrink-0 text-right">
+          <div class="text-xs font-semibold text-gray-400">12:15</div>
+          <div class="text-[10px] text-gray-300">PM</div>
+        </div>
+        <div class="w-3 shrink-0 flex flex-col items-center pt-1">
+          <div class="w-2.5 h-2.5 rounded-full mt-0.5 bg-amber-400 shrink-0"></div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex flex-wrap gap-1.5 mb-1.5">
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⚡ Energized</span>
+            <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">💡 Idea</span>
+          </div>
+          <p class="text-sm text-gray-700 leading-relaxed">What if I built the weekly review right into Stride? Habits, calories, mood score — all in one view.</p>
+        </div>
+      </div>
+
+      <!-- Row 3 -->
+      <div class="flex gap-4 py-4 border-b border-gray-100">
+        <div class="w-16 shrink-0 text-right">
+          <div class="text-xs font-semibold text-gray-400">3:50</div>
+          <div class="text-[10px] text-gray-300">PM</div>
+        </div>
+        <div class="w-3 shrink-0 flex flex-col items-center pt-1">
+          <div class="w-2.5 h-2.5 rounded-full mt-0.5 bg-violet-400 shrink-0"></div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex flex-wrap gap-1.5 mb-1.5">
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">😰 Anxious</span>
+            <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">💬 Venting</span>
+          </div>
+          <p class="text-sm text-gray-700 leading-relaxed">Afternoon slump. Keep second-guessing the project direction. Fatigue or a real concern?</p>
+        </div>
+      </div>
+
+      <!-- Row 4 -->
+      <div class="flex gap-4 py-4">
+        <div class="w-16 shrink-0 text-right">
+          <div class="text-xs font-semibold text-gray-400">9:02</div>
+          <div class="text-[10px] text-gray-300">PM</div>
+        </div>
+        <div class="w-3 shrink-0 flex flex-col items-center pt-1">
+          <div class="w-2.5 h-2.5 rounded-full mt-0.5 shrink-0" style="background:linear-gradient(135deg,#94a3b8,#4ade80)"></div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="flex flex-wrap gap-1.5 mb-1.5">
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">😌 Neutral</span>
+            <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">😊 Happy</span>
+            <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">🔄 Life Update</span>
+          </div>
+          <p class="text-sm text-gray-700 leading-relaxed">End of day. The anxious spell passed. 5/7 journalling, 7/7 workouts. Solid week.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════
+       STYLE C — Compact Log
+  ═════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="flex items-center gap-3 mb-4">
+      <span class="w-7 h-7 rounded-full bg-gray-900 text-white text-xs font-bold flex items-center justify-center shrink-0">C</span>
+      <div>
+        <div class="text-sm font-semibold text-gray-900">Compact Log <span class="text-gray-400 font-normal ml-1">— dense feed, tap to expand</span></div>
+        <div class="text-xs text-gray-400">Single-line preview with colored mood dot. Good for days with many entries</div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden divide-y divide-gray-100">
+
+      <!-- Row 1 — expanded -->
+      <div class="p-4 bg-indigo-50/40">
+        <div class="flex items-start gap-3">
+          <div class="compact-dot mt-1" style="background:linear-gradient(135deg,#4ade80,#2dd4bf)"></div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-2 mb-0.5">
+              <span class="text-[11px] font-bold text-gray-500">8:32 AM</span>
+              <span class="text-[11px] text-green-600 font-semibold">😊 Happy · 💪 Motivated</span>
+              <span class="text-[11px] text-gray-400 ml-auto">💭 Thoughts</span>
+            </div>
+            <p class="text-sm text-gray-700 leading-relaxed">Starting the day feeling really good. Woke up before my alarm and had time to make a proper breakfast. These mornings are rare — worth documenting.</p>
+            <div class="mt-1.5 text-[11px] text-gray-400">🔗 <span class="text-indigo-600 font-medium">Morning Routine</span> ✓</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Row 2 — collapsed -->
+      <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors" onclick="this.querySelector('.expand-c').classList.toggle('hidden');this.querySelector('.preview-c').classList.toggle('hidden')">
+        <div class="flex items-center gap-3">
+          <div class="compact-dot bg-amber-400"></div>
+          <span class="text-[11px] font-bold text-gray-500 w-14 shrink-0">12:15 PM</span>
+          <span class="text-[11px] text-amber-600 font-semibold shrink-0">⚡ Energized</span>
+          <p class="preview-c text-[11px] text-gray-400 truncate ml-1">What if I built the weekly review right into Stride?…</p>
+          <svg class="w-3.5 h-3.5 text-gray-300 shrink-0 ml-auto" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+        </div>
+        <div class="expand-c hidden mt-2 ml-[calc(10px+0.75rem)]">
+          <p class="text-sm text-gray-700 leading-relaxed">What if I built the weekly review right into Stride? Could pull from habits completion, calorie averages, and journal mood score all in one screen.</p>
+        </div>
+      </div>
+
+      <!-- Row 3 — collapsed -->
+      <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors" onclick="this.querySelector('.expand-c2').classList.toggle('hidden');this.querySelector('.preview-c2').classList.toggle('hidden')">
+        <div class="flex items-center gap-3">
+          <div class="compact-dot bg-violet-400"></div>
+          <span class="text-[11px] font-bold text-gray-500 w-14 shrink-0">3:50 PM</span>
+          <span class="text-[11px] text-violet-600 font-semibold shrink-0">😰 Anxious</span>
+          <p class="preview-c2 text-[11px] text-gray-400 truncate ml-1">Afternoon slump. Keep second-guessing…</p>
+          <svg class="w-3.5 h-3.5 text-gray-300 shrink-0 ml-auto" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+        </div>
+        <div class="expand-c2 hidden mt-2 ml-[calc(10px+0.75rem)]">
+          <p class="text-sm text-gray-700 leading-relaxed">Afternoon slump. Keep second-guessing the project direction. Fatigue or a real concern?</p>
+        </div>
+      </div>
+
+      <!-- Row 4 — collapsed -->
+      <div class="px-4 py-3 hover:bg-gray-50 cursor-pointer transition-colors" onclick="this.querySelector('.expand-c3').classList.toggle('hidden');this.querySelector('.preview-c3').classList.toggle('hidden')">
+        <div class="flex items-center gap-3">
+          <div class="compact-dot" style="background:linear-gradient(135deg,#94a3b8,#4ade80)"></div>
+          <span class="text-[11px] font-bold text-gray-500 w-14 shrink-0">9:02 PM</span>
+          <span class="text-[11px] text-slate-500 font-semibold shrink-0">😌 Neutral · 😊 Happy</span>
+          <p class="preview-c3 text-[11px] text-gray-400 truncate ml-1">End of day. The anxious spell passed…</p>
+          <svg class="w-3.5 h-3.5 text-gray-300 shrink-0 ml-auto" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+        </div>
+        <div class="expand-c3 hidden mt-2 ml-[calc(10px+0.75rem)]">
+          <p class="text-sm text-gray-700 leading-relaxed">End of day. The anxious spell passed. 5/7 journalling, 7/7 workouts. Solid week.</p>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════
+       STYLE D — Chat Bubbles
+  ═════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="flex items-center gap-3 mb-4">
+      <span class="w-7 h-7 rounded-full bg-gray-900 text-white text-xs font-bold flex items-center justify-center shrink-0">D</span>
+      <div>
+        <div class="text-sm font-semibold text-gray-900">Chat Bubbles <span class="text-gray-400 font-normal ml-1">— conversational, emotion sets the bubble color</span></div>
+        <div class="text-xs text-gray-400">Feels personal and low-pressure. Emotion tints the bubble; time floats above</div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-6 space-y-5">
+
+      <!-- Entry 1 -->
+      <div class="flex gap-3 items-end">
+        <div class="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-sm border-2 border-white shadow"
+          style="background:linear-gradient(135deg,#4ade80,#2dd4bf)">😊</div>
+        <div class="flex-1 max-w-sm">
+          <div class="text-[10px] text-gray-400 mb-1 ml-1">8:32 AM · Happy + Motivated · Thoughts</div>
+          <div class="bubble p-3.5 text-sm text-gray-800 leading-relaxed" style="background:#f0fdf4; border:1px solid #bbf7d0">
+            Starting the day feeling really good. Woke up before my alarm and had time to make a proper breakfast.
+            <div class="mt-1.5 text-[11px] text-green-600">🔗 Morning Routine ✓</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Entry 2 -->
+      <div class="flex gap-3 items-end">
+        <div class="w-8 h-8 rounded-full bg-amber-400 shrink-0 flex items-center justify-center text-sm border-2 border-white shadow">⚡</div>
+        <div class="flex-1 max-w-sm">
+          <div class="text-[10px] text-gray-400 mb-1 ml-1">12:15 PM · Energized · Idea</div>
+          <div class="bubble p-3.5 text-sm text-gray-800 leading-relaxed" style="background:#fffbeb; border:1px solid #fde68a">
+            What if I built the weekly review right into Stride? Habits, calories, mood score — all in one view.
+          </div>
+        </div>
+      </div>
+
+      <!-- Entry 3 -->
+      <div class="flex gap-3 items-end">
+        <div class="w-8 h-8 rounded-full bg-violet-400 shrink-0 flex items-center justify-center text-sm border-2 border-white shadow">😰</div>
+        <div class="flex-1 max-w-sm">
+          <div class="text-[10px] text-gray-400 mb-1 ml-1">3:50 PM · Anxious · Venting</div>
+          <div class="bubble p-3.5 text-sm text-gray-800 leading-relaxed" style="background:#f5f3ff; border:1px solid #ddd6fe">
+            Afternoon slump. Keep second-guessing the project direction. Fatigue or a real concern?
+          </div>
+        </div>
+      </div>
+
+      <!-- Entry 4 -->
+      <div class="flex gap-3 items-end">
+        <div class="w-8 h-8 rounded-full shrink-0 flex items-center justify-center text-sm border-2 border-white shadow"
+          style="background:linear-gradient(135deg,#94a3b8,#4ade80)">😌</div>
+        <div class="flex-1 max-w-sm">
+          <div class="text-[10px] text-gray-400 mb-1 ml-1">9:02 PM · Neutral + Happy · Life Update</div>
+          <div class="bubble p-3.5 text-sm text-gray-800 leading-relaxed" style="background:#f8fafc; border:1px solid #e2e8f0">
+            End of day. The anxious spell passed. 5/7 journalling, 7/7 workouts. Solid week.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════════
+       STYLE E — Split / Alternating
+  ═════════════════════════════════════════════════════════════ -->
+  <section>
+    <div class="flex items-center gap-3 mb-4">
+      <span class="w-7 h-7 rounded-full bg-gray-900 text-white text-xs font-bold flex items-center justify-center shrink-0">E</span>
+      <div>
+        <div class="text-sm font-semibold text-gray-900">Split / Alternating <span class="text-gray-400 font-normal ml-1">— classic infographic timeline</span></div>
+        <div class="text-xs text-gray-400">Centre line with entries staggered left/right. Bold and visual; works best on wider screens</div>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-2xl border border-gray-200 shadow-sm p-5 sm:p-8">
+      <div class="relative" style="min-height:420px">
+
+        <!-- Centre line -->
+        <div class="split-line"></div>
+
+        <!-- Entry 1 — left -->
+        <div class="relative flex mb-10">
+          <div class="w-1/2 pr-8 text-right">
+            <div class="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-1">8:32 AM</div>
+            <div class="bg-gray-50 rounded-xl p-3.5 border border-gray-100 text-left">
+              <div class="flex flex-wrap gap-1 mb-2 justify-end">
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">😊 Happy</span>
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">💪 Motivated</span>
+              </div>
+              <p class="text-sm text-gray-700 leading-relaxed text-right">Starting the day feeling great. Woke up before my alarm and made a proper breakfast.</p>
+              <div class="mt-1.5 text-[11px] text-gray-400 text-right">🔗 <span class="text-indigo-600 font-medium">Morning Routine</span> ✓</div>
+            </div>
+          </div>
+          <!-- Centre dot -->
+          <div class="split-dot" style="color:#4ade80; background:linear-gradient(135deg,#4ade80,#2dd4bf)"></div>
+          <div class="w-1/2 pl-8"></div>
+        </div>
+
+        <!-- Entry 2 — right -->
+        <div class="relative flex mb-10">
+          <div class="w-1/2 pr-8"></div>
+          <div class="split-dot" style="color:#fbbf24; background:#fbbf24"></div>
+          <div class="w-1/2 pl-8">
+            <div class="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-1">12:15 PM</div>
+            <div class="bg-gray-50 rounded-xl p-3.5 border border-gray-100">
+              <div class="flex flex-wrap gap-1 mb-2">
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⚡ Energized</span>
+                <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-200 text-gray-500">💡 Idea</span>
+              </div>
+              <p class="text-sm text-gray-700 leading-relaxed">What if I built the weekly review into Stride? Habits, calories, mood — one view.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Entry 3 — left -->
+        <div class="relative flex mb-10">
+          <div class="w-1/2 pr-8 text-right">
+            <div class="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-1">3:50 PM</div>
+            <div class="bg-gray-50 rounded-xl p-3.5 border border-gray-100">
+              <div class="flex flex-wrap gap-1 mb-2 justify-end">
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">😰 Anxious</span>
+                <span class="text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-200 text-gray-500">💬 Venting</span>
+              </div>
+              <p class="text-sm text-gray-700 leading-relaxed text-right">Afternoon slump. Second-guessing the project. Fatigue or a real concern?</p>
+            </div>
+          </div>
+          <div class="split-dot" style="color:#a78bfa; background:#a78bfa"></div>
+          <div class="w-1/2 pl-8"></div>
+        </div>
+
+        <!-- Entry 4 — right -->
+        <div class="relative flex">
+          <div class="w-1/2 pr-8"></div>
+          <div class="split-dot" style="color:#94a3b8; background:linear-gradient(135deg,#94a3b8,#4ade80)"></div>
+          <div class="w-1/2 pl-8">
+            <div class="text-[10px] font-bold text-gray-400 tracking-widest uppercase mb-1">9:02 PM</div>
+            <div class="bg-gray-50 rounded-xl p-3.5 border border-gray-100">
+              <div class="flex flex-wrap gap-1 mb-2">
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">😌 Neutral</span>
+                <span class="text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">😊 Happy</span>
+              </div>
+              <p class="text-sm text-gray-700 leading-relaxed">End of day. Anxious spell passed. 5/7 journalling, 7/7 workouts. Solid week.</p>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer note -->
+  <div class="text-xs text-gray-400 text-center pb-8">
+    All styles use the same entry data. Emotion color dots are consistent across options.
+  </div>
+
+</div>
+</body>
+</html>

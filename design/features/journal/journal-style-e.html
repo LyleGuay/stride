@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Journal — Style E (One-sided Timeline)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: { 50:'#eef2ff', 100:'#e0e7ff', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f9fafb; }
+    .sheet-enter { animation: slideUp .22s cubic-bezier(.32,.72,0,1); }
+    @keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+    textarea:focus { outline:none; }
+
+    /*
+      Style E timeline: a 2px vertical line runs at x=20px from the left edge of
+      .timeline-e. Each entry has an absolutely-positioned dot centered on the line
+      and a short horizontal connector to the card. The line fades out below the
+      last entry via a gradient overlay pseudo-element.
+    */
+    .timeline-e {
+      position: relative;
+    }
+
+    /* The continuous vertical line */
+    .timeline-e::before {
+      content: '';
+      position: absolute;
+      left: 20px;          /* center of the 12px dot (dot left = 14px, so center = 20px) */
+      top: 0;
+      /* Stop the solid line before the fade zone */
+      bottom: 48px;
+      width: 2px;
+      background: #e5e7eb;
+      transform: translateX(-50%);
+    }
+
+    /* Fade-out gradient at the bottom */
+    .timeline-e::after {
+      content: '';
+      position: absolute;
+      left: 20px;
+      bottom: 0;
+      width: 2px;
+      height: 48px;
+      background: linear-gradient(to bottom, #e5e7eb, transparent);
+      transform: translateX(-50%);
+    }
+
+    /* Each entry row: pushes card to the right of the dot+connector zone */
+    .timeline-entry {
+      position: relative;
+      /* left padding = dot left(14px) + dot width(12px) + connector(12px) + gap(8px) = 46px */
+      padding-left: 46px;
+    }
+
+    /* Dot: 12px circle, centered on the 2px line at x=20px */
+    .timeline-dot {
+      position: absolute;
+      left: 14px;          /* 20px center - 6px (half of 12px dot) */
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      border: 2px solid white;
+      box-shadow: 0 0 0 1px rgba(0,0,0,0.08);
+      z-index: 2;
+      top: 0;              /* aligned to top; JS nudges this to vertically center on card content */
+    }
+
+    /* Short horizontal connector line from dot to card */
+    .timeline-connector {
+      position: absolute;
+      left: 26px;          /* dot right edge: 14 + 12 = 26px */
+      width: 12px;
+      height: 1px;
+      background: #d1d5db;
+      top: 5px;            /* vertically centers connector with the dot (dot is 12px tall, connector at 5px ≈ center minus border) */
+      z-index: 1;
+    }
+  </style>
+</head>
+<body>
+<div class="flex min-h-screen">
+
+  <!-- ── Sidebar ─────────────────────────────────────────────────────── -->
+  <aside class="hidden lg:flex flex-col fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-30">
+    <div class="flex items-center h-14 px-5 border-b border-gray-200 shrink-0">
+      <span class="text-xl font-bold text-stride-600">Stride</span>
+    </div>
+    <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto">
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        Calorie Log
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        Habits
+      </a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/>
+        </svg>
+        Recipes
+      </a>
+      <!-- Journal: active state -->
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm bg-stride-50 text-stride-700 font-medium">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/>
+        </svg>
+        Journal
+      </a>
+    </nav>
+    <div class="border-t border-gray-200 p-3 shrink-0">
+      <div class="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+        <div class="w-8 h-8 rounded-full bg-stride-100 flex items-center justify-center text-stride-700 text-sm font-semibold shrink-0">L</div>
+        <div class="min-w-0">
+          <div class="text-sm font-medium text-gray-800 truncate">Lyle</div>
+          <div class="text-xs text-gray-400 truncate">lyle@stride.app</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main content ─────────────────────────────────────────────────── -->
+  <div class="flex-1 lg:ml-64 min-h-screen flex flex-col">
+
+    <!-- Sticky header -->
+    <div class="sticky top-0 z-20 bg-white">
+
+      <!-- Tab row -->
+      <div class="flex items-end px-6 border-b border-gray-200" style="height:56px">
+        <!-- Hamburger (mobile only) -->
+        <button class="p-1 -ml-1 mr-3 rounded-md hover:bg-gray-100 self-center text-gray-700 lg:hidden">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+          </svg>
+        </button>
+        <button onclick="switchTab('daily')" id="btn-daily"
+          class="px-4 h-full flex items-center gap-1.5 text-sm -mb-px border-b-[3px] transition-colors font-semibold text-gray-900 border-gray-900">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+          </svg>
+          Daily
+        </button>
+        <button onclick="switchTab('summary')" id="btn-summary"
+          class="px-4 h-full flex items-center gap-1.5 text-sm -mb-px border-b-[3px] transition-colors font-medium text-gray-400 border-transparent hover:text-gray-600">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+          </svg>
+          Summary
+        </button>
+      </div>
+
+      <!-- Date nav (Daily) -->
+      <div id="date-nav" class="border-b border-gray-200">
+        <div class="flex items-center justify-center py-2.5">
+          <div class="flex items-center bg-gray-100 rounded-full px-1 py-1">
+            <button class="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 flex items-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/>
+              </svg>
+            </button>
+            <div class="flex items-center justify-center px-2 min-w-[196px]">
+              <span class="text-sm font-semibold text-gray-800">Sunday, March 9</span>
+              <span class="text-[10px] font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full ml-2 leading-none">Today</span>
+            </div>
+            <button class="p-1.5 rounded-full text-gray-300 flex items-center cursor-not-allowed" disabled>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Range nav (Summary) -->
+      <div id="range-nav" class="border-b border-gray-200 hidden">
+        <div class="flex items-center justify-center py-2.5">
+          <div class="flex items-center bg-gray-100 rounded-full px-1 py-1">
+            <button onclick="setRange(this)" class="range-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-900 shadow-sm">1M</button>
+            <button onclick="setRange(this)" class="range-btn px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-700">6M</button>
+            <button onclick="setRange(this)" class="range-btn px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-700">YTD</button>
+            <button onclick="setRange(this)" class="range-btn px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-700">All</button>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /sticky header -->
+
+    <!-- ── Daily — One-sided timeline content ───────────────────────── -->
+    <div id="daily-content" class="max-w-3xl mx-auto w-full px-4 pb-28 pt-5">
+
+      <!-- Entry count label -->
+      <div class="text-xs text-gray-400 font-medium mb-5 px-1">4 entries — Sunday, March 9</div>
+
+      <!-- Timeline wrapper: the ::before and ::after pseudo-elements draw the vertical line -->
+      <div class="timeline-e">
+
+        <!-- ── Entry 1: 8:32 AM ──────────────────────────────────────── -->
+        <!--
+          Happy (green #4ade80) + Motivated (teal #2dd4bf) blend
+          Tag: Thoughts | Linked: Morning Routine habit ✓
+        -->
+        <div class="timeline-entry mb-8" id="entry-1">
+          <!-- Dot colored as a gradient blend of Happy + Motivated -->
+          <div class="timeline-dot" style="background: linear-gradient(135deg, #4ade80 0%, #2dd4bf 100%);"></div>
+          <!-- Short horizontal connector from dot right edge to card -->
+          <div class="timeline-connector"></div>
+
+          <!-- Time label: sits above the card, left-aligned with the card edge -->
+          <div class="text-[10px] font-bold text-gray-400 tracking-wider uppercase mb-1.5">8:32 AM</div>
+
+          <!-- Card: white rounded card, no left accent bar — the timeline line is the accent -->
+          <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="p-3.5">
+              <!-- Emotion + type tags, plus ··· context menu -->
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">😊 Happy</span>
+                  <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">💪 Motivated</span>
+                  <span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">💭 Thoughts</span>
+                </div>
+                <div class="relative shrink-0 ml-2">
+                  <button onclick="toggleMenu('menu-1')" class="p-1 -mr-1 -mt-1 text-gray-300 hover:text-gray-500 rounded transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/>
+                    </svg>
+                  </button>
+                  <div id="menu-1" class="hidden absolute right-0 top-7 w-36 bg-white rounded-xl border border-gray-200 shadow-lg z-20 py-1 text-sm">
+                    <button onclick="openEdit('entry-1'); toggleMenu('menu-1')" class="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50">
+                      <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z"/>
+                      </svg>
+                      Edit
+                    </button>
+                    <button onclick="toggleMenu('menu-1')" class="w-full flex items-center gap-2.5 px-3 py-2 text-red-500 hover:bg-red-50">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+                      </svg>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <p class="text-sm text-gray-700 leading-relaxed">Starting the day feeling really good. Woke up before my alarm for once and had time to make a proper breakfast.</p>
+              <!-- Linked habit -->
+              <div class="mt-2.5 pt-2 border-t border-gray-100 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-stride-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/>
+                </svg>
+                <span class="text-[11px] text-gray-400">Habit: <span class="text-stride-600 font-medium hover:underline cursor-pointer">Morning Routine</span> ✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Entry 2: 12:15 PM ─────────────────────────────────────── -->
+        <!--
+          Energized (amber #fbbf24)
+          Tag: Idea
+        -->
+        <div class="timeline-entry mb-8" id="entry-2">
+          <!-- Single emotion dot: Energized amber -->
+          <div class="timeline-dot" style="background: #fbbf24;"></div>
+          <div class="timeline-connector"></div>
+
+          <div class="text-[10px] font-bold text-gray-400 tracking-wider uppercase mb-1.5">12:15 PM</div>
+
+          <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="p-3.5">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⚡ Energized</span>
+                  <span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">💡 Idea</span>
+                </div>
+                <div class="relative shrink-0 ml-2">
+                  <button onclick="toggleMenu('menu-2')" class="p-1 -mr-1 -mt-1 text-gray-300 hover:text-gray-500 rounded transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/>
+                    </svg>
+                  </button>
+                  <div id="menu-2" class="hidden absolute right-0 top-7 w-36 bg-white rounded-xl border border-gray-200 shadow-lg z-20 py-1 text-sm">
+                    <button onclick="openEdit('entry-2'); toggleMenu('menu-2')" class="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50">
+                      <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z"/>
+                      </svg>
+                      Edit
+                    </button>
+                    <button onclick="toggleMenu('menu-2')" class="w-full flex items-center gap-2.5 px-3 py-2 text-red-500 hover:bg-red-50">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+                      </svg>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <p class="text-sm text-gray-700 leading-relaxed">What if I built the weekly review right into Stride? Could pull from habits completion, calorie averages, and journal mood score all in one screen.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Entry 3: 3:50 PM ──────────────────────────────────────── -->
+        <!--
+          Anxious (violet #a78bfa)
+          Tag: Venting
+        -->
+        <div class="timeline-entry mb-8" id="entry-3">
+          <!-- Single emotion dot: Anxious violet -->
+          <div class="timeline-dot" style="background: #a78bfa;"></div>
+          <div class="timeline-connector"></div>
+
+          <div class="text-[10px] font-bold text-gray-400 tracking-wider uppercase mb-1.5">3:50 PM</div>
+
+          <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="p-3.5">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">😰 Anxious</span>
+                  <span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">💬 Venting</span>
+                </div>
+                <div class="relative shrink-0 ml-2">
+                  <button onclick="toggleMenu('menu-3')" class="p-1 -mr-1 -mt-1 text-gray-300 hover:text-gray-500 rounded transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/>
+                    </svg>
+                  </button>
+                  <div id="menu-3" class="hidden absolute right-0 top-7 w-36 bg-white rounded-xl border border-gray-200 shadow-lg z-20 py-1 text-sm">
+                    <button onclick="openEdit('entry-3'); toggleMenu('menu-3')" class="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50">
+                      <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z"/>
+                      </svg>
+                      Edit
+                    </button>
+                    <button onclick="toggleMenu('menu-3')" class="w-full flex items-center gap-2.5 px-3 py-2 text-red-500 hover:bg-red-50">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+                      </svg>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <p class="text-sm text-gray-700 leading-relaxed">Afternoon slump hit hard. Keep second-guessing whether the project direction is right. Not sure if it's just fatigue or a real concern.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- ── Entry 4: 9:02 PM ──────────────────────────────────────── -->
+        <!--
+          Neutral (slate #94a3b8) + Happy (green #4ade80) blend
+          Tag: Life Update | Linked: Grilled Chicken calorie item
+        -->
+        <!-- Last entry: mb-4 so the fade-out zone is visible below it -->
+        <div class="timeline-entry mb-4" id="entry-4">
+          <!-- Multi-emotion dot: Neutral + Happy gradient -->
+          <div class="timeline-dot" style="background: linear-gradient(135deg, #94a3b8 0%, #4ade80 100%);"></div>
+          <div class="timeline-connector"></div>
+
+          <div class="text-[10px] font-bold text-gray-400 tracking-wider uppercase mb-1.5">9:02 PM</div>
+
+          <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+            <div class="p-3.5">
+              <div class="flex items-start justify-between mb-2">
+                <div class="flex flex-wrap gap-1.5">
+                  <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-slate-100 text-slate-600">😌 Neutral</span>
+                  <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">😊 Happy</span>
+                  <span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">🔄 Life Update</span>
+                </div>
+                <div class="relative shrink-0 ml-2">
+                  <button onclick="toggleMenu('menu-4')" class="p-1 -mr-1 -mt-1 text-gray-300 hover:text-gray-500 rounded transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/>
+                    </svg>
+                  </button>
+                  <div id="menu-4" class="hidden absolute right-0 top-7 w-36 bg-white rounded-xl border border-gray-200 shadow-lg z-20 py-1 text-sm">
+                    <button onclick="openEdit('entry-4'); toggleMenu('menu-4')" class="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50">
+                      <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z"/>
+                      </svg>
+                      Edit
+                    </button>
+                    <button onclick="toggleMenu('menu-4')" class="w-full flex items-center gap-2.5 px-3 py-2 text-red-500 hover:bg-red-50">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+                      </svg>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <p class="text-sm text-gray-700 leading-relaxed">End of day. The anxious spell passed. 5/7 journalling, 7/7 workouts. Not bad at all.</p>
+              <!-- Linked calorie item -->
+              <div class="mt-2.5 pt-2 border-t border-gray-100 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-stride-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/>
+                </svg>
+                <span class="text-[11px] text-gray-400">Meal: <span class="text-stride-600 font-medium hover:underline cursor-pointer">Grilled Chicken</span></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Spacer so the fade-out zone isn't clipped -->
+        <div style="height:56px"></div>
+
+      </div><!-- /timeline-e -->
+    </div><!-- /daily-content -->
+
+    <!-- ── Summary content ────────────────────────────────────────────── -->
+    <div id="summary-content" class="hidden max-w-3xl mx-auto w-full px-4 py-5 pb-28 space-y-4">
+
+      <!-- Stats row -->
+      <div class="grid grid-cols-3 gap-3">
+        <div class="bg-white rounded-xl border border-gray-200 p-3.5 text-center shadow-sm">
+          <div class="text-2xl font-bold text-gray-900">18</div>
+          <div class="text-[11px] text-gray-400 font-medium mt-0.5">Days Journalled</div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-3.5 text-center shadow-sm">
+          <div class="text-2xl font-bold text-stride-600">6</div>
+          <div class="text-[11px] text-gray-400 font-medium mt-0.5">Current Streak</div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 p-3.5 text-center shadow-sm">
+          <div class="text-2xl font-bold text-gray-900">2.4</div>
+          <div class="text-[11px] text-gray-400 font-medium mt-0.5">Avg / Day</div>
+        </div>
+      </div>
+
+      <!-- Mental State line chart -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <h2 class="text-sm font-semibold text-gray-800 mb-3">Mental State over time</h2>
+        <svg viewBox="0 0 320 80" class="w-full" style="height:80px">
+          <!-- Grid lines -->
+          <line x1="0" y1="16" x2="320" y2="16" stroke="#f3f4f6" stroke-width="1"/>
+          <line x1="0" y1="32" x2="320" y2="32" stroke="#f3f4f6" stroke-width="1"/>
+          <line x1="0" y1="48" x2="320" y2="48" stroke="#f3f4f6" stroke-width="1"/>
+          <line x1="0" y1="64" x2="320" y2="64" stroke="#f3f4f6" stroke-width="1"/>
+          <!-- Score labels (1=low 5=high) -->
+          <text x="2" y="14" font-size="7" fill="#d1d5db">5</text>
+          <text x="2" y="30" font-size="7" fill="#d1d5db">4</text>
+          <text x="2" y="46" font-size="7" fill="#d1d5db">3</text>
+          <text x="2" y="62" font-size="7" fill="#d1d5db">2</text>
+          <!-- Line path: y = 80 - score*16 + 8 -->
+          <polyline
+            fill="none" stroke="#4f46e5" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"
+            points="
+              10,24  26,24  42,40  58,8   74,24  90,56
+              106,24 122,40 138,24 154,24 170,8  186,24
+              202,40 218,40 234,24 250,24 266,24 282,24"
+          />
+          <!-- Notable dots -->
+          <circle cx="10"  cy="24" r="2.5" fill="#4f46e5"/>
+          <circle cx="58"  cy="8"  r="2.5" fill="#4f46e5"/>
+          <circle cx="90"  cy="56" r="2.5" fill="#ef4444"/>
+          <circle cx="170" cy="8"  r="2.5" fill="#4f46e5"/>
+          <circle cx="282" cy="24" r="2.5" fill="#4f46e5"/>
+        </svg>
+        <div class="flex justify-between text-[10px] text-gray-300 mt-1">
+          <span>Feb 11</span><span>Feb 18</span><span>Feb 25</span><span>Mar 4</span><span>Mar 9</span>
+        </div>
+      </div>
+
+      <!-- Top Emotions bar chart -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <h2 class="text-sm font-semibold text-gray-800 mb-3">Top Emotions</h2>
+        <div class="space-y-2.5">
+          <div class="flex items-center gap-2">
+            <span class="text-base w-5 text-center">😊</span>
+            <span class="text-xs text-gray-600 w-20 shrink-0">Happy</span>
+            <div class="flex-1 bg-gray-100 rounded-full h-2">
+              <div class="bg-green-400 h-2 rounded-full" style="width:78%"></div>
+            </div>
+            <span class="text-xs text-gray-400 w-6 text-right">28</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-base w-5 text-center">⚡</span>
+            <span class="text-xs text-gray-600 w-20 shrink-0">Energized</span>
+            <div class="flex-1 bg-gray-100 rounded-full h-2">
+              <div class="bg-amber-400 h-2 rounded-full" style="width:55%"></div>
+            </div>
+            <span class="text-xs text-gray-400 w-6 text-right">20</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-base w-5 text-center">💪</span>
+            <span class="text-xs text-gray-600 w-20 shrink-0">Motivated</span>
+            <div class="flex-1 bg-gray-100 rounded-full h-2">
+              <div class="bg-teal-400 h-2 rounded-full" style="width:44%"></div>
+            </div>
+            <span class="text-xs text-gray-400 w-6 text-right">16</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-base w-5 text-center">😰</span>
+            <span class="text-xs text-gray-600 w-20 shrink-0">Anxious</span>
+            <div class="flex-1 bg-gray-100 rounded-full h-2">
+              <div class="bg-violet-400 h-2 rounded-full" style="width:28%"></div>
+            </div>
+            <span class="text-xs text-gray-400 w-6 text-right">10</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-base w-5 text-center">😌</span>
+            <span class="text-xs text-gray-600 w-20 shrink-0">Neutral</span>
+            <div class="flex-1 bg-gray-100 rounded-full h-2">
+              <div class="bg-slate-300 h-2 rounded-full" style="width:19%"></div>
+            </div>
+            <span class="text-xs text-gray-400 w-6 text-right">7</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Entry Types bar chart -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <h2 class="text-sm font-semibold text-gray-800 mb-3">Entry Types</h2>
+        <div class="space-y-2.5">
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-600 w-24 shrink-0">💭 Thoughts</span>
+            <div class="flex-1 bg-gray-100 rounded-full h-2">
+              <div class="bg-gray-400 h-2 rounded-full" style="width:64%"></div>
+            </div>
+            <span class="text-xs text-gray-400 w-6 text-right">23</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-600 w-24 shrink-0">💡 Idea</span>
+            <div class="flex-1 bg-gray-100 rounded-full h-2">
+              <div class="bg-gray-400 h-2 rounded-full" style="width:39%"></div>
+            </div>
+            <span class="text-xs text-gray-400 w-6 text-right">14</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-600 w-24 shrink-0">💬 Venting</span>
+            <div class="flex-1 bg-gray-100 rounded-full h-2">
+              <div class="bg-gray-400 h-2 rounded-full" style="width:22%"></div>
+            </div>
+            <span class="text-xs text-gray-400 w-6 text-right">8</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="text-xs text-gray-600 w-24 shrink-0">🔄 Life Update</span>
+            <div class="flex-1 bg-gray-100 rounded-full h-2">
+              <div class="bg-gray-400 h-2 rounded-full" style="width:17%"></div>
+            </div>
+            <span class="text-xs text-gray-400 w-6 text-right">6</span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /summary-content -->
+
+    <!-- ── FAB ──────────────────────────────────────────────────────────── -->
+    <button onclick="openAdd()" class="fixed bottom-6 right-6 w-14 h-14 bg-stride-600 hover:bg-stride-700 text-white rounded-full shadow-lg flex items-center justify-center z-30 transition-colors">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+      </svg>
+    </button>
+
+  </div><!-- /main content -->
+</div><!-- /flex wrapper -->
+
+<!-- ── Add / Edit Entry Sheet ──────────────────────────────────────────── -->
+<!--
+  Using style="display:none" (not Tailwind hidden) because Tailwind's sm:flex
+  would override hidden at the sm breakpoint and make the modal always visible.
+-->
+<div id="entry-sheet" style="display:none" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4" onclick="closeSheet()">
+
+  <!-- Backdrop -->
+  <div class="absolute inset-0 bg-black/30"></div>
+
+  <!-- Panel: bottom sheet on mobile, centered modal on sm+ -->
+  <div id="sheet-panel" class="sheet-enter relative bg-white rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg shadow-xl flex flex-col overflow-y-auto" style="max-height:92vh" onclick="event.stopPropagation()">
+
+    <!-- Handle bar (mobile only) -->
+    <div class="flex justify-center pt-3 pb-1 sm:hidden shrink-0">
+      <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
+    </div>
+
+    <!-- Header (always visible) -->
+    <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
+      <h2 id="sheet-title" class="text-base font-semibold text-gray-900">New Entry</h2>
+      <button onclick="closeSheet()" class="p-1.5 -mr-1.5 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Body -->
+    <div class="overflow-y-auto flex-1 px-5 py-4 space-y-4">
+
+      <!-- Textarea -->
+      <div>
+        <textarea id="entry-body" rows="4" placeholder="What's on your mind?"
+          class="w-full text-sm text-gray-800 placeholder-gray-400 border border-gray-200 rounded-xl px-3.5 py-3 resize-none focus:ring-2 focus:ring-stride-500 focus:border-transparent transition"></textarea>
+      </div>
+
+      <!-- Emotion picker — 3-column grid, multi-select -->
+      <div>
+        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Emotion</div>
+        <div class="grid grid-cols-3 gap-2">
+          <button onclick="toggleEmotion(this)" data-emotion="happy"
+            class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-transparent bg-gray-50 hover:bg-gray-100 transition-all text-center">
+            <span class="text-xl">😊</span>
+            <span class="text-[10px] font-medium text-gray-600">Happy</span>
+          </button>
+          <button onclick="toggleEmotion(this)" data-emotion="excited"
+            class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-transparent bg-gray-50 hover:bg-gray-100 transition-all text-center">
+            <span class="text-xl">🤩</span>
+            <span class="text-[10px] font-medium text-gray-600">Excited</span>
+          </button>
+          <button onclick="toggleEmotion(this)" data-emotion="motivated"
+            class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-transparent bg-gray-50 hover:bg-gray-100 transition-all text-center">
+            <span class="text-xl">💪</span>
+            <span class="text-[10px] font-medium text-gray-600">Motivated</span>
+          </button>
+          <button onclick="toggleEmotion(this)" data-emotion="energized"
+            class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-transparent bg-gray-50 hover:bg-gray-100 transition-all text-center">
+            <span class="text-xl">⚡</span>
+            <span class="text-[10px] font-medium text-gray-600">Energized</span>
+          </button>
+          <button onclick="toggleEmotion(this)" data-emotion="neutral"
+            class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-transparent bg-gray-50 hover:bg-gray-100 transition-all text-center">
+            <span class="text-xl">😌</span>
+            <span class="text-[10px] font-medium text-gray-600">Neutral</span>
+          </button>
+          <button onclick="toggleEmotion(this)" data-emotion="anxious"
+            class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-transparent bg-gray-50 hover:bg-gray-100 transition-all text-center">
+            <span class="text-xl">😰</span>
+            <span class="text-[10px] font-medium text-gray-600">Anxious</span>
+          </button>
+          <button onclick="toggleEmotion(this)" data-emotion="low"
+            class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-transparent bg-gray-50 hover:bg-gray-100 transition-all text-center">
+            <span class="text-xl">😔</span>
+            <span class="text-[10px] font-medium text-gray-600">Low</span>
+          </button>
+          <button onclick="toggleEmotion(this)" data-emotion="sad"
+            class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-transparent bg-gray-50 hover:bg-gray-100 transition-all text-center">
+            <span class="text-xl">😢</span>
+            <span class="text-[10px] font-medium text-gray-600">Sad</span>
+          </button>
+          <button onclick="toggleEmotion(this)" data-emotion="frustrated"
+            class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl border-2 border-transparent bg-gray-50 hover:bg-gray-100 transition-all text-center">
+            <span class="text-xl">😤</span>
+            <span class="text-[10px] font-medium text-gray-600">Frustrated</span>
+          </button>
+        </div>
+      </div>
+
+      <!-- Type tag pills — horizontal wrap, multi-select -->
+      <div>
+        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Type</div>
+        <div class="flex flex-wrap gap-2">
+          <button onclick="toggleType(this)" class="type-btn px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-all">💭 Thoughts</button>
+          <button onclick="toggleType(this)" class="type-btn px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-all">💡 Idea</button>
+          <button onclick="toggleType(this)" class="type-btn px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-all">💬 Venting</button>
+          <button onclick="toggleType(this)" class="type-btn px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-all">🔁 Open Loop</button>
+          <button onclick="toggleType(this)" class="type-btn px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-all">📌 Reminder</button>
+          <button onclick="toggleType(this)" class="type-btn px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-all">🔄 Life Update</button>
+          <button onclick="toggleType(this)" class="type-btn px-3 py-1.5 rounded-full text-xs font-medium border border-gray-200 bg-gray-50 text-gray-600 hover:bg-gray-100 transition-all">❤️ Feelings</button>
+        </div>
+      </div>
+
+      <!-- Link to: dashed border search button -->
+      <div>
+        <div class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Link to</div>
+        <button class="w-full flex items-center gap-2.5 px-3.5 py-2.5 rounded-xl border border-dashed border-gray-300 text-sm text-gray-400 hover:border-stride-400 hover:text-stride-600 transition-colors">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/>
+          </svg>
+          Search habits or meals…
+        </button>
+      </div>
+
+    </div><!-- /body -->
+
+    <!-- Footer: Cancel + Save -->
+    <div class="px-5 py-4 border-t border-gray-100 flex items-center gap-3 shrink-0">
+      <button onclick="closeSheet()" class="flex-1 py-2.5 rounded-xl border border-gray-200 text-sm font-medium text-gray-600 hover:bg-gray-50 transition-colors">Cancel</button>
+      <button onclick="closeSheet()" class="flex-1 py-2.5 rounded-xl bg-stride-600 hover:bg-stride-700 text-sm font-semibold text-white transition-colors">Save Entry</button>
+    </div>
+
+  </div><!-- /sheet-panel -->
+</div><!-- /entry-sheet -->
+
+<script>
+  // ── Tab switching ──────────────────────────────────────────────────────
+  function switchTab(tab) {
+    const isDaily = tab === 'daily'
+    document.getElementById('daily-content').classList.toggle('hidden', !isDaily)
+    document.getElementById('summary-content').classList.toggle('hidden', isDaily)
+    document.getElementById('date-nav').classList.toggle('hidden', !isDaily)
+    document.getElementById('range-nav').classList.toggle('hidden', isDaily)
+
+    const btnDaily   = document.getElementById('btn-daily')
+    const btnSummary = document.getElementById('btn-summary')
+    const activeClass   = 'px-4 h-full flex items-center gap-1.5 text-sm -mb-px border-b-[3px] transition-colors font-semibold text-gray-900 border-gray-900'
+    const inactiveClass = 'px-4 h-full flex items-center gap-1.5 text-sm -mb-px border-b-[3px] transition-colors font-medium text-gray-400 border-transparent hover:text-gray-600'
+    btnDaily.className   = isDaily ? activeClass : inactiveClass
+    btnSummary.className = isDaily ? inactiveClass : activeClass
+  }
+
+  function setRange(btn) {
+    document.querySelectorAll('.range-btn').forEach(b => {
+      b.className = 'range-btn px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-700'
+    })
+    btn.className = 'range-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-900 shadow-sm'
+  }
+
+  // ── Context menus (··· per entry) ─────────────────────────────────────
+  function toggleMenu(id) {
+    // Close all other open menus before toggling the target
+    document.querySelectorAll('[id^="menu-"]').forEach(m => {
+      if (m.id !== id) m.classList.add('hidden')
+    })
+    document.getElementById(id).classList.toggle('hidden')
+  }
+
+  // Dismiss open menus on outside click
+  document.addEventListener('click', e => {
+    if (!e.target.closest('[id^="menu-"]') && !e.target.closest('button[onclick^="toggleMenu"]')) {
+      document.querySelectorAll('[id^="menu-"]').forEach(m => m.classList.add('hidden'))
+    }
+  })
+
+  // ── Add / Edit sheet ──────────────────────────────────────────────────
+  function openAdd() {
+    document.getElementById('sheet-title').textContent = 'New Entry'
+    document.getElementById('entry-body').value = ''
+    document.querySelectorAll('.emotion-btn').forEach(b => b.classList.remove('border-stride-500', 'bg-stride-50'))
+    document.querySelectorAll('.type-btn').forEach(b => b.classList.remove('border-stride-500', 'bg-stride-50', 'text-stride-700'))
+    showSheet()
+  }
+
+  function openEdit(entryId) {
+    document.getElementById('sheet-title').textContent = 'Edit Entry'
+    const bodyMap = {
+      'entry-1': 'Starting the day feeling really good. Woke up before my alarm for once and had time to make a proper breakfast.',
+      'entry-2': 'What if I built the weekly review right into Stride? Could pull from habits completion, calorie averages, and journal mood score all in one screen.',
+      'entry-3': "Afternoon slump hit hard. Keep second-guessing whether the project direction is right. Not sure if it's just fatigue or a real concern.",
+      'entry-4': 'End of day. The anxious spell passed. 5/7 journalling, 7/7 workouts. Not bad at all.'
+    }
+    document.getElementById('entry-body').value = bodyMap[entryId] || ''
+    showSheet()
+  }
+
+  // Sets display:flex to reveal the sheet (overrides style="display:none")
+  function showSheet() {
+    document.getElementById('entry-sheet').style.display = 'flex'
+    setTimeout(() => document.getElementById('entry-body').focus(), 100)
+  }
+
+  // Sets display:none to hide the sheet
+  function closeSheet() {
+    document.getElementById('entry-sheet').style.display = 'none'
+  }
+
+  // ── Emotion multi-select (toggle active state) ─────────────────────────
+  function toggleEmotion(btn) {
+    const active = btn.classList.contains('border-stride-500')
+    btn.classList.toggle('border-stride-500', !active)
+    btn.classList.toggle('bg-stride-50', !active)
+  }
+
+  // ── Type tag multi-select ──────────────────────────────────────────────
+  function toggleType(btn) {
+    const active = btn.classList.contains('border-stride-500')
+    btn.classList.toggle('border-stride-500', !active)
+    btn.classList.toggle('bg-stride-50', !active)
+    btn.classList.toggle('text-stride-700', !active)
+  }
+</script>
+</body>
+</html>

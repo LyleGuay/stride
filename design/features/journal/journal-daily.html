@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Journal — Daily (Card View)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: { 50:'#eef2ff', 100:'#e0e7ff', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f9fafb; }
+    .sheet-enter { animation: slideUp .22s cubic-bezier(.32,.72,0,1); }
+    @keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+    textarea:focus { outline:none; }
+  </style>
+</head>
+<body>
+<div class="flex min-h-screen">
+
+  <!-- ── Sidebar ──────────────────────────────────────────────────────── -->
+  <aside class="hidden lg:flex flex-col fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-30">
+    <!-- Logo -->
+    <div class="flex items-center h-14 px-5 border-b border-gray-200 shrink-0">
+      <span class="text-xl font-bold text-stride-600">Stride</span>
+    </div>
+    <!-- Nav -->
+    <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto">
+      <!-- Calorie Log -->
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+        </svg>
+        Calorie Log
+      </a>
+      <!-- Habits -->
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+        </svg>
+        Habits
+      </a>
+      <!-- Recipes -->
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-600 hover:bg-gray-50">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/>
+        </svg>
+        Recipes
+      </a>
+      <!-- Journal — active -->
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm bg-stride-50 text-stride-700 font-medium">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10"/>
+        </svg>
+        Journal
+      </a>
+    </nav>
+    <!-- Profile footer -->
+    <div class="border-t border-gray-200 p-3 shrink-0">
+      <div class="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+        <div class="w-8 h-8 rounded-full bg-stride-100 flex items-center justify-center text-stride-700 text-sm font-semibold shrink-0">L</div>
+        <div class="min-w-0">
+          <div class="text-sm font-medium text-gray-800 truncate">Lyle</div>
+          <div class="text-xs text-gray-400 truncate">lyle@stride.app</div>
+        </div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Main content ──────────────────────────────────────────────────── -->
+  <div class="flex-1 lg:ml-64 min-h-screen flex flex-col">
+
+    <!-- Sticky header -->
+    <div class="sticky top-0 z-20 bg-white">
+
+      <!-- Tab row -->
+      <div class="flex items-end px-6 border-b border-gray-200" style="height:56px">
+        <!-- Hamburger (mobile only) -->
+        <button class="p-1 -ml-1 mr-3 rounded-md hover:bg-gray-100 self-center text-gray-700 lg:hidden">
+          <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/>
+          </svg>
+        </button>
+        <button onclick="switchTab('daily')" id="btn-daily"
+          class="px-4 h-full flex items-center gap-1.5 text-sm -mb-px border-b-[3px] transition-colors font-semibold text-gray-900 border-gray-900">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/>
+          </svg>
+          Daily
+        </button>
+        <button onclick="switchTab('summary')" id="btn-summary"
+          class="px-4 h-full flex items-center gap-1.5 text-sm -mb-px border-b-[3px] transition-colors font-medium text-gray-400 border-transparent hover:text-gray-600">
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/>
+          </svg>
+          Summary
+        </button>
+      </div>
+
+      <!-- Date nav (Daily) -->
+      <div id="date-nav" class="border-b border-gray-200">
+        <div class="flex items-center justify-center py-2.5">
+          <div class="flex items-center bg-gray-100 rounded-full px-1 py-1">
+            <button class="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 flex items-center">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/>
+              </svg>
+            </button>
+            <div class="flex items-center justify-center px-2 min-w-[196px]">
+              <span class="text-sm font-semibold text-gray-800">Sunday, March 9</span>
+              <span class="text-[10px] font-bold text-blue-600 bg-blue-100 px-1.5 py-0.5 rounded-full ml-2 leading-none">Today</span>
+            </div>
+            <button class="p-1.5 rounded-full text-gray-300 flex items-center cursor-not-allowed" disabled>
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Range nav (Summary) -->
+      <div id="range-nav" class="border-b border-gray-200 hidden">
+        <div class="flex items-center justify-center py-2.5">
+          <div class="flex items-center bg-gray-100 rounded-full px-1 py-1">
+            <button onclick="setRange(this)" class="range-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-900 shadow-sm">1M</button>
+            <button onclick="setRange(this)" class="range-btn px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-700">6M</button>
+            <button onclick="setRange(this)" class="range-btn px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-700">YTD</button>
+            <button onclick="setRange(this)" class="range-btn px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-700">All</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Daily content ─────────────────────────────────────────────── -->
+    <div id="daily-content" class="max-w-3xl mx-auto w-full px-4 py-4 pb-28">
+      <div class="text-xs text-gray-400 font-medium mb-3 px-1">4 entries — Sunday, March 9</div>
+      <div class="space-y-3">
+
+        <!-- Entry 1: 8:32 AM — Happy + Motivated (blended bar), Thoughts -->
+        <!-- Multi-emotion: gradient green → teal -->
+        <div class="relative bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden" id="entry-1">
+          <div class="flex">
+            <div class="w-1.5 shrink-0 rounded-l-xl" style="background: linear-gradient(180deg, #4ade80 0%, #2dd4bf 100%)"></div>
+            <div class="flex-1 p-3.5">
+              <div class="flex items-start justify-between mb-2.5">
+                <span class="text-[11px] font-semibold text-gray-400 tracking-wide mt-0.5">8:32 AM</span>
+                <div class="relative">
+                  <button onclick="toggleMenu('menu-1')" class="p-1 -mr-1 -mt-1 text-gray-300 hover:text-gray-500 rounded transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/>
+                    </svg>
+                  </button>
+                  <!-- Context menu -->
+                  <div id="menu-1" class="hidden absolute right-0 top-7 w-36 bg-white rounded-xl border border-gray-200 shadow-lg z-10 py-1 text-sm">
+                    <button onclick="openEdit('entry-1'); toggleMenu('menu-1')" class="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50">
+                      <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z"/>
+                      </svg>
+                      Edit
+                    </button>
+                    <button onclick="toggleMenu('menu-1')" class="w-full flex items-center gap-2.5 px-3 py-2 text-red-500 hover:bg-red-50">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/>
+                      </svg>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <!-- Multiple emotion tags — blended -->
+              <div class="flex flex-wrap gap-1.5 mb-2.5">
+                <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700">😊 Happy</span>
+                <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">💪 Motivated</span>
+                <span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">💭 Thoughts</span>
+              </div>
+              <p class="text-sm text-gray-700 leading-relaxed">Starting the day feeling really good. Woke up before my alarm for once and had time to make a proper breakfast. These mornings are rare — worth documenting.</p>
+              <div class="mt-2.5 pt-2 border-t border-gray-100 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-stride-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/>
+                </svg>
+                <span class="text-[11px] text-gray-400">Habit: <span class="text-stride-600 font-medium">Morning Routine</span> ✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Entry 2: 12:15 PM — Energized (single), Idea -->
+        <div class="relative bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden" id="entry-2">
+          <div class="flex">
+            <div class="w-1.5 shrink-0 rounded-l-xl bg-amber-400"></div>
+            <div class="flex-1 p-3.5">
+              <div class="flex items-start justify-between mb-2.5">
+                <span class="text-[11px] font-semibold text-gray-400 tracking-wide mt-0.5">12:15 PM</span>
+                <div class="relative">
+                  <button onclick="toggleMenu('menu-2')" class="p-1 -mr-1 -mt-1 text-gray-300 hover:text-gray-500 rounded transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/>
+                    </svg>
+                  </button>
+                  <div id="menu-2" class="hidden absolute right-0 top-7 w-36 bg-white rounded-xl border border-gray-200 shadow-lg z-10 py-1 text-sm">
+                    <button onclick="openEdit('entry-2'); toggleMenu('menu-2')" class="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50">
+                      <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z"/></svg>
+                      Edit
+                    </button>
+                    <button onclick="toggleMenu('menu-2')" class="w-full flex items-center gap-2.5 px-3 py-2 text-red-500 hover:bg-red-50">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="flex flex-wrap gap-1.5 mb-2.5">
+                <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">⚡ Energized</span>
+                <span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">💡 Idea</span>
+              </div>
+              <p class="text-sm text-gray-700 leading-relaxed">Had a spark during lunch — what if we restructured the weekly reviews? Instead of async docs, do a quick 15-min sync on Mondays. Low overhead, high alignment. Worth trying.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Entry 3: 3:47 PM — Anxious + Frustrated (blended bar), Venting -->
+        <!-- Multi-emotion: gradient purple → orange -->
+        <div class="relative bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden" id="entry-3">
+          <div class="flex">
+            <div class="w-1.5 shrink-0 rounded-l-xl" style="background: linear-gradient(180deg, #c084fc 0%, #fb923c 100%)"></div>
+            <div class="flex-1 p-3.5">
+              <div class="flex items-start justify-between mb-2.5">
+                <span class="text-[11px] font-semibold text-gray-400 tracking-wide mt-0.5">3:47 PM</span>
+                <div class="relative">
+                  <button onclick="toggleMenu('menu-3')" class="p-1 -mr-1 -mt-1 text-gray-300 hover:text-gray-500 rounded transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/></svg>
+                  </button>
+                  <div id="menu-3" class="hidden absolute right-0 top-7 w-36 bg-white rounded-xl border border-gray-200 shadow-lg z-10 py-1 text-sm">
+                    <button onclick="openEdit('entry-3'); toggleMenu('menu-3')" class="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50">
+                      <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z"/></svg>
+                      Edit
+                    </button>
+                    <button onclick="toggleMenu('menu-3')" class="w-full flex items-center gap-2.5 px-3 py-2 text-red-500 hover:bg-red-50">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="flex flex-wrap gap-1.5 mb-2.5">
+                <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700">😰 Anxious</span>
+                <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">😤 Frustrated</span>
+                <span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">🌋 Venting</span>
+              </div>
+              <!-- Markdown example: bold and italics rendered inline -->
+              <p class="text-sm text-gray-700 leading-relaxed">Afternoon went completely sideways. Three back-to-back calls and now I can barely think straight. Need to **block my calendar** better. This happens _every week_ and I keep telling myself I'll fix it.</p>
+              <p class="text-[10px] text-gray-300 mt-1.5 italic">* markdown not rendered in mockup</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Entry 4: 9:10 PM — Motivated (single), Life Update -->
+        <div class="relative bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden" id="entry-4">
+          <div class="flex">
+            <div class="w-1.5 shrink-0 rounded-l-xl bg-teal-400"></div>
+            <div class="flex-1 p-3.5">
+              <div class="flex items-start justify-between mb-2.5">
+                <span class="text-[11px] font-semibold text-gray-400 tracking-wide mt-0.5">9:10 PM</span>
+                <div class="relative">
+                  <button onclick="toggleMenu('menu-4')" class="p-1 -mr-1 -mt-1 text-gray-300 hover:text-gray-500 rounded transition-colors">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM12.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0zM18.75 12a.75.75 0 11-1.5 0 .75.75 0 011.5 0z"/></svg>
+                  </button>
+                  <div id="menu-4" class="hidden absolute right-0 top-7 w-36 bg-white rounded-xl border border-gray-200 shadow-lg z-10 py-1 text-sm">
+                    <button onclick="openEdit('entry-4'); toggleMenu('menu-4')" class="w-full flex items-center gap-2.5 px-3 py-2 text-gray-700 hover:bg-gray-50">
+                      <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L6.832 19.82a4.5 4.5 0 01-1.897 1.13l-2.685.8.8-2.685a4.5 4.5 0 011.13-1.897L16.863 4.487z"/></svg>
+                      Edit
+                    </button>
+                    <button onclick="toggleMenu('menu-4')" class="w-full flex items-center gap-2.5 px-3 py-2 text-red-500 hover:bg-red-50">
+                      <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+              <div class="flex flex-wrap gap-1.5 mb-2.5">
+                <span class="inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-full bg-teal-100 text-teal-700">💪 Motivated</span>
+                <span class="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full bg-gray-100 text-gray-500">📣 Life Update</span>
+              </div>
+              <p class="text-sm text-gray-700 leading-relaxed">Got the evening workout in despite the rough afternoon. Four out of five days this week — feeling genuinely proud about that consistency.</p>
+              <div class="mt-2.5 pt-2 border-t border-gray-100 flex items-center gap-1.5">
+                <svg class="w-3.5 h-3.5 text-stride-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/></svg>
+                <span class="text-[11px] text-gray-400">Habit: <span class="text-stride-600 font-medium">Evening Workout</span> ✓</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- ── Summary content ───────────────────────────────────────────── -->
+    <div id="summary-content" class="hidden max-w-3xl mx-auto w-full px-4 py-4 pb-28 space-y-4">
+      <!-- Stats row -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm">
+        <div class="grid grid-cols-3 divide-x divide-gray-100">
+          <div class="px-4 py-3 text-center">
+            <div class="text-lg font-bold text-gray-900">18</div>
+            <div class="text-[10px] text-gray-400 leading-tight mt-0.5">Days<br>journalled</div>
+          </div>
+          <div class="px-4 py-3 text-center">
+            <div class="text-lg font-bold text-stride-600">5 🔥</div>
+            <div class="text-[10px] text-gray-400 leading-tight mt-0.5">Day<br>streak</div>
+          </div>
+          <div class="px-4 py-3 text-center">
+            <div class="text-lg font-bold text-gray-900">2.3</div>
+            <div class="text-[10px] text-gray-400 leading-tight mt-0.5">Avg entries<br>/ day</div>
+          </div>
+        </div>
+      </div>
+      <!-- Mental state chart -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <div class="flex items-center justify-between mb-1">
+          <h3 class="text-sm font-semibold text-gray-700">Mental State</h3>
+          <span class="text-[11px] text-gray-400">Avg: <span class="font-semibold text-stride-600">3.6 / 5</span></span>
+        </div>
+        <div class="text-[10px] text-gray-400 mb-3">1 (Low) → 5 (Excellent) · gaps = no entries</div>
+        <svg viewBox="0 0 360 110" class="w-full" style="height:100px">
+          <text x="14" y="13" text-anchor="end" font-size="8" fill="#d1d5db">5</text>
+          <text x="14" y="34" text-anchor="end" font-size="8" fill="#d1d5db">4</text>
+          <text x="14" y="55" text-anchor="end" font-size="8" fill="#d1d5db">3</text>
+          <text x="14" y="76" text-anchor="end" font-size="8" fill="#d1d5db">2</text>
+          <text x="14" y="94" text-anchor="end" font-size="8" fill="#d1d5db">1</text>
+          <line x1="18" y1="10" x2="355" y2="10" stroke="#f3f4f6" stroke-width="1"/>
+          <line x1="18" y1="31" x2="355" y2="31" stroke="#f3f4f6" stroke-width="1"/>
+          <line x1="18" y1="52" x2="355" y2="52" stroke="#f3f4f6" stroke-width="1"/>
+          <line x1="18" y1="73" x2="355" y2="73" stroke="#f3f4f6" stroke-width="1"/>
+          <line x1="18" y1="94" x2="355" y2="94" stroke="#e5e7eb" stroke-width="1"/>
+          <line x1="18" y1="39" x2="355" y2="39" stroke="#ddd6fe" stroke-width="1" stroke-dasharray="4 3"/>
+          <path d="M 42 52 L 53 31 L 65 73" fill="none" stroke="#6366f1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 88 31 L 100 52 L 112 10 L 123 31" fill="none" stroke="#6366f1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 146 52 L 157 73 L 169 52 L 180 31 L 192 31" fill="none" stroke="#6366f1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 214 52 L 226 31 L 237 10 L 249 31 L 260 31 L 272 52" fill="none" stroke="#6366f1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <path d="M 294 31 L 306 10 L 317 52 L 329 31 L 340 52 L 355 31" fill="none" stroke="#6366f1" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="18"  cy="31" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="42"  cy="52" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="53"  cy="31" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="65"  cy="73" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="88"  cy="31" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="100" cy="52" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="112" cy="10" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="123" cy="31" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="146" cy="52" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="157" cy="73" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="169" cy="52" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="180" cy="31" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="192" cy="31" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="214" cy="52" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="226" cy="31" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="237" cy="10" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="249" cy="31" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="260" cy="31" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="272" cy="52" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="294" cy="31" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="306" cy="10" r="3.5" fill="#6366f1" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="317" cy="52" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="329" cy="31" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="340" cy="52" r="3" fill="white" stroke="#6366f1" stroke-width="1.8"/>
+          <circle cx="355" cy="31" r="3.5" fill="#6366f1" stroke="#6366f1" stroke-width="1.8"/>
+          <text x="18"  y="108" text-anchor="middle" font-size="7.5" fill="#9ca3af">Feb 8</text>
+          <text x="192" y="108" text-anchor="middle" font-size="7.5" fill="#9ca3af">Feb 24</text>
+          <text x="355" y="108" text-anchor="middle" font-size="7.5" fill="#9ca3af">Today</text>
+        </svg>
+        <div class="flex items-center gap-1.5 mt-1 text-[10px] text-gray-400">
+          <div class="w-6 border-t border-dashed border-indigo-300"></div>Average (3.6)
+        </div>
+      </div>
+      <!-- Top emotions -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <h3 class="text-sm font-semibold text-gray-700 mb-3">Top Emotions</h3>
+        <div class="space-y-2.5">
+          <div class="flex items-center gap-2.5"><span class="text-[11px] text-gray-600 w-24 shrink-0">😊 Happy</span><div class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-green-400 rounded-full" style="width:78%"></div></div><span class="text-[11px] text-gray-400 w-6 text-right">28</span></div>
+          <div class="flex items-center gap-2.5"><span class="text-[11px] text-gray-600 w-24 shrink-0">💪 Motivated</span><div class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-teal-400 rounded-full" style="width:53%"></div></div><span class="text-[11px] text-gray-400 w-6 text-right">19</span></div>
+          <div class="flex items-center gap-2.5"><span class="text-[11px] text-gray-600 w-24 shrink-0">😰 Anxious</span><div class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-purple-400 rounded-full" style="width:36%"></div></div><span class="text-[11px] text-gray-400 w-6 text-right">13</span></div>
+          <div class="flex items-center gap-2.5"><span class="text-[11px] text-gray-600 w-24 shrink-0">⚡ Energized</span><div class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-amber-400 rounded-full" style="width:28%"></div></div><span class="text-[11px] text-gray-400 w-6 text-right">10</span></div>
+          <div class="flex items-center gap-2.5"><span class="text-[11px] text-gray-600 w-24 shrink-0">😤 Frustrated</span><div class="flex-1 h-2.5 bg-gray-100 rounded-full overflow-hidden"><div class="h-full bg-orange-400 rounded-full" style="width:14%"></div></div><span class="text-[11px] text-gray-400 w-6 text-right">5</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FAB -->
+    <button id="fab" onclick="openSheet(false)"
+      class="fixed bottom-6 right-6 w-14 h-14 bg-violet-500 hover:bg-violet-600 text-white rounded-full shadow-lg flex flex-col items-center justify-center z-30 transition-colors gap-0.5">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/>
+      </svg>
+      <span class="text-[8px] font-bold uppercase tracking-wide leading-none">Entry</span>
+    </button>
+
+  </div><!-- end main -->
+</div><!-- end flex -->
+
+<!-- ── Add / Edit Entry Sheet ──────────────────────────────────────────── -->
+<div id="backdrop" onclick="closeSheet()" style="display:none" class="fixed inset-0 bg-black/40 z-40"></div>
+
+<!-- Mobile: slides up from bottom. sm+: centred dialog -->
+<div id="entry-sheet" style="display:none" class="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4" onclick="closeSheet()">
+  <div class="bg-white rounded-t-2xl sm:rounded-2xl shadow-2xl w-full sm:max-w-lg sheet-enter" onclick="event.stopPropagation()">
+
+    <!-- Mobile drag handle -->
+    <div class="flex justify-center pt-3 pb-1 sm:hidden">
+      <div class="w-10 h-1 bg-gray-300 rounded-full"></div>
+    </div>
+
+    <!-- Header -->
+    <div class="flex items-center justify-between px-5 pt-4 pb-3 border-b border-gray-100">
+      <h2 id="sheet-title" class="text-lg font-semibold text-gray-900">New Entry</h2>
+      <button onclick="closeSheet()" class="flex w-8 h-8 items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 transition-colors">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/>
+        </svg>
+      </button>
+      <span id="sheet-timestamp" class="text-xs text-gray-400 sm:hidden">March 9 · 9:22 PM</span>
+    </div>
+
+    <div class="px-5 pt-4 pb-6 space-y-4 max-h-[80vh] overflow-y-auto">
+
+      <!-- Textarea with markdown hint -->
+      <div>
+        <textarea id="entry-text"
+          class="w-full min-h-[100px] text-sm text-gray-800 placeholder-gray-400 resize-none border border-gray-300 rounded-lg px-3 py-2.5 focus:ring-2 focus:ring-stride-500 focus:border-transparent leading-relaxed"
+          placeholder="What's on your mind?"></textarea>
+        <p class="text-[10px] text-gray-400 mt-1">Supports **bold**, *italic*, and `code` markdown.</p>
+      </div>
+
+      <!-- Emotion picker -->
+      <div>
+        <div class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Emotions <span class="font-normal normal-case">(select all that apply)</span></div>
+        <div class="grid grid-cols-4 gap-2">
+          <button onclick="toggleEmotion(this,'happy','#4ade80')"   class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl bg-gray-50 border border-transparent hover:bg-green-50 hover:border-green-200 transition-all"><span class="text-xl">😊</span><span class="text-[9px] font-medium text-gray-500">Happy</span></button>
+          <button onclick="toggleEmotion(this,'excited','#fbbf24')"  class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl bg-gray-50 border border-transparent hover:bg-amber-50 hover:border-amber-200 transition-all"><span class="text-xl">🤩</span><span class="text-[9px] font-medium text-gray-500">Excited</span></button>
+          <button onclick="toggleEmotion(this,'motivated','#2dd4bf')" class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl bg-gray-50 border border-transparent hover:bg-teal-50 hover:border-teal-200 transition-all"><span class="text-xl">💪</span><span class="text-[9px] font-medium text-gray-500">Motivated</span></button>
+          <button onclick="toggleEmotion(this,'energized','#facc15')" class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl bg-gray-50 border border-transparent hover:bg-yellow-50 hover:border-yellow-200 transition-all"><span class="text-xl">⚡</span><span class="text-[9px] font-medium text-gray-500">Energized</span></button>
+          <button onclick="toggleEmotion(this,'neutral','#d1d5db')"  class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl bg-gray-50 border border-transparent hover:bg-gray-100 hover:border-gray-300 transition-all"><span class="text-xl">😐</span><span class="text-[9px] font-medium text-gray-500">Neutral</span></button>
+          <button onclick="toggleEmotion(this,'anxious','#c084fc')"  class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl bg-gray-50 border border-transparent hover:bg-purple-50 hover:border-purple-200 transition-all"><span class="text-xl">😰</span><span class="text-[9px] font-medium text-gray-500">Anxious</span></button>
+          <button onclick="toggleEmotion(this,'sad','#60a5fa')"      class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl bg-gray-50 border border-transparent hover:bg-blue-50 hover:border-blue-200 transition-all"><span class="text-xl">😢</span><span class="text-[9px] font-medium text-gray-500">Sad</span></button>
+          <button onclick="toggleEmotion(this,'frustrated','#fb923c')" class="emotion-btn flex flex-col items-center gap-1 p-2 rounded-xl bg-gray-50 border border-transparent hover:bg-orange-50 hover:border-orange-200 transition-all"><span class="text-xl">😤</span><span class="text-[9px] font-medium text-gray-500">Frustrated</span></button>
+        </div>
+        <!-- Blended preview bar -->
+        <div id="blend-preview" class="hidden mt-2 h-2 rounded-full" style="width:100%"></div>
+        <p id="blend-label" class="hidden text-[10px] text-gray-400 mt-1">Accent bar will blend these colors</p>
+      </div>
+
+      <!-- Type tags -->
+      <div>
+        <div class="text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Entry type</div>
+        <div class="flex flex-wrap gap-1.5">
+          <button onclick="toggleType(this)" class="type-btn text-[11px] font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 hover:bg-stride-50 hover:text-stride-700 transition-colors">💭 Thoughts</button>
+          <button onclick="toggleType(this)" class="type-btn text-[11px] font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 hover:bg-stride-50 hover:text-stride-700 transition-colors">💡 Idea</button>
+          <button onclick="toggleType(this)" class="type-btn text-[11px] font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 hover:bg-stride-50 hover:text-stride-700 transition-colors">🌋 Venting</button>
+          <button onclick="toggleType(this)" class="type-btn text-[11px] font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 hover:bg-stride-50 hover:text-stride-700 transition-colors">🔄 Open Loop</button>
+          <button onclick="toggleType(this)" class="type-btn text-[11px] font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 hover:bg-stride-50 hover:text-stride-700 transition-colors">📌 Reminder</button>
+          <button onclick="toggleType(this)" class="type-btn text-[11px] font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 hover:bg-stride-50 hover:text-stride-700 transition-colors">📣 Life Update</button>
+          <button onclick="toggleType(this)" class="type-btn text-[11px] font-medium px-2.5 py-1 rounded-full bg-gray-100 text-gray-600 hover:bg-stride-50 hover:text-stride-700 transition-colors">💙 Feelings</button>
+        </div>
+      </div>
+
+      <!-- Link to -->
+      <button class="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg bg-gray-50 border border-dashed border-gray-200 text-sm text-gray-400 hover:bg-stride-50 hover:border-stride-300 hover:text-stride-600 transition-colors">
+        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M13.19 8.688a4.5 4.5 0 011.242 7.244l-4.5 4.5a4.5 4.5 0 01-6.364-6.364l1.757-1.757m13.35-.622l1.757-1.757a4.5 4.5 0 00-6.364-6.364l-4.5 4.5a4.5 4.5 0 001.242 7.244"/></svg>
+        Link to a habit or calorie item…
+      </button>
+
+      <!-- Save -->
+      <button onclick="saveEntry()"
+        class="w-full py-3 bg-stride-600 hover:bg-stride-700 disabled:bg-gray-200 text-white font-medium text-sm rounded-xl transition-colors">
+        Save Entry
+      </button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ── Tab switching ──────────────────────────────────────────────────
+  function switchTab(tab) {
+    const isDaily = tab === 'daily';
+    document.getElementById('daily-content').classList.toggle('hidden', !isDaily);
+    document.getElementById('summary-content').classList.toggle('hidden', isDaily);
+    document.getElementById('date-nav').classList.toggle('hidden', !isDaily);
+    document.getElementById('range-nav').classList.toggle('hidden', isDaily);
+    document.getElementById('fab').classList.toggle('hidden', !isDaily);
+    const a = 'px-4 h-full flex items-center gap-1.5 text-sm -mb-px border-b-[3px] transition-colors font-semibold text-gray-900 border-gray-900';
+    const i = 'px-4 h-full flex items-center gap-1.5 text-sm -mb-px border-b-[3px] transition-colors font-medium text-gray-400 border-transparent hover:text-gray-600';
+    document.getElementById('btn-daily').className   = isDaily ? a : i;
+    document.getElementById('btn-summary').className = isDaily ? i : a;
+  }
+
+  // ── Range selector ─────────────────────────────────────────────────
+  function setRange(el) {
+    document.querySelectorAll('.range-btn').forEach(b => {
+      b.classList.remove('bg-white','text-gray-900','shadow-sm');
+      b.classList.add('text-gray-500');
+    });
+    el.classList.add('bg-white','text-gray-900','shadow-sm');
+    el.classList.remove('text-gray-500');
+  }
+
+  // ── Context menus ──────────────────────────────────────────────────
+  function toggleMenu(id) {
+    const m = document.getElementById(id);
+    const isOpen = !m.classList.contains('hidden');
+    // Close all menus first
+    ['menu-1','menu-2','menu-3','menu-4'].forEach(mid => document.getElementById(mid)?.classList.add('hidden'));
+    if (!isOpen) m.classList.remove('hidden');
+  }
+  document.addEventListener('click', e => {
+    if (!e.target.closest('[onclick^="toggleMenu"]') && !e.target.closest('[id^="menu-"]'))
+      ['menu-1','menu-2','menu-3','menu-4'].forEach(mid => document.getElementById(mid)?.classList.add('hidden'));
+  });
+
+  // ── Sheet ──────────────────────────────────────────────────────────
+  let editMode = false;
+  function openSheet(isEdit) {
+    editMode = !!isEdit;
+    document.getElementById('sheet-title').textContent = isEdit ? 'Edit Entry' : 'New Entry';
+    document.getElementById('backdrop').style.display = 'block';
+    document.getElementById('entry-sheet').style.display = 'flex';
+    selectedEmotions = [];
+    document.querySelectorAll('.emotion-btn').forEach(b => {
+      b.classList.remove('ring-2','ring-stride-500','ring-offset-1','bg-stride-50','border-stride-300');
+      b.classList.add('bg-gray-50','border-transparent');
+    });
+    document.querySelectorAll('.type-btn').forEach(b => {
+      b.classList.remove('bg-stride-50','text-stride-700');
+      b.classList.add('bg-gray-100','text-gray-600');
+    });
+    updateBlendPreview();
+    if (!isEdit) document.getElementById('entry-text').value = '';
+    setTimeout(() => document.getElementById('entry-text').focus(), 150);
+  }
+  function openEdit(entryId) {
+    openSheet(true);
+    // Pre-fill with entry data (mockup only)
+    document.getElementById('entry-text').value = 'Got the evening workout in despite the rough afternoon.';
+  }
+  function closeSheet() {
+    document.getElementById('backdrop').style.display = 'none';
+    document.getElementById('entry-sheet').style.display = 'none';
+  }
+  function saveEntry() {
+    alert(editMode ? 'Entry updated! (mockup)' : 'Entry saved! (mockup)');
+    closeSheet();
+  }
+
+  // ── Emotion multi-select + blend preview ───────────────────────────
+  let selectedEmotions = [];
+  function toggleEmotion(el, emotion, color) {
+    const idx = selectedEmotions.findIndex(e => e.name === emotion);
+    if (idx >= 0) {
+      selectedEmotions.splice(idx, 1);
+      el.classList.remove('ring-2','ring-stride-500','ring-offset-1','bg-stride-50','border-stride-300');
+      el.classList.add('bg-gray-50','border-transparent');
+    } else {
+      selectedEmotions.push({ name: emotion, color });
+      el.classList.add('ring-2','ring-stride-500','ring-offset-1','bg-stride-50','border-stride-300');
+      el.classList.remove('bg-gray-50','border-transparent');
+    }
+    updateBlendPreview();
+  }
+  function updateBlendPreview() {
+    const preview = document.getElementById('blend-preview');
+    const label   = document.getElementById('blend-label');
+    if (selectedEmotions.length >= 2) {
+      const stops = selectedEmotions.map((e, i) => `${e.color} ${Math.round(i / (selectedEmotions.length - 1) * 100)}%`).join(', ');
+      preview.style.background = `linear-gradient(90deg, ${stops})`;
+      preview.classList.remove('hidden');
+      label.classList.remove('hidden');
+    } else {
+      if (selectedEmotions.length === 1) {
+        preview.style.background = selectedEmotions[0].color;
+        preview.classList.remove('hidden');
+        label.classList.remove('hidden');
+        label.textContent = 'Accent color for this entry';
+      } else {
+        preview.classList.add('hidden');
+        label.classList.add('hidden');
+      }
+    }
+  }
+
+  // ── Type multi-select ──────────────────────────────────────────────
+  function toggleType(el) {
+    const active = el.classList.contains('bg-stride-50');
+    if (active) {
+      el.classList.remove('bg-stride-50','text-stride-700');
+      el.classList.add('bg-gray-100','text-gray-600');
+    } else {
+      el.classList.add('bg-stride-50','text-stride-700');
+      el.classList.remove('bg-gray-100','text-gray-600');
+    }
+  }
+</script>
+</body>
+</html>
