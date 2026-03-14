@@ -30,9 +30,11 @@ type journalEntry struct {
 }
 
 // createJournalEntryRequest is the request body for POST /api/journal.
-// entry_time is set server-side to NOW() — not accepted from the client.
+// EntryTime is optional — when provided by the client it overrides NOW() so the
+// stored time reflects the user's local clock rather than the server's UTC time.
 type createJournalEntryRequest struct {
 	EntryDate  string   `json:"entry_date"  binding:"required"` // YYYY-MM-DD
+	EntryTime  *string  `json:"entry_time"`                     // HH:MM local; nil → COALESCE falls back to NOW()
 	Body       string   `json:"body"        binding:"required"`
 	Tags       []string `json:"tags"`
 	HabitID    *int     `json:"habit_id"`
@@ -160,7 +162,7 @@ func (h *Handler) getJournalEntries(c *gin.Context) {
 /* ─── Create entry ────────────────────────────────────────────────────── */
 
 // createJournalEntry creates a new journal entry for the authenticated user.
-// entry_time is set server-side to NOW().
+// entry_time uses the client-supplied local HH:MM when present, falling back to NOW().
 func (h *Handler) createJournalEntry(c *gin.Context) {
 	userID := c.GetInt("user_id")
 
@@ -181,8 +183,8 @@ func (h *Handler) createJournalEntry(c *gin.Context) {
 
 	entry, err := queryOne[journalEntry](h.db, c,
 		`WITH ins AS (
-		   INSERT INTO journal_entries (user_id, entry_date, body, tags, habit_id, source, habit_level)
-		   VALUES (@userID, @entryDate, @body, @tags::journal_tag[], @habitID, @source::journal_entry_source, @habitLevel)
+		   INSERT INTO journal_entries (user_id, entry_date, entry_time, body, tags, habit_id, source, habit_level)
+		   VALUES (@userID, @entryDate, COALESCE(@entryTime::time, NOW()::time), @body, @tags::journal_tag[], @habitID, @source::journal_entry_source, @habitLevel)
 		   RETURNING *
 		 )
 		 SELECT
@@ -201,6 +203,7 @@ func (h *Handler) createJournalEntry(c *gin.Context) {
 		pgx.NamedArgs{
 			"userID":     userID,
 			"entryDate":  req.EntryDate,
+			"entryTime":  req.EntryTime,
 			"body":       req.Body,
 			"tags":       tags,
 			"habitID":    req.HabitID,

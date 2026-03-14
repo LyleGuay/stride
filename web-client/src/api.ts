@@ -312,7 +312,8 @@ export function fetchJournalEntries(date: string) {
   return request<JournalEntry[]>(`/api/journal?date=${date}`)
 }
 
-// createJournalEntry creates a new journal entry. entry_time is set server-side.
+// createJournalEntry creates a new journal entry. entry_time should be the client's
+// local HH:MM so the stored time matches the user's clock rather than UTC server time.
 export function createJournalEntry(input: CreateJournalEntryInput) {
   return request<JournalEntry>('/api/journal', {
     method: 'POST',

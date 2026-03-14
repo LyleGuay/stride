@@ -74,8 +74,12 @@ export default function AddEntrySheet({ open, onClose, onSaved, date, editEntry,
         const input: UpdateJournalEntryInput = { body: body.trim(), tags }
         await updateJournalEntry(editEntry.id, input)
       } else {
+        // Capture local HH:MM at submission time so the stored time matches the
+        // user's clock rather than UTC server time.
+        const localTime = new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
         const input: CreateJournalEntryInput = {
           entry_date: date,
+          entry_time: localTime,
           body: body.trim(),
           tags,
           habit_id: habitId ?? undefined,

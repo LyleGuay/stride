@@ -364,9 +364,10 @@ export interface JournalSummaryResponse {
 }
 
 // CreateJournalEntryInput is the body for POST /api/journal.
-// entry_time is set server-side — not sent by the client.
+// entry_time is optional — client should send local HH:MM; server falls back to NOW().
 export interface CreateJournalEntryInput {
   entry_date: string        // YYYY-MM-DD
+  entry_time?: string       // HH:MM local time; omit for habit-auto-created entries
   body: string
   tags: JournalTag[]
   habit_id?: number | null
