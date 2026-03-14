@@ -2,7 +2,7 @@
 // Collapsed: level circle (tap to advance, long-press to reset) + name + badge + status.
 // Expanded: level list with current/next indicators + streak/consistency stats.
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import type { HabitWithLog } from '../../types'
 
 export interface HabitCardProps {
@@ -46,14 +46,6 @@ export default function HabitCard({
 }: HabitCardProps) {
   const [expanded, setExpanded] = useState(false)
   const [showMenu, setShowMenu] = useState(false)
-  const [showNotePrompt, setShowNotePrompt] = useState(false)
-
-  // Auto-hide the "Add a note" prompt after 5 seconds.
-  useEffect(() => {
-    if (!showNotePrompt) return
-    const timer = setTimeout(() => setShowNotePrompt(false), 5000)
-    return () => clearTimeout(timer)
-  }, [showNotePrompt])
 
   // Long-press detection: 500ms hold resets to level 0.
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -83,11 +75,8 @@ export default function HabitCard({
   const handleCircleClick = useCallback(() => {
     // Long press already handled the action; skip click.
     if (didLongPress.current) { didLongPress.current = false; return }
-    const next = getNextLevel(currentLevel, habit)
-    onLogLevel(next)
-    // Show "Add a note" prompt when logging a positive level (not a reset to 0).
-    if (next > 0 && onAddJournalNote) setShowNotePrompt(true)
-  }, [currentLevel, habit, onLogLevel, onAddJournalNote])
+    onLogLevel(getNextLevel(currentLevel, habit))
+  }, [currentLevel, habit, onLogLevel])
 
   // Circle styling — L3 gets a gold glow ring.
   const circleStyle = currentLevel > 0 ? {
@@ -101,7 +90,6 @@ export default function HabitCard({
   )
 
   return (
-    <>
     <div className="bg-white rounded-xl border border-gray-200 overflow-visible" data-testid="habit-card">
       {/* ── Collapsed row ───────────────────────────────────────────── */}
       <div className="flex items-center gap-3 px-4 py-3">
@@ -180,6 +168,14 @@ export default function HabitCard({
                 >
                   View History
                 </button>
+                {onAddJournalNote && (
+                  <button
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                    onClick={() => { setShowMenu(false); onAddJournalNote(habit.id) }}
+                  >
+                    Journal
+                  </button>
+                )}
                 <button
                   className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                   onClick={() => { setShowMenu(false); onEdit() }}
@@ -249,19 +245,5 @@ export default function HabitCard({
         </div>
       )}
     </div>
-
-    {/* "Add a note" prompt — appears after logging a level, auto-hides after 5s */}
-    {showNotePrompt && onAddJournalNote && (
-      <div className="flex justify-end mt-1 pr-1">
-        <button
-          onClick={() => { setShowNotePrompt(false); onAddJournalNote(habit.id) }}
-          className="text-xs text-indigo-600 hover:text-indigo-800 font-medium flex items-center gap-1 px-2 py-1 rounded-lg hover:bg-indigo-50 transition-colors"
-          data-testid="add-journal-note-btn"
-        >
-          Add a note →
-        </button>
-      </div>
-    )}
-    </>
   )
 }

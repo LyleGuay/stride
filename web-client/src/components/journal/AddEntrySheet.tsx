@@ -30,9 +30,11 @@ interface Props {
   /** When opened from a habit card, pre-links the entry to this habit. */
   habitId?: number | null
   habitName?: string | null
+  /** The habit's log level at the time of journaling. 0 = not done, 1–3 = completed level. */
+  habitLevel?: number | null
 }
 
-export default function AddEntrySheet({ open, onClose, onSaved, date, editEntry, habitId, habitName }: Props) {
+export default function AddEntrySheet({ open, onClose, onSaved, date, editEntry, habitId, habitName, habitLevel }: Props) {
   const [body, setBody] = useState('')
   const [tags, setTags] = useState<JournalTag[]>([])
   const [preview, setPreview] = useState(false)
@@ -72,7 +74,14 @@ export default function AddEntrySheet({ open, onClose, onSaved, date, editEntry,
         const input: UpdateJournalEntryInput = { body: body.trim(), tags }
         await updateJournalEntry(editEntry.id, input)
       } else {
-        const input: CreateJournalEntryInput = { entry_date: date, body: body.trim(), tags, habit_id: habitId ?? undefined }
+        const input: CreateJournalEntryInput = {
+          entry_date: date,
+          body: body.trim(),
+          tags,
+          habit_id: habitId ?? undefined,
+          source: habitId ? 'habit' : undefined,
+          habit_level: habitLevel ?? undefined,
+        }
         await createJournalEntry(input)
       }
       onSaved()
@@ -162,13 +171,20 @@ export default function AddEntrySheet({ open, onClose, onSaved, date, editEntry,
               )}
             </div>
 
-            {/* Linked habit badge — read-only, shown when opened from a habit card */}
+            {/* Linked habit badge — read-only, shown when opened from a habit card.
+                Green = completed (level 1–3), red = not done (level 0). */}
             {habitName && (
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Linked Habit</label>
-                <span className="inline-flex items-center gap-1.5 text-sm text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-3 py-1">
-                  🔗 {habitName}
-                </span>
+                {habitLevel != null && habitLevel > 0 ? (
+                  <span className="inline-flex items-center gap-1.5 text-sm text-green-700 bg-green-50 border border-green-200 rounded-full px-3 py-1">
+                    ✅ Completed Habit: {habitName} (Lv.{habitLevel})
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1.5 text-sm text-red-600 bg-red-50 border border-red-200 rounded-full px-3 py-1">
+                    ❌ Failed Habit: {habitName}
+                  </span>
+                )}
               </div>
             )}
 

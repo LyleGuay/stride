@@ -336,6 +336,9 @@ export const ENTRY_TYPE_TAGS = new Set<JournalTag>([
   'thoughts', 'idea', 'venting', 'open_loop', 'reminder', 'life_update', 'feelings',
 ])
 
+// Which feature created the journal entry. Extensible enum — only 'habit' for now.
+export type JournalEntrySource = 'habit'
+
 // JournalEntry mirrors a journal_entries DB row, with habit name joined from habits.
 export interface JournalEntry {
   id: number
@@ -345,6 +348,11 @@ export interface JournalEntry {
   tags: JournalTag[]
   habit_id: number | null
   habit_name: string | null
+  // Nullable — only set when the entry was created from a feature (e.g. a habit card).
+  source: JournalEntrySource | null
+  // The habit's log level at the time of journaling. 0 = failed/missed, 1–3 = completed level.
+  // Null for pre-migration entries or entries not linked to a habit.
+  habit_level: number | null
   created_at: string
 }
 
@@ -362,6 +370,8 @@ export interface CreateJournalEntryInput {
   body: string
   tags: JournalTag[]
   habit_id?: number | null
+  source?: JournalEntrySource | null
+  habit_level?: number | null
 }
 
 // UpdateJournalEntryInput is the body for PUT /api/journal/:id — all fields optional.

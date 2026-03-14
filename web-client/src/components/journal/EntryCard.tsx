@@ -87,19 +87,32 @@ export default function EntryCard({ entry, onEdit, onDelete }: Props) {
           </div>
         </div>
 
-        {/* Linked habit badge — shown when the entry was logged against a habit */}
-        {entry.habit_name && (
-          <div className="mb-2">
-            <span className="inline-flex items-center gap-1 text-xs text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">
-              🔗 {entry.habit_name}
-            </span>
-          </div>
-        )}
-
         {/* Body rendered as markdown */}
         <div className="text-sm text-gray-700 leading-relaxed [&_strong]:font-semibold [&_em]:italic [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_li]:mb-0.5 [&_p]:mb-1 [&_p:last-child]:mb-0 [&_h1]:text-base [&_h1]:font-bold [&_h2]:text-sm [&_h2]:font-bold [&_h3]:text-sm [&_h3]:font-semibold [&_code]:bg-gray-100 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs [&_blockquote]:border-l-2 [&_blockquote]:border-gray-300 [&_blockquote]:pl-3 [&_blockquote]:text-gray-500">
           <ReactMarkdown>{entry.body}</ReactMarkdown>
         </div>
+
+        {/* Linked habit badge — at the bottom under a divider.
+            Green = completed (level 1–3), red = failed (level 0),
+            indigo = pre-migration entry with no level recorded. */}
+        {entry.habit_name && (
+          <div className="mt-3 pt-2.5 border-t border-gray-100">
+            {entry.habit_level != null && entry.habit_level > 0 ? (
+              <span className="inline-flex items-center gap-1 text-xs text-green-700 bg-green-50 border border-green-200 rounded-full px-2 py-0.5">
+                ✅ Completed Habit: {entry.habit_name} (Lv.{entry.habit_level})
+              </span>
+            ) : entry.habit_level === 0 ? (
+              <span className="inline-flex items-center gap-1 text-xs text-red-600 bg-red-50 border border-red-200 rounded-full px-2 py-0.5">
+                ❌ Failed Habit: {entry.habit_name}
+              </span>
+            ) : (
+              // habit_level is null — pre-migration entry, fall back to generic link badge
+              <span className="inline-flex items-center gap-1 text-xs text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-2 py-0.5">
+                🔗 {entry.habit_name}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

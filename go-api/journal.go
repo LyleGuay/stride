@@ -15,24 +15,29 @@ import (
 // journalEntry is the API response shape for a single journal entry.
 // Tags contains all selected tags (emotions and entry types combined).
 // HabitID/HabitName are non-nil when the entry was linked from a habit log.
+// Source/HabitLevel record which feature created the entry and the habit's state at that time.
 type journalEntry struct {
-	ID        int       `json:"id"         db:"id"`
-	EntryDate DateOnly  `json:"entry_date" db:"entry_date"`
-	EntryTime string    `json:"entry_time" db:"entry_time"` // HH:MM, formatted in SQL
-	Body      string    `json:"body"       db:"body"`
-	Tags      []string  `json:"tags"       db:"tags"`
-	HabitID   *int      `json:"habit_id"   db:"habit_id"`
-	HabitName *string   `json:"habit_name" db:"habit_name"`
-	CreatedAt time.Time `json:"created_at" db:"created_at"`
+	ID         int       `json:"id"          db:"id"`
+	EntryDate  DateOnly  `json:"entry_date"  db:"entry_date"`
+	EntryTime  string    `json:"entry_time"  db:"entry_time"` // HH:MM, formatted in SQL
+	Body       string    `json:"body"        db:"body"`
+	Tags       []string  `json:"tags"        db:"tags"`
+	HabitID    *int      `json:"habit_id"    db:"habit_id"`
+	HabitName  *string   `json:"habit_name"  db:"habit_name"`
+	Source     *string   `json:"source"      db:"source"`
+	HabitLevel *int16    `json:"habit_level" db:"habit_level"`
+	CreatedAt  time.Time `json:"created_at"  db:"created_at"`
 }
 
 // createJournalEntryRequest is the request body for POST /api/journal.
 // entry_time is set server-side to NOW() — not accepted from the client.
 type createJournalEntryRequest struct {
-	EntryDate string   `json:"entry_date" binding:"required"` // YYYY-MM-DD
-	Body      string   `json:"body"       binding:"required"`
-	Tags      []string `json:"tags"`
-	HabitID   *int     `json:"habit_id"`
+	EntryDate  string   `json:"entry_date"  binding:"required"` // YYYY-MM-DD
+	Body       string   `json:"body"        binding:"required"`
+	Tags       []string `json:"tags"`
+	HabitID    *int     `json:"habit_id"`
+	Source     *string  `json:"source"`
+	HabitLevel *int16   `json:"habit_level"`
 }
 
 // updateJournalEntryRequest is the request body for PUT /api/journal/:id.
@@ -125,6 +130,8 @@ func (h *Handler) getJournalEntries(c *gin.Context) {
 		   je.tags::text[] AS tags,
 		   je.habit_id,
 		   h.name AS habit_name,
+		   je.source::text,
+		   je.habit_level,
 		   je.created_at
 		 FROM journal_entries je
 		 LEFT JOIN habits h ON h.id = je.habit_id
@@ -174,8 +181,8 @@ func (h *Handler) createJournalEntry(c *gin.Context) {
 
 	entry, err := queryOne[journalEntry](h.db, c,
 		`WITH ins AS (
-		   INSERT INTO journal_entries (user_id, entry_date, body, tags, habit_id)
-		   VALUES (@userID, @entryDate, @body, @tags::journal_tag[], @habitID)
+		   INSERT INTO journal_entries (user_id, entry_date, body, tags, habit_id, source, habit_level)
+		   VALUES (@userID, @entryDate, @body, @tags::journal_tag[], @habitID, @source::journal_entry_source, @habitLevel)
 		   RETURNING *
 		 )
 		 SELECT
@@ -186,15 +193,19 @@ func (h *Handler) createJournalEntry(c *gin.Context) {
 		   ins.tags::text[] AS tags,
 		   ins.habit_id,
 		   h.name AS habit_name,
+		   ins.source::text,
+		   ins.habit_level,
 		   ins.created_at
 		 FROM ins
 		 LEFT JOIN habits h ON h.id = ins.habit_id`,
 		pgx.NamedArgs{
-			"userID":    userID,
-			"entryDate": req.EntryDate,
-			"body":      req.Body,
-			"tags":      tags,
-			"habitID":   req.HabitID,
+			"userID":     userID,
+			"entryDate":  req.EntryDate,
+			"body":       req.Body,
+			"tags":       tags,
+			"habitID":    req.HabitID,
+			"source":     req.Source,
+			"habitLevel": req.HabitLevel,
 		})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create journal entry"})
@@ -257,6 +268,8 @@ func (h *Handler) updateJournalEntry(c *gin.Context) {
 		   upd.tags::text[] AS tags,
 		   upd.habit_id,
 		   h.name AS habit_name,
+		   upd.source::text,
+		   upd.habit_level,
 		   upd.created_at
 		 FROM upd
 		 LEFT JOIN habits h ON h.id = upd.habit_id`, setSQL),

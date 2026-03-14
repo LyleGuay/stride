@@ -70,6 +70,7 @@ export default function HabitsPage() {
   const [journalSheetOpen, setJournalSheetOpen] = useState(false)
   const [linkedHabitId, setLinkedHabitId] = useState<number | null>(null)
   const [linkedHabitName, setLinkedHabitName] = useState<string | null>(null)
+  const [linkedHabitLevel, setLinkedHabitLevel] = useState<number | null>(null)
 
   const navigate = useNavigate()
   const { setOpen: setSidebarOpen } = useSidebar()
@@ -88,11 +89,14 @@ export default function HabitsPage() {
   const isCurrentWeek = weekStart === getMondayOf(today)
 
   // Opens the journal entry sheet pre-linked to the given habit.
+  // Captures the habit's current log level so the entry can record its completion state.
   const handleAddJournalNote = useCallback((habitId: number) => {
     const habit = habits.find(h => h.id === habitId)
     if (!habit) return
     setLinkedHabitId(habitId)
     setLinkedHabitName(habit.name)
+    // log === null means not logged today → level 0 (failed/missed)
+    setLinkedHabitLevel(habit.log?.level ?? 0)
     setJournalSheetOpen(true)
   }, [habits])
 
@@ -546,11 +550,12 @@ export default function HabitsPage() {
       {/* Journal entry sheet — opened from "Add a note →" on a habit card */}
       <AddEntrySheet
         open={journalSheetOpen}
-        onClose={() => { setJournalSheetOpen(false); setLinkedHabitId(null); setLinkedHabitName(null) }}
+        onClose={() => { setJournalSheetOpen(false); setLinkedHabitId(null); setLinkedHabitName(null); setLinkedHabitLevel(null) }}
         onSaved={() => {}}
         date={selectedDate}
         habitId={linkedHabitId}
         habitName={linkedHabitName}
+        habitLevel={linkedHabitLevel}
       />
     </div>
   )
