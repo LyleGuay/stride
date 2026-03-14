@@ -12,6 +12,7 @@ import RecipeExecution from './pages/RecipeExecution'
 import RequireAuth from './components/RequireAuth'
 import HabitsPage from './pages/HabitsPage'
 import HabitDetail from './pages/HabitDetail'
+import JournalPage from './pages/JournalPage'
 
 export default function Router() {
   return (
@@ -28,6 +29,7 @@ export default function Router() {
           <Route index element={<Navigate to="/calorie-log" replace />} />
           <Route path="calorie-log" element={<CalorieLog />} />
           <Route path="habits" element={<HabitsPage />} />
+          <Route path="journal" element={<JournalPage />} />
           <Route path="habits/:id" element={<HabitDetail />} />
           <Route path="settings" element={<Settings />} />
           <Route path="recipes" element={<RecipeList />} />

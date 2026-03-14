@@ -111,6 +111,12 @@ func (h *Handler) registerRoutes(router *gin.Engine) {
 	api.POST("/recipes/:id/ai-modify", h.aiModifyRecipe)
 	api.POST("/recipes/:id/ai-copy", h.aiCopyRecipe)
 	api.POST("/recipes/:id/ai-nutrition", h.aiNutrition)
+	// Journal routes — /summary must be registered before /:id to avoid param capture
+	api.GET("/journal", h.getJournalEntries)
+	api.POST("/journal", h.createJournalEntry)
+	api.PUT("/journal/:id", h.updateJournalEntry)
+	api.DELETE("/journal/:id", h.deleteJournalEntry)
+	api.GET("/journal/summary", h.getJournalSummary)
 	// Habit routes — /week must be registered before /:id to avoid param capture
 	api.GET("/habits/week", h.listHabitsWeek)
 	api.GET("/habits", h.listHabits)

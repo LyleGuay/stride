@@ -1,10 +1,10 @@
 // API service layer — all backend calls go through request() which handles
 // auth headers, 401 redirects, and consistent error extraction.
 
-import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput } from './types'
+import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, CreateJournalEntryInput, UpdateJournalEntryInput } from './types'
 
 // Re-export types so existing imports from api.ts keep working.
-export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput }
+export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, CreateJournalEntryInput, UpdateJournalEntryInput }
 
 function getToken(): string | null {
   return localStorage.getItem('token')
@@ -303,6 +303,40 @@ export function fetchHabitsWeek(weekStart: string) {
 // Used by the Habit Detail heatmap (90-day window).
 export function fetchHabitLogs(habitId: number, from: string, to: string) {
   return request<HabitLog[]>(`/api/habits/${habitId}/logs?from=${from}&to=${to}`)
+}
+
+/* ─── Journal API ────────────────────────────────────────────────── */
+
+// fetchJournalEntries returns all journal entries for the given date (YYYY-MM-DD).
+export function fetchJournalEntries(date: string) {
+  return request<JournalEntry[]>(`/api/journal?date=${date}`)
+}
+
+// createJournalEntry creates a new journal entry. entry_time is set server-side.
+export function createJournalEntry(input: CreateJournalEntryInput) {
+  return request<JournalEntry>('/api/journal', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+// updateJournalEntry updates the given fields of an existing entry.
+export function updateJournalEntry(id: number, input: UpdateJournalEntryInput) {
+  return request<JournalEntry>(`/api/journal/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}
+
+// deleteJournalEntry deletes a journal entry by id.
+export function deleteJournalEntry(id: number) {
+  return request<void>(`/api/journal/${id}`, { method: 'DELETE' })
+}
+
+// fetchJournalSummary returns mental-state trend data and tag frequency counts
+// for the given date range.
+export function fetchJournalSummary(range: '1m' | '6m' | 'ytd' | 'all') {
+  return request<JournalSummaryResponse>(`/api/journal/summary?range=${range}`)
 }
 
 /* ─── AI calorie suggestion ───────────────────────────────────────── */

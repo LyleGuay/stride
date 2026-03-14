@@ -80,6 +80,21 @@ function Shell() {
             Habits
           </NavLink>
           <NavLink
+            to="/journal"
+            onClick={() => setOpen(false)}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mt-1 ${
+                isActive ? 'bg-stride-50 text-stride-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
+              }`
+            }
+          >
+            {/* Open book — journal icon */}
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
+            </svg>
+            Journal
+          </NavLink>
+          <NavLink
             to="/recipes"
             onClick={() => setOpen(false)}
             className={({ isActive }) =>

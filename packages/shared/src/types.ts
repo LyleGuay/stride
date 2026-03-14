@@ -309,3 +309,60 @@ export type CreateHabitInput = Omit<Habit, 'id' | 'user_id' | 'archived_at' | 'c
 
 // UpdateHabitInput is the body for PATCH /api/habits/:id — all fields optional.
 export type UpdateHabitInput = Partial<CreateHabitInput>
+
+/* ─── Journal ────────────────────────────────────────────────────────────── */
+
+// JournalTag is the union of all emotion and entry-type tag values.
+// Mirrors the journal_tag PostgreSQL enum.
+export type JournalTag =
+  // Emotions
+  | 'happy' | 'excited' | 'motivated' | 'energized' | 'calm' | 'content' | 'grateful'
+  | 'neutral' | 'bored' | 'unmotivated' | 'anxious' | 'overwhelmed' | 'low'
+  | 'sad' | 'angry' | 'frustrated' | 'depressed'
+  // Entry types
+  | 'thoughts' | 'idea' | 'venting' | 'open_loop' | 'reminder' | 'life_update' | 'feelings'
+
+// EMOTION_TAGS is the set of tags that represent emotional states.
+// Used to classify tags for coloring and mental-state scoring.
+export const EMOTION_TAGS = new Set<JournalTag>([
+  'happy', 'excited', 'motivated', 'energized', 'calm', 'content', 'grateful',
+  'neutral', 'bored', 'unmotivated', 'anxious', 'overwhelmed', 'low',
+  'sad', 'angry', 'frustrated', 'depressed',
+])
+
+// ENTRY_TYPE_TAGS is the set of tags that describe the kind of entry written.
+// Rendered as plain chips with no color.
+export const ENTRY_TYPE_TAGS = new Set<JournalTag>([
+  'thoughts', 'idea', 'venting', 'open_loop', 'reminder', 'life_update', 'feelings',
+])
+
+// JournalEntry mirrors a journal_entries DB row, with habit name joined from habits.
+export interface JournalEntry {
+  id: number
+  entry_date: string        // YYYY-MM-DD
+  entry_time: string        // HH:MM, set server-side
+  body: string              // raw markdown
+  tags: JournalTag[]
+  habit_id: number | null
+  habit_name: string | null
+  created_at: string
+}
+
+// JournalSummaryResponse is returned by GET /api/journal/summary.
+export interface JournalSummaryResponse {
+  mental_state_points: { date: string; score: number }[]
+  top_emotions: { tag: JournalTag; count: number }[]
+  entry_type_counts: { tag: JournalTag; count: number }[]
+}
+
+// CreateJournalEntryInput is the body for POST /api/journal.
+// entry_time is set server-side — not sent by the client.
+export interface CreateJournalEntryInput {
+  entry_date: string        // YYYY-MM-DD
+  body: string
+  tags: JournalTag[]
+  habit_id?: number | null
+}
+
+// UpdateJournalEntryInput is the body for PUT /api/journal/:id — all fields optional.
+export type UpdateJournalEntryInput = Partial<CreateJournalEntryInput>
