@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stride — Mobile Header: Module Name + Tabs</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f8fafc;
+      padding: 24px 16px;
+    }
+    .section-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #94a3b8;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 32px 0 10px;
+    }
+    .section-label:first-child { margin-top: 0; }
+    .desc {
+      font-size: 12px;
+      color: #64748b;
+      margin-bottom: 12px;
+      line-height: 1.5;
+    }
+    /* Pixel 7 viewport frame */
+    .phone-frame {
+      width: 360px;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+      background: white;
+    }
+    /* Simulate page scroll content */
+    .page-body {
+      padding: 16px;
+      background: #f8fafc;
+      min-height: 140px;
+    }
+    .entry-card {
+      background: white;
+      border-radius: 10px;
+      padding: 12px 12px 12px 14px;
+      margin-bottom: 8px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+      border-left: 4px solid;
+      font-size: 12px;
+      color: #374151;
+    }
+    /* Sub-header strip */
+    .date-nav {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 12px;
+      border-bottom: 1px solid #e5e7eb;
+      font-size: 12px;
+      font-weight: 600;
+      color: #374151;
+    }
+    .date-nav button {
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      border: none;
+      background: #f1f5f9;
+      color: #64748b;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+    }
+  </style>
+</head>
+<body>
+
+  <h1 style="font-size:18px;font-weight:700;color:#0f172a;margin-bottom:4px;">Mobile Header — Module Name + Tabs</h1>
+  <p style="font-size:13px;color:#64748b;margin-bottom:28px;">Four options for showing module name alongside multi-tab navigation on mobile.</p>
+
+  <!-- ─── OPTION A: Stacked — name row + tabs row ──────────────────────── -->
+  <div class="section-label">Option A — Stacked rows</div>
+  <p class="desc">Module name on its own row (h-11), tabs on a second row below. Two rows of chrome but each element has breathing room.</p>
+
+  <div class="phone-frame">
+    <!-- Row 1: hamburger + module name -->
+    <div style="display:flex;align-items:center;padding:0 12px;height:44px;border-bottom:1px solid #f1f5f9;background:white;">
+      <button style="margin-right:10px;padding:4px;border:none;background:none;color:#6b7280;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <span style="font-size:15px;font-weight:700;color:#111827;">Journal</span>
+    </div>
+    <!-- Row 2: tabs -->
+    <div style="display:flex;align-items:flex-end;padding:0 4px;height:38px;border-bottom:1px solid #e5e7eb;background:white;">
+      <button style="padding:0 12px;height:100%;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:700;color:#111827;border:none;border-bottom:3px solid #111827;background:none;margin-bottom:-1px;">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Daily
+      </button>
+      <button style="padding:0 12px;height:100%;display:flex;align-items:center;gap:5px;font-size:12px;font-weight:500;color:#9ca3af;border:none;border-bottom:3px solid transparent;background:none;margin-bottom:-1px;">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+        Summary
+      </button>
+    </div>
+    <!-- Date sub-header -->
+    <div class="date-nav">
+      <button>‹</button>
+      <span>Saturday, Mar 14</span>
+      <button>›</button>
+    </div>
+    <!-- Page body -->
+    <div class="page-body">
+      <div class="entry-card" style="border-color:#4ade80;">
+        <span style="font-size:10px;color:#9ca3af;">10:24</span>
+        <p style="margin:2px 0 0;">Feeling good about the week ahead.</p>
+      </div>
+      <div class="entry-card" style="border-color:#a78bfa;">
+        <span style="font-size:10px;color:#9ca3af;">14:05</span>
+        <p style="margin:2px 0 0;">Need to follow up on the project proposal.</p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ─── OPTION B: Single row — name left, tabs right ────────────────── -->
+  <div class="section-label">Option B — Name left, tabs right (single row)</div>
+  <p class="desc">Module name on the left, tab pills on the right — all in the h-14 row. Compact but tight on narrow screens.</p>
+
+  <div class="phone-frame">
+    <!-- Single row -->
+    <div style="display:flex;align-items:center;padding:0 10px;height:56px;border-bottom:1px solid #e5e7eb;background:white;gap:8px;">
+      <button style="flex-shrink:0;padding:4px;border:none;background:none;color:#6b7280;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <span style="font-size:15px;font-weight:700;color:#111827;flex-shrink:0;">Journal</span>
+      <!-- Divider -->
+      <div style="width:1px;height:18px;background:#e5e7eb;flex-shrink:0;"></div>
+      <!-- Tab pills -->
+      <div style="display:flex;background:#f1f5f9;border-radius:99px;padding:3px;gap:0;">
+        <button style="padding:5px 12px;border-radius:99px;background:white;border:none;font-size:11px;font-weight:700;color:#111827;box-shadow:0 1px 3px rgba(0,0,0,0.1);cursor:pointer;">Daily</button>
+        <button style="padding:5px 12px;border-radius:99px;background:none;border:none;font-size:11px;font-weight:600;color:#9ca3af;cursor:pointer;">Summary</button>
+      </div>
+    </div>
+    <!-- Date sub-header -->
+    <div class="date-nav">
+      <button>‹</button>
+      <span>Saturday, Mar 14</span>
+      <button>›</button>
+    </div>
+    <!-- Page body -->
+    <div class="page-body">
+      <div class="entry-card" style="border-color:#4ade80;">
+        <span style="font-size:10px;color:#9ca3af;">10:24</span>
+        <p style="margin:2px 0 0;">Feeling good about the week ahead.</p>
+      </div>
+      <div class="entry-card" style="border-color:#a78bfa;">
+        <span style="font-size:10px;color:#9ca3af;">14:05</span>
+        <p style="margin:2px 0 0;">Need to follow up on the project proposal.</p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ─── OPTION C: Underline tabs with name as leading "label" tab ───── -->
+  <div class="section-label">Option C — Module name as non-tab label in tab row</div>
+  <p class="desc">Module name sits at the left of the underline tab row, styled as a label (not clickable). Feels like a section header + tabs together. Single row.</p>
+
+  <div class="phone-frame">
+    <!-- Single row with name-as-label -->
+    <div style="display:flex;align-items:flex-end;padding:0 12px;height:56px;border-bottom:1px solid #e5e7eb;background:white;">
+      <button style="flex-shrink:0;margin-right:8px;margin-bottom:10px;padding:2px;border:none;background:none;color:#6b7280;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <!-- Module name as a label -->
+      <span style="font-size:14px;font-weight:800;color:#111827;padding:0 10px 10px 0;border-right:1px solid #e5e7eb;margin-right:4px;white-space:nowrap;">Journal</span>
+      <!-- Underline tabs -->
+      <button style="padding:0 10px;height:100%;display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#111827;border:none;border-bottom:3px solid #111827;background:none;margin-bottom:-1px;white-space:nowrap;">
+        Daily
+      </button>
+      <button style="padding:0 10px;height:100%;display:flex;align-items:center;gap:4px;font-size:12px;font-weight:500;color:#9ca3af;border:none;border-bottom:3px solid transparent;background:none;margin-bottom:-1px;white-space:nowrap;">
+        Summary
+      </button>
+    </div>
+    <!-- Date sub-header -->
+    <div class="date-nav">
+      <button>‹</button>
+      <span>Saturday, Mar 14</span>
+      <button>›</button>
+    </div>
+    <!-- Page body -->
+    <div class="page-body">
+      <div class="entry-card" style="border-color:#4ade80;">
+        <span style="font-size:10px;color:#9ca3af;">10:24</span>
+        <p style="margin:2px 0 0;">Feeling good about the week ahead.</p>
+      </div>
+      <div class="entry-card" style="border-color:#a78bfa;">
+        <span style="font-size:10px;color:#9ca3af;">14:05</span>
+        <p style="margin:2px 0 0;">Need to follow up on the project proposal.</p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ─── OPTION D: Calorie log style — name row collapses on scroll ──── -->
+  <div class="section-label">Option D — Tabs in h-14 row, name shown only on single-tab modules</div>
+  <p class="desc">Keep the current layout but prefix the tab row with the module name in a smaller muted style, only on mobile. The name is de-emphasised so the tabs read as the primary navigation. Closest to current desktop behavior.</p>
+
+  <div class="phone-frame">
+    <!-- Single row: muted name + tabs -->
+    <div style="display:flex;align-items:flex-end;padding:0 10px;height:56px;border-bottom:1px solid #e5e7eb;background:white;gap:0;">
+      <button style="flex-shrink:0;margin-right:6px;margin-bottom:10px;padding:2px;border:none;background:none;color:#6b7280;">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+      </button>
+      <!-- Small muted module name -->
+      <span style="font-size:11px;font-weight:700;color:#9ca3af;letter-spacing:0.04em;margin-bottom:11px;margin-right:10px;white-space:nowrap;text-transform:uppercase;">Journal</span>
+      <!-- Underline tabs -->
+      <button style="padding:0 10px;height:100%;display:flex;align-items:center;gap:4px;font-size:12px;font-weight:700;color:#111827;border:none;border-bottom:3px solid #111827;background:none;margin-bottom:-1px;white-space:nowrap;">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Daily
+      </button>
+      <button style="padding:0 10px;height:100%;display:flex;align-items:center;gap:4px;font-size:12px;font-weight:500;color:#9ca3af;border:none;border-bottom:3px solid transparent;background:none;margin-bottom:-1px;white-space:nowrap;">
+        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+        Summary
+      </button>
+    </div>
+    <!-- Date sub-header -->
+    <div class="date-nav">
+      <button>‹</button>
+      <span>Saturday, Mar 14</span>
+      <button>›</button>
+    </div>
+    <!-- Page body -->
+    <div class="page-body">
+      <div class="entry-card" style="border-color:#4ade80;">
+        <span style="font-size:10px;color:#9ca3af;">10:24</span>
+        <p style="margin:2px 0 0;">Feeling good about the week ahead.</p>
+      </div>
+      <div class="entry-card" style="border-color:#a78bfa;">
+        <span style="font-size:10px;color:#9ca3af;">14:05</span>
+        <p style="margin:2px 0 0;">Need to follow up on the project proposal.</p>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ─── All options — 3-tab example (Calorie Log) ───────────────────── -->
+  <div class="section-label">Same options with 3 tabs (Calorie Log)</div>
+  <p class="desc">Stress-test: how do options hold up with Daily / Weekly / Progress?</p>
+
+  <div style="display:flex;gap:12px;flex-wrap:wrap;">
+
+    <!-- A: Stacked -->
+    <div>
+      <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:6px;">A — Stacked</div>
+      <div class="phone-frame" style="width:200px;">
+        <div style="display:flex;align-items:center;padding:0 10px;height:40px;border-bottom:1px solid #f1f5f9;background:white;">
+          <button style="margin-right:8px;padding:3px;border:none;background:none;color:#6b7280;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <span style="font-size:13px;font-weight:700;color:#111827;">Calorie Log</span>
+        </div>
+        <div style="display:flex;align-items:flex-end;padding:0 2px;height:34px;border-bottom:1px solid #e5e7eb;background:white;">
+          <button style="padding:0 8px;height:100%;display:flex;align-items:center;font-size:11px;font-weight:700;color:#111827;border:none;border-bottom:3px solid #111827;background:none;margin-bottom:-1px;">Daily</button>
+          <button style="padding:0 8px;height:100%;display:flex;align-items:center;font-size:11px;font-weight:500;color:#9ca3af;border:none;border-bottom:3px solid transparent;background:none;margin-bottom:-1px;">Weekly</button>
+          <button style="padding:0 8px;height:100%;display:flex;align-items:center;font-size:11px;font-weight:500;color:#9ca3af;border:none;border-bottom:3px solid transparent;background:none;margin-bottom:-1px;">Progress</button>
+        </div>
+        <div class="page-body" style="min-height:60px;"></div>
+      </div>
+    </div>
+
+    <!-- B: Name left, pills right -->
+    <div>
+      <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:6px;">B — Name + pills</div>
+      <div class="phone-frame" style="width:200px;">
+        <div style="display:flex;align-items:center;padding:0 8px;height:50px;border-bottom:1px solid #e5e7eb;background:white;gap:6px;">
+          <button style="flex-shrink:0;padding:2px;border:none;background:none;color:#6b7280;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <span style="font-size:12px;font-weight:700;color:#111827;flex-shrink:0;">Calorie Log</span>
+          <div style="width:1px;height:14px;background:#e5e7eb;flex-shrink:0;"></div>
+          <div style="display:flex;background:#f1f5f9;border-radius:99px;padding:2px;gap:0;overflow:hidden;">
+            <button style="padding:3px 7px;border-radius:99px;background:white;border:none;font-size:10px;font-weight:700;color:#111827;box-shadow:0 1px 2px rgba(0,0,0,0.08);cursor:pointer;white-space:nowrap;">Daily</button>
+            <button style="padding:3px 7px;border-radius:99px;background:none;border:none;font-size:10px;font-weight:600;color:#9ca3af;cursor:pointer;white-space:nowrap;">Weekly</button>
+            <button style="padding:3px 7px;border-radius:99px;background:none;border:none;font-size:10px;font-weight:600;color:#9ca3af;cursor:pointer;white-space:nowrap;">Progress</button>
+          </div>
+        </div>
+        <div class="page-body" style="min-height:60px;"></div>
+      </div>
+    </div>
+
+    <!-- C: Name as label -->
+    <div>
+      <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:6px;">C — Name as label</div>
+      <div class="phone-frame" style="width:200px;">
+        <div style="display:flex;align-items:flex-end;padding:0 8px;height:50px;border-bottom:1px solid #e5e7eb;background:white;">
+          <button style="flex-shrink:0;margin-right:4px;margin-bottom:8px;padding:2px;border:none;background:none;color:#6b7280;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <span style="font-size:12px;font-weight:800;color:#111827;padding:0 6px 8px 0;border-right:1px solid #e5e7eb;margin-right:2px;white-space:nowrap;">Cal Log</span>
+          <button style="padding:0 7px;height:100%;font-size:11px;font-weight:700;color:#111827;border:none;border-bottom:3px solid #111827;background:none;margin-bottom:-1px;white-space:nowrap;">Daily</button>
+          <button style="padding:0 7px;height:100%;font-size:11px;font-weight:500;color:#9ca3af;border:none;border-bottom:3px solid transparent;background:none;margin-bottom:-1px;white-space:nowrap;">Weekly</button>
+          <button style="padding:0 7px;height:100%;font-size:11px;font-weight:500;color:#9ca3af;border:none;border-bottom:3px solid transparent;background:none;margin-bottom:-1px;white-space:nowrap;">Progress</button>
+        </div>
+        <div class="page-body" style="min-height:60px;"></div>
+      </div>
+    </div>
+
+    <!-- D: Muted uppercase name -->
+    <div>
+      <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:6px;">D — Muted name</div>
+      <div class="phone-frame" style="width:200px;">
+        <div style="display:flex;align-items:flex-end;padding:0 8px;height:50px;border-bottom:1px solid #e5e7eb;background:white;gap:0;">
+          <button style="flex-shrink:0;margin-right:4px;margin-bottom:8px;padding:2px;border:none;background:none;color:#6b7280;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <span style="font-size:9px;font-weight:700;color:#94a3b8;letter-spacing:0.06em;text-transform:uppercase;margin-bottom:10px;margin-right:8px;white-space:nowrap;">Cal Log</span>
+          <button style="padding:0 7px;height:100%;font-size:11px;font-weight:700;color:#111827;border:none;border-bottom:3px solid #111827;background:none;margin-bottom:-1px;white-space:nowrap;">Daily</button>
+          <button style="padding:0 7px;height:100%;font-size:11px;font-weight:500;color:#9ca3af;border:none;border-bottom:3px solid transparent;background:none;margin-bottom:-1px;white-space:nowrap;">Weekly</button>
+          <button style="padding:0 7px;height:100%;font-size:11px;font-weight:500;color:#9ca3af;border:none;border-bottom:3px solid transparent;background:none;margin-bottom:-1px;white-space:nowrap;">Progress</button>
+        </div>
+        <div class="page-body" style="min-height:60px;"></div>
+      </div>
+    </div>
+
+  </div>
+
+  <div style="margin-top:40px;padding:16px;background:#f1f5f9;border-radius:10px;font-size:12px;color:#475569;line-height:1.6;">
+    <strong style="color:#0f172a;">Tradeoffs summary</strong><br>
+    <b>A — Stacked:</b> Most readable, most chrome. Two rows above the date nav = three rows total on Daily tab.<br>
+    <b>B — Name + pills:</b> Compact single row. Pills feel slightly inconsistent next to the desktop underline style.<br>
+    <b>C — Name as label:</b> Elegant, single row. "Calorie Log" gets too long — would need abbreviation or truncation.<br>
+    <b>D — Muted name:</b> Minimal change to current layout. Name is clearly secondary to tabs. Works well with long names.
+  </div>
+
+</body>
+</html>

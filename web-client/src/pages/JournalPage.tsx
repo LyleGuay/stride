@@ -14,6 +14,7 @@ import DateHeader from '../components/calorie-log/DateHeader'
 import DailyTimeline from '../components/journal/DailyTimeline'
 import AddEntrySheet from '../components/journal/AddEntrySheet'
 import SummaryTab from '../components/journal/SummaryTab'
+import MobileModuleHeader, { type TabDef } from '../components/MobileModuleHeader'
 
 type Tab = 'daily' | 'summary'
 
@@ -51,19 +52,28 @@ export default function JournalPage() {
     <div className="pb-24">
       {/* ── Sticky header ───────────────────────────────────────────────── */}
       <div className="sticky top-0 z-20 bg-white">
-        {/* Tab row — h-14 matches sidebar logo height for a continuous chrome line */}
-        <div className="flex items-end px-4 sm:px-6 border-b border-gray-200" style={{ height: 56 }}>
-          {/* Hamburger (mobile) */}
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-1 -ml-1 mr-3 rounded-md hover:bg-gray-100 lg:hidden self-center"
-            aria-label="Open menu"
-          >
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
-          </button>
 
+        {/* Mobile header — module name + tab dropdown (hidden on desktop) */}
+        {(() => {
+          const journalTabs: TabDef[] = [
+            { value: 'daily',   label: 'Daily',   icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" /></svg> },
+            { value: 'summary', label: 'Summary', icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg> },
+          ]
+          return (
+            <div className="lg:hidden">
+              <MobileModuleHeader
+                moduleName="Journal"
+                tabs={journalTabs}
+                activeTab={tab}
+                onTabChange={t => setTab(t as Tab)}
+                onOpenSidebar={() => setSidebarOpen(true)}
+              />
+            </div>
+          )
+        })()}
+
+        {/* Desktop tab row — underline style, hidden on mobile */}
+        <div className="hidden lg:flex items-end px-4 sm:px-6 border-b border-gray-200" style={{ height: 56 }}>
           {/* Daily tab */}
           <button
             onClick={() => setTab('daily')}
@@ -74,7 +84,7 @@ export default function JournalPage() {
             }`}
           >
             <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
             </svg>
             Daily
           </button>

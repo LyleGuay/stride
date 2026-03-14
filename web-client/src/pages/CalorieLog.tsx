@@ -32,6 +32,7 @@ import WeeklySummary from '../components/calorie-log/WeeklySummary'
 import ProgressView from '../components/calorie-log/ProgressView'
 import ManageFavoritesModal from '../components/calorie-log/ManageFavoritesModal'
 import RecipeIngredientsModal from '../components/calorie-log/RecipeIngredientsModal'
+import MobileModuleHeader, { type TabDef } from '../components/MobileModuleHeader'
 
 /* ─── CalorieLog ─────────────────────────────────────────────────────────── */
 
@@ -333,18 +334,29 @@ export default function CalorieLog() {
 
       {/* ── Sticky header: tabs + conditional date nav ─────────────────── */}
       <div className="sticky top-0 z-20 bg-white">
-        {/* Tab row — h-14 matches sidebar logo height for a continuous chrome line */}
-        <div className="flex items-end px-6 border-b border-gray-200" style={{ height: 56 }}>
-          {/* Hamburger (mobile only) */}
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-1 -ml-1 mr-3 rounded-md hover:bg-gray-100 lg:hidden self-center"
-          >
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-            </svg>
-          </button>
 
+        {/* Mobile header — module name + tab dropdown (hidden on desktop) */}
+        {(() => {
+          const calTabs: TabDef[] = [
+            { value: 'daily',    label: 'Daily',    icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" /></svg> },
+            { value: 'weekly',   label: 'Weekly',   icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> },
+            { value: 'progress', label: 'Progress', icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg> },
+          ]
+          return (
+            <div className="lg:hidden">
+              <MobileModuleHeader
+                moduleName="Calorie Log"
+                tabs={calTabs}
+                activeTab={tab}
+                onTabChange={t => setTab(t as typeof tab)}
+                onOpenSidebar={() => setSidebarOpen(true)}
+              />
+            </div>
+          )
+        })()}
+
+        {/* Desktop tab row — underline style, hidden on mobile */}
+        <div className="hidden lg:flex items-end px-6 border-b border-gray-200" style={{ height: 56 }}>
           {/* Daily tab */}
           <button
             onClick={() => setTab('daily')}
@@ -389,7 +401,6 @@ export default function CalorieLog() {
             </svg>
             Progress
           </button>
-
         </div>
 
         {/* Tab sub-header — date/week navigator or range selector depending on active tab */}

@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Stride — Mobile Header Options v2</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f1f5f9;
+      padding: 0;
+      margin: 0;
+    }
+
+    /* ── Layout shell ── */
+    .page { max-width: 900px; margin: 0 auto; padding: 32px 20px 60px; }
+    h1 { font-size: 22px; font-weight: 800; color: #0f172a; margin: 0 0 4px; }
+    .subtitle { font-size: 13px; color: #64748b; margin: 0 0 36px; line-height: 1.5; }
+
+    .section { margin-bottom: 48px; }
+    .section-header { display: flex; align-items: baseline; gap: 10px; margin-bottom: 8px; }
+    .section-title { font-size: 13px; font-weight: 800; color: #0f172a; text-transform: uppercase; letter-spacing: 0.06em; }
+    .section-source { font-size: 11px; color: #94a3b8; font-weight: 500; }
+    .section-desc { font-size: 12px; color: #64748b; margin: 0 0 14px; line-height: 1.6; }
+
+    /* ── Phone frame ── */
+    .phone { width: 320px; border-radius: 14px; overflow: visible; box-shadow: 0 4px 20px rgba(0,0,0,0.12); background: white; border: 1px solid #e2e8f0; position: relative; }
+    .phone.wide { width: 360px; }
+
+    /* ── Reusable chrome pieces ── */
+    .page-bg { background: #f8fafc; padding: 14px; min-height: 130px; border-radius: 0 0 14px 14px; }
+    .card { background: white; border-radius: 10px; padding: 11px 12px 11px 15px; margin-bottom: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.06); font-size: 12px; color: #374151; border-left: 4px solid; }
+    .card p { margin: 2px 0 0; }
+    .time-label { font-size: 10px; color: #9ca3af; }
+
+    .hdr { display: flex; align-items: center; border-bottom: 1px solid #e5e7eb; background: white; }
+    .hdr-h14 { height: 56px; padding: 0 14px; }
+    .hdr-h11 { height: 44px; padding: 0 14px; }
+    .hamburger { border: none; background: none; color: #6b7280; padding: 4px; margin-right: 8px; flex-shrink: 0; cursor: pointer; }
+
+    .tab-row { display: flex; align-items: flex-end; border-bottom: 1px solid #e5e7eb; background: white; padding: 0 12px; }
+    .tab-btn { padding: 0 10px; height: 36px; display: flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; color: #111827; border: none; border-bottom: 3px solid #111827; background: none; margin-bottom: -1px; white-space: nowrap; cursor: pointer; }
+    .tab-btn.inactive { font-weight: 500; color: #9ca3af; border-bottom-color: transparent; }
+
+    .date-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 12px; border-bottom: 1px solid #e5e7eb; font-size: 12px; font-weight: 600; color: #374151; background: white; }
+    .date-btn { width: 22px; height: 22px; border-radius: 50%; border: none; background: #f1f5f9; color: #64748b; display: flex; align-items: center; justify-content: center; font-size: 13px; cursor: pointer; }
+
+    .mod-name { font-size: 15px; font-weight: 700; color: #111827; }
+    .mod-name-sm { font-size: 13px; font-weight: 700; color: #111827; }
+
+    /* Grid layout for side-by-side phones */
+    .grid-2 { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+    .grid-3 { display: flex; gap: 16px; flex-wrap: wrap; align-items: flex-start; }
+
+    /* Dropdown overlay */
+    .dropdown { position: absolute; top: calc(100% - 2px); right: 12px; background: white; border: 1px solid #e2e8f0; border-radius: 10px; box-shadow: 0 8px 24px rgba(0,0,0,0.12); overflow: hidden; z-index: 10; min-width: 140px; }
+    .dropdown-item { padding: 10px 14px; font-size: 12px; color: #374151; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .dropdown-item.active { background: #f8fafc; font-weight: 700; color: #111827; }
+    .dropdown-item:hover { background: #f8fafc; }
+    .checkmark { color: #4f46e5; font-size: 13px; }
+
+    /* Sidebar drawer overlay */
+    .drawer { position: absolute; top: 0; left: 0; bottom: 0; width: 220px; background: white; box-shadow: 4px 0 20px rgba(0,0,0,0.15); z-index: 20; border-radius: 14px 0 0 14px; padding: 16px 0; }
+    .drawer-item { padding: 10px 16px; font-size: 12px; color: #374151; display: flex; align-items: center; gap: 8px; cursor: pointer; border-radius: 8px; margin: 1px 8px; }
+    .drawer-item.active { background: #eef2ff; color: #4f46e5; font-weight: 700; }
+    .drawer-item.sub { padding-left: 36px; font-size: 11px; color: #6b7280; }
+    .drawer-item.sub.active { background: #eef2ff; color: #4f46e5; font-weight: 700; }
+    .drawer-section { font-size: 9px; font-weight: 800; color: #94a3b8; letter-spacing: 0.08em; text-transform: uppercase; padding: 12px 16px 4px; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Mobile Header — Module Name + Tabs</h1>
+  <p class="subtitle">Exploring patterns from real apps and new ideas. All frames show a Pixel 7 viewport (360px).</p>
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       REFERENCE: HOW OTHER APPS HANDLE THIS
+  ═════════════════════════════════════════════════════════════════════ -->
+
+  <div style="font-size:16px;font-weight:800;color:#0f172a;margin-bottom:4px;border-top:2px solid #e2e8f0;padding-top:28px;">What other apps do</div>
+  <p style="font-size:12px;color:#64748b;margin:0 0 24px;line-height:1.6;">Common patterns observed across iOS and Android productivity and social apps.</p>
+
+  <!-- YouTube / Google Maps: Chips row -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Scrollable chips below header</span>
+      <span class="section-source">YouTube, Google Maps, Google News</span>
+    </div>
+    <p class="section-desc">Module name is prominent in its own header row (h-14). A full-width scrollable chip/pill row sits directly below — chips are the tab switcher. No underline tabs. Works well when there are many tabs. Feels like content filtering rather than navigation.</p>
+    <div class="phone wide">
+      <div class="hdr hdr-h14" style="gap:10px;">
+        <button class="hamburger">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <span class="mod-name">Journal</span>
+      </div>
+      <!-- Chips row -->
+      <div style="display:flex;gap:8px;padding:10px 14px;border-bottom:1px solid #e5e7eb;overflow:hidden;background:white;">
+        <span style="background:#111827;color:white;border-radius:99px;padding:5px 14px;font-size:12px;font-weight:600;white-space:nowrap;flex-shrink:0;">Daily</span>
+        <span style="background:#f1f5f9;color:#374151;border-radius:99px;padding:5px 14px;font-size:12px;font-weight:500;white-space:nowrap;flex-shrink:0;">Summary</span>
+      </div>
+      <div class="date-bar">
+        <button class="date-btn">‹</button>
+        <span>Saturday, Mar 14</span>
+        <button class="date-btn">›</button>
+      </div>
+      <div class="page-bg">
+        <div class="card" style="border-color:#4ade80;"><span class="time-label">10:24</span><p>Feeling good about the week ahead.</p></div>
+        <div class="card" style="border-color:#a78bfa;"><span class="time-label">14:05</span><p>Need to follow up on the proposal.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notion / Linear: No tabs in header, everything in sidebar -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">No tabs in header — sidebar only</span>
+      <span class="section-source">Notion, Linear, Things 3</span>
+    </div>
+    <p class="section-desc">Module name in the header. No tabs visible at all — views are switched via the sidebar/drawer. Header optionally has a sort/filter button on the right. Clean and minimal. Requires sidebar to be well-organised.</p>
+    <div class="phone wide" style="position:relative;">
+      <div class="hdr hdr-h14" style="gap:10px;justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <button class="hamburger" style="margin:0;">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <span class="mod-name">Journal — Daily</span>
+        </div>
+        <!-- Optional context action on right -->
+        <button style="border:none;background:none;color:#6b7280;padding:4px;font-size:11px;font-weight:600;display:flex;align-items:center;gap:3px;">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 4h18M3 8h18M3 12h12"/></svg>
+          Filter
+        </button>
+      </div>
+      <div class="date-bar">
+        <button class="date-btn">‹</button>
+        <span>Saturday, Mar 14</span>
+        <button class="date-btn">›</button>
+      </div>
+      <div class="page-bg">
+        <div class="card" style="border-color:#4ade80;"><span class="time-label">10:24</span><p>Feeling good about the week ahead.</p></div>
+        <div class="card" style="border-color:#a78bfa;"><span class="time-label">14:05</span><p>Need to follow up on the proposal.</p></div>
+      </div>
+      <!-- Sidebar drawer shown open -->
+      <div class="drawer" style="border-radius:0 0 0 14px;top:0;bottom:0;">
+        <div style="padding:14px 16px 8px;font-size:15px;font-weight:800;color:#111827;">Stride</div>
+        <div class="drawer-section">Modules</div>
+        <div class="drawer-item">🍎 Calorie Log</div>
+        <div class="drawer-item active">📓 Journal
+          <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-left:auto;color:#4f46e5;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <div class="drawer-item sub active">📅 Daily</div>
+        <div class="drawer-item sub">📊 Summary</div>
+        <div class="drawer-item">✅ Habits</div>
+        <div class="drawer-item">🥗 Recipes</div>
+        <div class="drawer-section">Account</div>
+        <div class="drawer-item">⚙️ Settings</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spotify / Todoist: segmented control below name -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Segmented control below module name</span>
+      <span class="section-source">Spotify (library), Todoist, Apple Notes</span>
+    </div>
+    <p class="section-desc">Separate name row (h-11) + segmented pill control row below. The segmented control is visually distinct from the header. Familiar iOS pattern — feels like a view toggle rather than page navigation.</p>
+    <div class="phone wide">
+      <div class="hdr hdr-h11" style="justify-content:space-between;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <button class="hamburger" style="margin:0;">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <span class="mod-name">Journal</span>
+        </div>
+      </div>
+      <!-- Segmented control row -->
+      <div style="display:flex;justify-content:center;padding:8px 14px;border-bottom:1px solid #e5e7eb;background:white;">
+        <div style="display:flex;background:#f1f5f9;border-radius:9px;padding:3px;gap:2px;width:100%;">
+          <button style="flex:1;padding:6px;border-radius:7px;background:white;border:none;font-size:12px;font-weight:700;color:#111827;box-shadow:0 1px 3px rgba(0,0,0,0.1);cursor:pointer;">Daily</button>
+          <button style="flex:1;padding:6px;border-radius:7px;background:none;border:none;font-size:12px;font-weight:600;color:#9ca3af;cursor:pointer;">Summary</button>
+        </div>
+      </div>
+      <div class="date-bar">
+        <button class="date-btn">‹</button>
+        <span>Saturday, Mar 14</span>
+        <button class="date-btn">›</button>
+      </div>
+      <div class="page-bg">
+        <div class="card" style="border-color:#4ade80;"><span class="time-label">10:24</span><p>Feeling good about the week ahead.</p></div>
+        <div class="card" style="border-color:#a78bfa;"><span class="time-label">14:05</span><p>Need to follow up on the proposal.</p></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       NEW IDEAS
+  ═════════════════════════════════════════════════════════════════════ -->
+
+  <div style="font-size:16px;font-weight:800;color:#0f172a;margin-bottom:4px;border-top:2px solid #e2e8f0;padding-top:28px;">New ideas for Stride</div>
+  <p style="font-size:12px;color:#64748b;margin:0 0 24px;line-height:1.6;">Tailored to Stride's sidebar-first layout and the specific request.</p>
+
+
+  <!-- YOUR IDEA: Name left, tab dropdown right -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">★ Name left · Tab dropdown right</span>
+      <span class="section-source">Your idea — similar to iOS Mail folder picker</span>
+    </div>
+    <p class="section-desc">Module name anchors the left. Active tab name + chevron on the right acts as a dropdown trigger. Tap it to switch tabs. Maximum horizontal space, no second row needed. Works identically for 2 or 5 tabs.</p>
+    <div class="grid-2">
+
+      <!-- Closed state -->
+      <div>
+        <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Closed</div>
+        <div class="phone wide">
+          <div class="hdr hdr-h14" style="justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button class="hamburger" style="margin:0;">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+              </button>
+              <span class="mod-name">Journal</span>
+            </div>
+            <!-- Tab dropdown trigger -->
+            <button style="display:flex;align-items:center;gap:5px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;color:#111827;cursor:pointer;">
+              <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              Daily
+              <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+          </div>
+          <div class="date-bar">
+            <button class="date-btn">‹</button>
+            <span>Saturday, Mar 14</span>
+            <button class="date-btn">›</button>
+          </div>
+          <div class="page-bg">
+            <div class="card" style="border-color:#4ade80;"><span class="time-label">10:24</span><p>Feeling good about the week ahead.</p></div>
+            <div class="card" style="border-color:#a78bfa;"><span class="time-label">14:05</span><p>Need to follow up on the proposal.</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Open dropdown -->
+      <div>
+        <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Dropdown open</div>
+        <div class="phone wide" style="position:relative;overflow:visible;">
+          <div class="hdr hdr-h14" style="justify-content:space-between;">
+            <div style="display:flex;align-items:center;gap:8px;">
+              <button class="hamburger" style="margin:0;">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+              </button>
+              <span class="mod-name">Journal</span>
+            </div>
+            <button style="display:flex;align-items:center;gap:5px;background:#eef2ff;border:1px solid #c7d2fe;border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700;color:#4f46e5;cursor:pointer;">
+              <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              Daily
+              <svg width="10" height="10" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="transform:rotate(180deg)"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+            </button>
+          </div>
+          <div class="date-bar">
+            <button class="date-btn">‹</button>
+            <span>Saturday, Mar 14</span>
+            <button class="date-btn">›</button>
+          </div>
+          <div class="page-bg" style="filter:brightness(0.97);">
+            <div class="card" style="border-color:#4ade80;opacity:0.4;"><span class="time-label">10:24</span><p>Feeling good about the week ahead.</p></div>
+          </div>
+          <!-- Dropdown -->
+          <div class="dropdown">
+            <div class="dropdown-item active">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+              Daily
+              <span class="checkmark" style="margin-left:auto;">✓</span>
+            </div>
+            <div style="height:1px;background:#f1f5f9;margin:0 10px;"></div>
+            <div class="dropdown-item">
+              <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+              Summary
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+
+  <!-- YOUR IDEA: Sidebar with sub-navigation -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">★ Sidebar sub-navigation</span>
+      <span class="section-source">Your idea — same pattern as VS Code / Linear sidebar</span>
+    </div>
+    <p class="section-desc">Tabs are exposed directly in the sidebar as collapsible sub-items under the module. Tapping Journal in the sidebar expands to show Daily and Summary. Header just shows the active view name — no tab UI needed at all. Works best when you already have a sidebar habit.</p>
+    <div class="phone wide" style="position:relative;overflow:visible;">
+      <div class="hdr hdr-h14" style="gap:8px;">
+        <button class="hamburger" style="margin:0;">
+          <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+        </button>
+        <span class="mod-name">Journal · Daily</span>
+      </div>
+      <div class="date-bar">
+        <button class="date-btn">‹</button>
+        <span>Saturday, Mar 14</span>
+        <button class="date-btn">›</button>
+      </div>
+      <div class="page-bg">
+        <div class="card" style="border-color:#4ade80;opacity:0.35;"><span class="time-label">10:24</span><p>Feeling good about the week ahead.</p></div>
+        <div class="card" style="border-color:#a78bfa;opacity:0.35;"><span class="time-label">14:05</span><p>Need to follow up on the proposal.</p></div>
+      </div>
+      <!-- Sidebar open with sub-nav expanded -->
+      <div class="drawer" style="border-radius:0 0 0 14px;">
+        <div style="padding:14px 16px 10px;font-size:15px;font-weight:800;color:#111827;">Stride</div>
+        <div class="drawer-section">Modules</div>
+        <div class="drawer-item">🍎 Calorie Log</div>
+        <div class="drawer-item active" style="background:#eef2ff;">
+          📓 Journal
+          <svg width="11" height="11" fill="none" stroke="#4f46e5" stroke-width="2.5" viewBox="0 0 24 24" style="margin-left:auto;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        </div>
+        <!-- Sub-items -->
+        <div class="drawer-item sub active" style="background:#eef2ff;">
+          <span style="color:#4f46e5;font-size:10px;">●</span> Daily
+        </div>
+        <div class="drawer-item sub">
+          <span style="color:#cbd5e1;font-size:10px;">●</span> Summary
+        </div>
+        <div class="drawer-item">✅ Habits</div>
+        <div class="drawer-item">🥗 Recipes</div>
+        <div class="drawer-section">Account</div>
+        <div class="drawer-item">⚙️ Settings</div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- HYBRID: Name left + inline tab pills (compact) -->
+  <div class="section">
+    <div class="section-header">
+      <span class="section-title">Hybrid — name left · inline pills right</span>
+      <span class="section-source">Similar to GitHub mobile repo header</span>
+    </div>
+    <p class="section-desc">Module name on the left. Small pill tabs on the right — not a dropdown, just always visible. Avoids the two-tap cost of the dropdown while keeping a single row. Gets cramped with 3+ tabs.</p>
+    <div class="phone wide">
+      <div class="hdr hdr-h14" style="justify-content:space-between;gap:8px;">
+        <div style="display:flex;align-items:center;gap:8px;min-width:0;">
+          <button class="hamburger" style="margin:0;">
+            <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <span class="mod-name">Journal</span>
+        </div>
+        <div style="display:flex;background:#f1f5f9;border-radius:99px;padding:3px;gap:0;flex-shrink:0;">
+          <button style="padding:5px 14px;border-radius:99px;background:white;border:none;font-size:12px;font-weight:700;color:#111827;box-shadow:0 1px 3px rgba(0,0,0,0.1);cursor:pointer;white-space:nowrap;">Daily</button>
+          <button style="padding:5px 14px;border-radius:99px;background:none;border:none;font-size:12px;font-weight:600;color:#9ca3af;cursor:pointer;white-space:nowrap;">Summary</button>
+        </div>
+      </div>
+      <div class="date-bar">
+        <button class="date-btn">‹</button>
+        <span>Saturday, Mar 14</span>
+        <button class="date-btn">›</button>
+      </div>
+      <div class="page-bg">
+        <div class="card" style="border-color:#4ade80;"><span class="time-label">10:24</span><p>Feeling good about the week ahead.</p></div>
+        <div class="card" style="border-color:#a78bfa;"><span class="time-label">14:05</span><p>Need to follow up on the proposal.</p></div>
+      </div>
+    </div>
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       STRESS TEST: 3 TABS
+  ═════════════════════════════════════════════════════════════════════ -->
+
+  <div style="font-size:16px;font-weight:800;color:#0f172a;margin-bottom:4px;border-top:2px solid #e2e8f0;padding-top:28px;">Stress test — 3 tabs (Calorie Log)</div>
+  <p style="font-size:12px;color:#64748b;margin:0 0 20px;line-height:1.6;">How do the new ideas hold up with Daily / Weekly / Progress?</p>
+
+  <div class="grid-3">
+
+    <!-- Dropdown — 3 tabs -->
+    <div>
+      <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Dropdown</div>
+      <div class="phone" style="position:relative;overflow:visible;">
+        <div class="hdr hdr-h14" style="justify-content:space-between;padding:0 10px;">
+          <div style="display:flex;align-items:center;gap:6px;">
+            <button class="hamburger" style="margin:0;">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+            <span style="font-size:13px;font-weight:700;color:#111827;">Calorie Log</span>
+          </div>
+          <button style="display:flex;align-items:center;gap:4px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:5px 9px;font-size:11px;font-weight:700;color:#111827;">
+            Daily
+            <svg width="9" height="9" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </button>
+        </div>
+        <!-- Show dropdown open -->
+        <div class="dropdown" style="right:10px;">
+          <div class="dropdown-item active">Daily <span class="checkmark" style="margin-left:auto;">✓</span></div>
+          <div style="height:1px;background:#f1f5f9;margin:0 10px;"></div>
+          <div class="dropdown-item">Weekly</div>
+          <div style="height:1px;background:#f1f5f9;margin:0 10px;"></div>
+          <div class="dropdown-item">Progress</div>
+        </div>
+        <div class="page-bg" style="min-height:100px;filter:brightness(0.97);"></div>
+      </div>
+    </div>
+
+    <!-- Sidebar sub-nav — 3 tabs -->
+    <div>
+      <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Sidebar sub-nav</div>
+      <div class="phone" style="position:relative;overflow:hidden;">
+        <div class="hdr hdr-h14" style="gap:6px;padding:0 10px;">
+          <button class="hamburger" style="margin:0;">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+          </button>
+          <span style="font-size:12px;font-weight:700;color:#111827;">Calorie Log · Daily</span>
+        </div>
+        <div class="page-bg" style="min-height:100px;opacity:0.4;"></div>
+        <!-- Drawer with cal log expanded -->
+        <div class="drawer" style="border-radius:0;">
+          <div style="padding:10px 14px 8px;font-size:13px;font-weight:800;color:#111827;">Stride</div>
+          <div class="drawer-item active" style="font-size:11px;">🍎 Calorie Log
+            <svg width="10" height="10" fill="none" stroke="#4f46e5" stroke-width="2.5" viewBox="0 0 24 24" style="margin-left:auto;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+          </div>
+          <div class="drawer-item sub active" style="font-size:11px;"><span style="color:#4f46e5;font-size:10px;">●</span> Daily</div>
+          <div class="drawer-item sub" style="font-size:11px;"><span style="color:#cbd5e1;font-size:10px;">●</span> Weekly</div>
+          <div class="drawer-item sub" style="font-size:11px;"><span style="color:#cbd5e1;font-size:10px;">●</span> Progress</div>
+          <div class="drawer-item" style="font-size:11px;">📓 Journal</div>
+          <div class="drawer-item" style="font-size:11px;">✅ Habits</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Inline pills — 3 tabs (gets tight) -->
+    <div>
+      <div style="font-size:10px;color:#94a3b8;font-weight:700;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.05em;">Inline pills (tight)</div>
+      <div class="phone">
+        <div class="hdr hdr-h14" style="justify-content:space-between;padding:0 8px;gap:6px;">
+          <div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">
+            <button class="hamburger" style="margin:0;">
+              <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+            </button>
+            <span style="font-size:12px;font-weight:700;color:#111827;white-space:nowrap;">Cal Log</span>
+          </div>
+          <div style="display:flex;background:#f1f5f9;border-radius:99px;padding:2px;gap:0;overflow:hidden;flex-shrink:0;">
+            <button style="padding:4px 8px;border-radius:99px;background:white;border:none;font-size:10px;font-weight:700;color:#111827;box-shadow:0 1px 2px rgba(0,0,0,0.1);white-space:nowrap;">Daily</button>
+            <button style="padding:4px 8px;border-radius:99px;background:none;border:none;font-size:10px;font-weight:600;color:#9ca3af;white-space:nowrap;">Weekly</button>
+            <button style="padding:4px 8px;border-radius:99px;background:none;border:none;font-size:10px;font-weight:600;color:#9ca3af;white-space:nowrap;">Progress</button>
+          </div>
+        </div>
+        <div class="page-bg" style="min-height:100px;"></div>
+      </div>
+    </div>
+
+  </div>
+
+
+  <!-- ════════════════════════════════════════════════════════════════════
+       SUMMARY TABLE
+  ═════════════════════════════════════════════════════════════════════ -->
+
+  <div style="border-top:2px solid #e2e8f0;padding-top:28px;margin-top:8px;">
+    <div style="font-size:16px;font-weight:800;color:#0f172a;margin-bottom:12px;">Tradeoffs at a glance</div>
+    <table style="width:100%;border-collapse:collapse;font-size:12px;">
+      <thead>
+        <tr style="border-bottom:2px solid #e2e8f0;">
+          <th style="text-align:left;padding:8px 10px;color:#0f172a;font-weight:800;">Option</th>
+          <th style="text-align:center;padding:8px 6px;color:#0f172a;font-weight:800;">Chrome rows</th>
+          <th style="text-align:center;padding:8px 6px;color:#0f172a;font-weight:800;">Taps to switch</th>
+          <th style="text-align:center;padding:8px 6px;color:#0f172a;font-weight:800;">Scales to 3+ tabs</th>
+          <th style="text-align:left;padding:8px 10px;color:#0f172a;font-weight:800;">Feel</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr style="border-bottom:1px solid #f1f5f9;background:#fafafa;">
+          <td style="padding:8px 10px;font-weight:700;">Scrollable chips</td>
+          <td style="text-align:center;padding:8px 6px;">3</td>
+          <td style="text-align:center;padding:8px 6px;">1</td>
+          <td style="text-align:center;padding:8px 6px;">✅</td>
+          <td style="padding:8px 10px;color:#64748b;">Google-style, content-filter-y</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:8px 10px;font-weight:700;">Sidebar-only</td>
+          <td style="text-align:center;padding:8px 6px;">2</td>
+          <td style="text-align:center;padding:8px 6px;">2</td>
+          <td style="text-align:center;padding:8px 6px;">✅</td>
+          <td style="padding:8px 10px;color:#64748b;">Clean, minimal — requires sidebar habit</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f1f5f9;background:#fafafa;">
+          <td style="padding:8px 10px;font-weight:700;">Segmented control</td>
+          <td style="text-align:center;padding:8px 6px;">3</td>
+          <td style="text-align:center;padding:8px 6px;">1</td>
+          <td style="text-align:center;padding:8px 6px;">✅</td>
+          <td style="padding:8px 10px;color:#64748b;">iOS-native feel, view-toggle semantics</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f1f5f9;background:#fffbeb;">
+          <td style="padding:8px 10px;font-weight:700;">★ Dropdown (your idea)</td>
+          <td style="text-align:center;padding:8px 6px;">2</td>
+          <td style="text-align:center;padding:8px 6px;">2</td>
+          <td style="text-align:center;padding:8px 6px;">✅✅</td>
+          <td style="padding:8px 10px;color:#64748b;">Compact; clearly shows current tab</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f1f5f9;background:#fffbeb;">
+          <td style="padding:8px 10px;font-weight:700;">★ Sidebar sub-nav (your idea)</td>
+          <td style="text-align:center;padding:8px 6px;">2</td>
+          <td style="text-align:center;padding:8px 6px;">2</td>
+          <td style="text-align:center;padding:8px 6px;">✅✅</td>
+          <td style="padding:8px 10px;color:#64748b;">No header tabs needed at all</td>
+        </tr>
+        <tr style="background:#fafafa;">
+          <td style="padding:8px 10px;font-weight:700;">Hybrid inline pills</td>
+          <td style="text-align:center;padding:8px 6px;">2</td>
+          <td style="text-align:center;padding:8px 6px;">1</td>
+          <td style="text-align:center;padding:8px 6px;">⚠️ tight at 3</td>
+          <td style="padding:8px 10px;color:#64748b;">Simple, no dropdown needed</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+</div>
+</body>
+</html>

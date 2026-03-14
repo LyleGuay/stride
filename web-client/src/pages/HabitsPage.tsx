@@ -14,6 +14,7 @@ import HabitCard from '../components/habits/HabitCard'
 import AddHabitSheet from '../components/habits/AddHabitSheet'
 import ProgressTab from '../components/habits/ProgressTab'
 import { spawnBurst, spawnCelebration, playCheckSound, playCelebrationSound } from '../utils/habitEffects'
+import MobileModuleHeader, { type TabDef } from '../components/MobileModuleHeader'
 
 /* ─── Date helpers ──────────────────────────────────────────────────────── */
 
@@ -252,19 +253,28 @@ export default function HabitsPage() {
     <div className="pb-24">
       {/* ── Sticky header ─────────────────────────────────────────────── */}
       <div className="sticky top-0 z-20 bg-white">
-        {/* Tab row — h-14 matches sidebar logo height */}
-        <div className="flex items-end px-6 border-b border-gray-200" style={{ height: 56 }}>
-          {/* Hamburger (mobile only) */}
-          <button
-            onClick={() => setSidebarOpen(true)}
-            className="p-1 -ml-1 mr-3 rounded-md hover:bg-gray-100 lg:hidden self-center"
-            aria-label="Open sidebar"
-          >
-            <svg className="w-6 h-6 text-gray-700" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-            </svg>
-          </button>
 
+        {/* Mobile header — module name + tab dropdown (hidden on desktop) */}
+        {(() => {
+          const habitTabs: TabDef[] = [
+            { value: 'today',    label: 'Today',    icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" /></svg> },
+            { value: 'progress', label: 'Progress', icon: <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg> },
+          ]
+          return (
+            <div className="lg:hidden">
+              <MobileModuleHeader
+                moduleName="Habits"
+                tabs={habitTabs}
+                activeTab={tab}
+                onTabChange={t => setTab(t as typeof tab)}
+                onOpenSidebar={() => setSidebarOpen(true)}
+              />
+            </div>
+          )
+        })()}
+
+        {/* Desktop tab row — underline style, hidden on mobile */}
+        <div className="hidden lg:flex items-end px-6 border-b border-gray-200" style={{ height: 56 }}>
           {/* Today tab */}
           <button
             onClick={() => setTab('today')}
@@ -294,7 +304,6 @@ export default function HabitsPage() {
             </svg>
             Progress
           </button>
-
         </div>
 
         {/* ── Desktop week strip — lg+ only, Today tab only ─────────────── */}
