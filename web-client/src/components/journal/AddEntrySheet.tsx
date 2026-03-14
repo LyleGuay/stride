@@ -27,9 +27,12 @@ interface Props {
   onSaved: () => void
   date: string                    // YYYY-MM-DD — the day being logged
   editEntry?: JournalEntry | null
+  /** When opened from a habit card, pre-links the entry to this habit. */
+  habitId?: number | null
+  habitName?: string | null
 }
 
-export default function AddEntrySheet({ open, onClose, onSaved, date, editEntry }: Props) {
+export default function AddEntrySheet({ open, onClose, onSaved, date, editEntry, habitId, habitName }: Props) {
   const [body, setBody] = useState('')
   const [tags, setTags] = useState<JournalTag[]>([])
   const [preview, setPreview] = useState(false)
@@ -69,7 +72,7 @@ export default function AddEntrySheet({ open, onClose, onSaved, date, editEntry 
         const input: UpdateJournalEntryInput = { body: body.trim(), tags }
         await updateJournalEntry(editEntry.id, input)
       } else {
-        const input: CreateJournalEntryInput = { entry_date: date, body: body.trim(), tags }
+        const input: CreateJournalEntryInput = { entry_date: date, body: body.trim(), tags, habit_id: habitId ?? undefined }
         await createJournalEntry(input)
       }
       onSaved()
@@ -158,6 +161,16 @@ export default function AddEntrySheet({ open, onClose, onSaved, date, editEntry 
                 />
               )}
             </div>
+
+            {/* Linked habit badge — read-only, shown when opened from a habit card */}
+            {habitName && (
+              <div className="mb-4">
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Linked Habit</label>
+                <span className="inline-flex items-center gap-1.5 text-sm text-indigo-600 bg-indigo-50 border border-indigo-100 rounded-full px-3 py-1">
+                  🔗 {habitName}
+                </span>
+              </div>
+            )}
 
             {/* Entry-type tag chips */}
             <div className="mb-4">

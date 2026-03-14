@@ -300,7 +300,7 @@ Build a personal journal integrated into Stride where the user can log timestamp
 
 ### Phase G: Habit Linking
 
-- [ ] **G.1 — Add "Add a note" affordance to `web-client/src/components/habits/HabitCard.tsx`**
+- [x] **G.1 — Add "Add a note" affordance to `web-client/src/components/habits/HabitCard.tsx`**
   - Add `onAddJournalNote?: (habitId: number) => void` to `HabitCardProps`.
   - After a successful level log (level > 0, `onLogLevel` called), show a small "Add a note →" button below the habit card for ~5 seconds. Auto-hides after timeout; also dismisses on click.
   - On click: calls `onAddJournalNote(habit.id)` and dismisses.
@@ -310,7 +310,7 @@ Build a personal journal integrated into Stride where the user can log timestamp
     - Clicking it opens the journal sheet with the habit pre-filled
     - It disappears on its own after ~5s if not clicked
 
-- [ ] **G.2 — Wire journal sheet from `web-client/src/pages/HabitsPage.tsx`**
+- [x] **G.2 — Wire journal sheet from `web-client/src/pages/HabitsPage.tsx`**
   - Add `journalSheetOpen: boolean`, `linkedHabitId: number | null`, `linkedHabitName: string | null` state.
   - `onAddJournalNote(habitId)`: find the habit by id from `habits` state, set linked habit state, open journal sheet.
   - Render `<AddEntrySheet>` (import from `components/journal`) with `habitId`, `habitName`, `open`, `onClose`, `onSave`.
@@ -321,7 +321,7 @@ Build a personal journal integrated into Stride where the user can log timestamp
 
 ### Phase H: E2E Tests
 
-- [ ] **H.1 — Create `e2e/tests/journal.spec.ts`**
+- [x] **H.1 — Create `e2e/tests/journal.spec.ts`**
   Cover these flows (both `Desktop Chrome` and `Mobile Chrome` Pixel 7 projects):
   - **Add entry:** Open journal → FAB → fill body + select a tag → save → verify card appears in timeline with correct tag chip.
   - **Add entry (no tags):** Fill body only → save → verify card appears with no tag chips.

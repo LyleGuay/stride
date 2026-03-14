@@ -9,6 +9,7 @@ import { useSidebar } from '../components/SidebarContext'
 import { useHabits } from '../hooks/useHabits'
 import { todayString, getMondayOf, shiftWeek, formatWeekRange } from '../utils/dates'
 import { createHabit, updateHabit, archiveHabit, deleteHabit } from '../api'
+import AddEntrySheet from '../components/journal/AddEntrySheet'
 import type { Habit, HabitWithLog, CreateHabitInput } from '../types'
 import HabitCard from '../components/habits/HabitCard'
 import AddHabitSheet from '../components/habits/AddHabitSheet'
@@ -65,6 +66,11 @@ export default function HabitsPage() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [editHabit, setEditHabit] = useState<Habit | null>(null)
 
+  // Journal entry sheet — opened from "Add a note →" on a habit card.
+  const [journalSheetOpen, setJournalSheetOpen] = useState(false)
+  const [linkedHabitId, setLinkedHabitId] = useState<number | null>(null)
+  const [linkedHabitName, setLinkedHabitName] = useState<string | null>(null)
+
   const navigate = useNavigate()
   const { setOpen: setSidebarOpen } = useSidebar()
   const { habits, loading, error, logLevel, reload } = useHabits(selectedDate)
@@ -80,6 +86,15 @@ export default function HabitsPage() {
   const today = todayString()
   const isToday = selectedDate === today
   const isCurrentWeek = weekStart === getMondayOf(today)
+
+  // Opens the journal entry sheet pre-linked to the given habit.
+  const handleAddJournalNote = useCallback((habitId: number) => {
+    const habit = habits.find(h => h.id === habitId)
+    if (!habit) return
+    setLinkedHabitId(habitId)
+    setLinkedHabitName(habit.name)
+    setJournalSheetOpen(true)
+  }, [habits])
 
   // Derived — separate daily and weekly habits.
   const dailyHabits = habits.filter(h => h.frequency === 'daily')
@@ -468,6 +483,7 @@ export default function HabitsPage() {
                     onDelete={() => handleDeleteFromCard(habit)}
                     onViewDetail={() => navigate(`/habits/${habit.id}`)}
                     circleRef={(el) => circleRefs.current.set(habit.id, el)}
+                    onAddJournalNote={handleAddJournalNote}
                   />
                 ))}
               </div>
@@ -490,6 +506,7 @@ export default function HabitsPage() {
                     onDelete={() => handleDeleteFromCard(habit)}
                     onViewDetail={() => navigate(`/habits/${habit.id}`)}
                     circleRef={(el) => circleRefs.current.set(habit.id, el)}
+                    onAddJournalNote={handleAddJournalNote}
                   />
                 ))}
               </div>
@@ -524,6 +541,16 @@ export default function HabitsPage() {
         onSave={handleSaveHabit}
         editHabit={editHabit}
         onDelete={editHabit ? handleDeleteHabit : undefined}
+      />
+
+      {/* Journal entry sheet — opened from "Add a note →" on a habit card */}
+      <AddEntrySheet
+        open={journalSheetOpen}
+        onClose={() => { setJournalSheetOpen(false); setLinkedHabitId(null); setLinkedHabitName(null) }}
+        onSaved={() => {}}
+        date={selectedDate}
+        habitId={linkedHabitId}
+        habitName={linkedHabitName}
       />
     </div>
   )

@@ -32,7 +32,7 @@ export default function EntryCard({ entry, onEdit, onDelete }: Props) {
   }
 
   return (
-    <div className="relative bg-white rounded-xl shadow-sm flex">
+    <div className="relative bg-white rounded-xl shadow-sm flex" data-testid="entry-card">
       {/* Colored left accent bar — rounded left corners only, matching the card border-radius */}
       <div className="w-1.5 flex-shrink-0 rounded-l-xl" style={{ background: accentBg }} />
 
@@ -60,6 +60,7 @@ export default function EntryCard({ entry, onEdit, onDelete }: Props) {
               onClick={() => setShowMenu(m => !m)}
               className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-gray-600 rounded-full hover:bg-gray-100 transition-colors text-base leading-none"
               aria-label="Entry options"
+              data-testid="entry-menu-button"
             >
               ···
             </button>

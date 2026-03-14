@@ -69,7 +69,7 @@ describe('AddEntrySheet', () => {
         target: { value: 'Good day' },
       })
       // Select the "Happy" emotion chip
-      fireEvent.click(screen.getByRole('button', { name: 'Happy' }))
+      fireEvent.click(screen.getByRole('button', { name: /Happy/ }))
       fireEvent.click(screen.getByRole('button', { name: 'Save Entry' }))
 
       await waitFor(() =>
@@ -86,7 +86,7 @@ describe('AddEntrySheet', () => {
         target: { value: 'Good day' },
       })
       // Click once to select, click again to deselect
-      const chip = screen.getByRole('button', { name: 'Happy' })
+      const chip = screen.getByRole('button', { name: /Happy/ })
       fireEvent.click(chip)
       fireEvent.click(chip)
       fireEvent.click(screen.getByRole('button', { name: 'Save Entry' }))
@@ -117,15 +117,17 @@ describe('AddEntrySheet', () => {
       fireEvent.change(screen.getByPlaceholderText(/What's on your mind/), {
         target: { value: 'Hello world' },
       })
-      fireEvent.click(screen.getByRole('button', { name: 'Thoughts' }))
+      fireEvent.click(screen.getByRole('button', { name: /Thoughts/ }))
       fireEvent.click(screen.getByRole('button', { name: 'Save Entry' }))
 
       await waitFor(() =>
-        expect(api.createJournalEntry).toHaveBeenCalledWith({
-          entry_date: '2026-03-12',
-          body: 'Hello world',
-          tags: ['thoughts'],
-        }),
+        expect(api.createJournalEntry).toHaveBeenCalledWith(
+          expect.objectContaining({
+            entry_date: '2026-03-12',
+            body: 'Hello world',
+            tags: ['thoughts'],
+          }),
+        ),
       )
     })
   })
