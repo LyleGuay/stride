@@ -6,6 +6,7 @@ import { useState, useEffect } from 'react'
 import { getMondayOf, shiftWeek, formatWeekRange, todayString } from '../../utils/dates'
 import { fetchHabitsWeek, fetchHabitLogs } from '../../api'
 import type { HabitWeekEntry, HabitLog } from '../../types'
+import { getHabitMaxLevel } from '../../utils/habitLevel'
 
 /* ─── Helpers ───────────────────────────────────────────────────────────── */
 
@@ -109,11 +110,31 @@ export default function ProgressTab({ onViewDetail }: Props) {
   // Count days on track (at least one habit logged) among non-future days.
   const totalDays = dates.filter(d => d <= today).length
   const daysHit = dayMaxLevels.filter((l, i) => dates[i] <= today && l > 0).length
-  const allLevels = entries.flatMap(({ logs }) => logs.map(l => l.level))
-  const avgLevel = allLevels.length
-    ? (allLevels.reduce((a, b) => a + b, 0) / allLevels.length).toFixed(1)
-    : '—'
-  const completionPct = totalDays > 0 ? Math.round(daysHit / totalDays * 100) : 0
+
+  // Compute weekly level using the same proportional formula as HabitsPage.
+  // Build week_level_sum and week_count from the entries' logs for the current week window.
+  const weekLevel = (() => {
+    if (entries.length === 0) return null
+    let score = 0
+    let possible = 0
+    let playerMax = 0
+    for (const { habit, logs } of entries) {
+      const maxLevel = getHabitMaxLevel(habit)
+      if (maxLevel > playerMax) playerMax = maxLevel
+      const weekLogs = logs.filter(l => dates.includes(l.date))
+      if (habit.frequency === 'daily') {
+        score += weekLogs.reduce((s, l) => s + l.level, 0)
+        possible += 7 * maxLevel
+      } else {
+        const target = habit.weekly_target ?? 1
+        const cap = target * maxLevel
+        score += Math.min(weekLogs.reduce((s, l) => s + l.level, 0), cap)
+        possible += cap
+      }
+    }
+    if (possible === 0) return 0
+    return (score / possible) * playerMax
+  })()
 
   return (
     <div className="px-4 pt-4 max-w-2xl mx-auto pb-12">
@@ -202,12 +223,19 @@ export default function ProgressTab({ onViewDetail }: Props) {
                 <div className="text-[10px] text-gray-400 mt-0.5">Days on track</div>
               </div>
               <div>
-                <div className="text-lg font-bold text-stride-600">{completionPct}%</div>
+                <div className="text-lg font-bold text-stride-600">
+                  {totalDays > 0 ? Math.round(daysHit / totalDays * 100) : 0}%
+                </div>
                 <div className="text-[10px] text-gray-400 mt-0.5">Completion</div>
               </div>
               <div>
-                <div className="text-lg font-bold text-emerald-500">{avgLevel}</div>
-                <div className="text-[10px] text-gray-400 mt-0.5">Avg level</div>
+                <div
+                  className="text-lg font-bold"
+                  style={{ color: weekLevel != null ? LEVEL_COLORS[Math.min(3, Math.floor(weekLevel))] : '#e5e7eb' }}
+                >
+                  {weekLevel != null ? weekLevel.toFixed(2) : '—'}
+                </div>
+                <div className="text-[10px] text-gray-400 mt-0.5">Week level</div>
               </div>
             </div>
           </div>
@@ -266,9 +294,11 @@ function ProgressHabitCard({
   const daysLogged = weekLogs.length
   const totalDays = dates.filter(d => d <= today).length
   const streak = habit.current_streak ?? 0    // comes from HabitWithLog stats
-  const avgLvl = weekLogs.length
-    ? (weekLogs.reduce((s, l) => s + l.level, 0) / weekLogs.length).toFixed(1)
-    : '—'
+  const avgLvlFloat = weekLogs.length
+    ? weekLogs.reduce((s, l) => s + l.level, 0) / weekLogs.length
+    : null
+  const avgLvl = avgLvlFloat != null ? avgLvlFloat.toFixed(1) : '—'
+  const avgLvlColor = LEVEL_COLORS[Math.min(3, Math.floor(avgLvlFloat ?? 0))]
 
   // Build per-day level array for dot strip.
   const dayLevels = dates.map(date => logForDate(logs, date)?.level ?? null)
@@ -346,7 +376,7 @@ function ProgressHabitCard({
             <div className="text-[10px] text-gray-400">streak</div>
           </div>
           <div>
-            <div className="text-sm font-bold text-emerald-500">{avgLvl}</div>
+            <div className="text-sm font-bold" style={{ color: avgLvlColor }}>{avgLvl}</div>
             <div className="text-[10px] text-gray-400">avg lvl</div>
           </div>
         </div>
@@ -366,13 +396,19 @@ function ProgressHabitCard({
           {/* 4-cell mini stats */}
           <div className="grid grid-cols-4 border-b border-gray-100">
             {[
-              { label: 'Streak',  value: `🔥 ${streak}`,          color: '' },
-              { label: 'Longest', value: `${habit.longest_streak ?? 0}`, color: '' },
-              { label: '30-day %', value: `${habit.consistency_30d ?? 0}%`, color: 'text-stride-600' },
-              { label: 'Avg level', value: `${(habit.avg_level_30d ?? 0).toFixed(1)}`, color: 'text-emerald-500' },
+              { label: 'Streak',   value: `🔥 ${streak}`,               color: undefined },
+              { label: 'Longest',  value: `${habit.longest_streak ?? 0}`, color: undefined },
+              { label: '30-day %', value: `${habit.consistency_30d ?? 0}%`, color: undefined, cls: 'text-stride-600' },
+              { label: 'Avg level', value: `${(habit.avg_level_30d ?? 0).toFixed(1)}`,
+                color: LEVEL_COLORS[Math.min(3, Math.floor(habit.avg_level_30d ?? 0))] },
             ].map((stat, i) => (
               <div key={i} className={`py-3 text-center ${i < 3 ? 'border-r border-gray-100' : ''}`}>
-                <div className={`text-sm font-bold text-gray-900 ${stat.color}`}>{stat.value}</div>
+                <div
+                  className={`text-sm font-bold text-gray-900 ${'cls' in stat ? stat.cls : ''}`}
+                  style={stat.color ? { color: stat.color } : undefined}
+                >
+                  {stat.value}
+                </div>
                 <div className="text-[10px] text-gray-400 mt-0.5">{stat.label}</div>
               </div>
             ))}

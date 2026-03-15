@@ -221,6 +221,12 @@ func (h *Handler) listHabits(c *gin.Context) {
 	}
 
 	today := time.Now().UTC().Truncate(24 * time.Hour)
+
+	// Compute Mon–Sun window for the requested date to populate week stats.
+	parsedDate, _ := time.Parse("2006-01-02", dateStr)
+	weekStart := mondayOf(parsedDate)
+	weekEnd := weekStart.AddDate(0, 0, 7)
+
 	result := make([]habitWithLog, len(habits))
 	for i, hb := range habits {
 		logs := logsByHabit[hb.ID]
@@ -241,6 +247,28 @@ func (h *Handler) listHabits(c *gin.Context) {
 		}
 		cur, long := computeHabitStreak(logs, hb.Frequency, wt, today)
 
+		// Compute week stats: count and level sum for logs in [weekStart, weekEnd).
+		var weekCount, weekLevelSum int
+		for _, l := range logs {
+			d := l.Date.Time
+			if !d.Before(weekStart) && d.Before(weekEnd) {
+				weekCount++
+				weekLevelSum += l.Level
+			}
+		}
+		// For weekly habits, cap weekLevelSum at weekly_target × maxLevel to prevent over-counting.
+		if hb.Frequency == "weekly" {
+			maxLevel := 1
+			if hb.Level3Label != nil {
+				maxLevel = 3
+			} else if hb.Level2Label != nil {
+				maxLevel = 2
+			}
+			if cap := wt * maxLevel; weekLevelSum > cap {
+				weekLevelSum = cap
+			}
+		}
+
 		result[i] = habitWithLog{
 			habit:          hb,
 			Log:            todayLog,
@@ -248,6 +276,8 @@ func (h *Handler) listHabits(c *gin.Context) {
 			LongestStreak:  long,
 			Consistency30d: computeConsistency30d(logs, today),
 			AvgLevel30d:    computeAvgLevel30d(logs, today),
+			WeekCount:      weekCount,
+			WeekLevelSum:   weekLevelSum,
 		}
 	}
 

@@ -294,6 +294,8 @@ export interface HabitWithLog extends Habit {
   longest_streak: number
   consistency_30d: number  // 0–100 percentage
   avg_level_30d: number
+  week_count: number      // times logged this week (Mon–Sun of requested date)
+  week_level_sum: number  // sum of logged levels this week
 }
 
 // HabitWeekEntry is one element of GET /api/habits/week — a habit with stats

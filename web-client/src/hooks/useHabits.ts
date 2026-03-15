@@ -45,9 +45,13 @@ export function useHabits(date: string): UseHabitsResult {
     // Snapshot current state for rollback before touching it.
     const rollback = habits
 
-    // Apply optimistic update immediately.
+    // Apply optimistic update immediately — update log, week_count, and week_level_sum
+    // so weekly slot dots and level headers reflect the change without waiting for reload.
     setHabits(habits.map(h => {
       if (h.id !== habitId) return h
+      const prevLevel = h.log?.level ?? 0
+      // week_count: +1 when going from unlogged→logged, -1 for logged→unlogged, 0 otherwise.
+      const countDelta = (level > 0 ? 1 : 0) - (prevLevel > 0 ? 1 : 0)
       return {
         ...h,
         log: level === 0 ? null : {
@@ -57,6 +61,8 @@ export function useHabits(date: string): UseHabitsResult {
           date,
           level: level as 1 | 2 | 3,
         },
+        week_count: h.week_count + countDelta,
+        week_level_sum: h.week_level_sum + (level - prevLevel),
       }
     }))
 

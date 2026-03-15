@@ -190,7 +190,12 @@ export default function HabitDetail() {
               <div className="text-xs text-gray-400 mt-0.5">Last 30 days</div>
             </div>
             <div className="border-l border-gray-100">
-              <div className="text-xl font-bold text-emerald-500">{habit.avg_level_30d.toFixed(1)}</div>
+              <div
+                className="text-xl font-bold"
+                style={{ color: LEVEL_COLORS[Math.min(3, Math.floor(habit.avg_level_30d))] }}
+              >
+                {habit.avg_level_30d.toFixed(1)}
+              </div>
               <div className="text-xs text-gray-400 mt-0.5">Avg level</div>
             </div>
           </div>

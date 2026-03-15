@@ -14,7 +14,8 @@ import type { Habit, HabitWithLog, CreateHabitInput } from '../types'
 import HabitCard from '../components/habits/HabitCard'
 import AddHabitSheet from '../components/habits/AddHabitSheet'
 import ProgressTab from '../components/habits/ProgressTab'
-import { spawnBurst, spawnCelebration, playCheckSound, playCelebrationSound } from '../utils/habitEffects'
+import { spawnBurst, spawnCelebration, spawnWeeklyCelebration, playCheckSound, playCelebrationSound, playWeeklyCelebrationSound } from '../utils/habitEffects'
+import { computeDailyLevel, computeWeeklyLevel } from '../utils/habitLevel'
 import MobileModuleHeader, { type TabDef } from '../components/MobileModuleHeader'
 
 /* ─── Date helpers ──────────────────────────────────────────────────────── */
@@ -40,18 +41,6 @@ function formatDayDisplay(dateStr: string): string {
 
 // Single-letter weekday labels for day pills (Mon=M, Tue=T, … Sun=S).
 const DAY_LETTERS = ['M', 'T', 'W', 'T', 'F', 'S', 'S']
-
-/* ─── Celebration persistence ───────────────────────────────────────────── */
-// Track which (date, level) celebrations have fired using sessionStorage so the
-// celebration doesn't re-trigger on every page mount when habits are already logged.
-
-function hasFiredCelebration(date: string, level: number): boolean {
-  return sessionStorage.getItem(`hab_cel_${date}_${level}`) === '1'
-}
-
-function markCelebrationFired(date: string, level: number): void {
-  sessionStorage.setItem(`hab_cel_${date}_${level}`, '1')
-}
 
 // Dot colors per level, matching level accent colors throughout the app.
 const DOT_COLORS = ['#e5e7eb', '#4f46e5', '#10b981', '#f59e0b']
@@ -100,6 +89,16 @@ export default function HabitsPage() {
     setJournalSheetOpen(true)
   }, [habits])
 
+  // Toast state — auto-dismissed after 3 seconds.
+  const [toastMsg, setToastMsg] = useState<string | null>(null)
+  const toastTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const showToast = useCallback((msg: string) => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current)
+    setToastMsg(msg)
+    toastTimerRef.current = setTimeout(() => setToastMsg(null), 3000)
+  }, [])
+
   // Derived — separate daily and weekly habits.
   const dailyHabits = habits.filter(h => h.frequency === 'daily')
   const weeklyHabits = habits.filter(h => h.frequency === 'weekly')
@@ -107,63 +106,62 @@ export default function HabitsPage() {
   // 7-day date list for the desktop week strip (Mon–Sun).
   const weekDates = Array.from({ length: 7 }, (_, i) => shiftDay(weekStart, i))
 
-  // Multi-level habits (L2+ defined) drive the day level and celebration.
-  // Single-level habits (L1 only) must be logged for celebration but don't
-  // affect the numeric level shown or the level at which celebration fires.
-  const multiLevelHabits = habits.filter(h => h.level2_label != null)
-  const singleLevelHabits = habits.filter(h => h.level2_label == null)
+  // Proportional level results for daily and weekly scopes.
+  const dailyLevelResult = computeDailyLevel(dailyHabits)
+  const weeklyLevelResult = computeWeeklyLevel(habits)
 
-  // Day level for dot color in the week strip: minimum logged level across
-  // multi-level habits (0 if any are unlogged). Falls back to 1 if there are
-  // no multi-level habits and all single-level habits are logged.
-  const maxLevelForSelected = ((): 0 | 1 | 2 | 3 => {
-    if (multiLevelHabits.length === 0) {
-      return singleLevelHabits.length > 0 && singleLevelHabits.every(h => h.log && h.log.level > 0) ? 1 : 0
-    }
-    const min = multiLevelHabits.reduce<number>((m, h) => Math.min(m, h.log?.level ?? 0), 3)
-    return min as 0 | 1 | 2 | 3
-  })()
+  // Dot color in the week strip is driven by the floored daily level (0–3).
+  const maxLevelForSelected = Math.min(3, Math.floor(dailyLevelResult?.level ?? 0)) as 0 | 1 | 2 | 3
 
-  // Reset the toggle flag whenever the user navigates to a different date.
+  // Tracks the last seen floored level for each scope so we only celebrate when
+  // the level crosses a new whole-number threshold (not on every toggle).
+  const prevDailyFloorRef = useRef(0)
+  const prevWeeklyFloorRef = useRef(0)
+
+  // Reset the toggle flag and previous-level refs whenever the user navigates to a different date.
   useEffect(() => {
     userDidToggle.current = false
+    prevDailyFloorRef.current = 0
+    prevWeeklyFloorRef.current = 0
   }, [selectedDate])
 
   /* ─── Celebration check ─────────────────────────────────────────────── */
-  // Fires when: all single-level habits are logged AND all multi-level habits
-  // share the same non-zero level. Uses sessionStorage so the celebration
-  // doesn't re-fire on every page mount when habits are already logged.
+  // Fires only when the floored level increases — i.e. when you cross a new
+  // whole-number threshold that you weren't already at before this toggle.
   useEffect(() => {
-    if (!userDidToggle.current) return
-    if (habits.length === 0) return
-    // Derive inside the effect — these are cheap filters and avoids stale deps
-    // from outer-scope derived arrays that change reference every render.
-    const multi = habits.filter(h => h.level2_label != null)
-    const single = habits.filter(h => h.level2_label == null)
+    // Compute current floored levels regardless of toggle state, so the refs
+    // stay accurate and don't fire stale celebrations after date navigation.
+    const daily = habits.filter(h => h.frequency === 'daily')
+    const dailyResult = computeDailyLevel(daily)
+    const weeklyResult = computeWeeklyLevel(habits)
 
-    // All single-level habits must be completed first.
-    if (!single.every(h => h.log && h.log.level > 0)) return
+    const flooredDailyLevel = Math.floor(dailyResult?.level ?? 0)
+    const flooredWeeklyLevel = Math.floor(weeklyResult?.level ?? 0)
 
-    let lvl: 1 | 2 | 3
-    if (multi.length > 0) {
-      // All multi-level habits must be logged at the same level.
-      if (!multi.every(h => h.log && h.log.level > 0)) return
-      const firstLevel = multi[0].log!.level
-      if (!multi.every(h => h.log!.level === firstLevel)) return
-      lvl = firstLevel as 1 | 2 | 3
-    } else {
-      // No multi-level habits — celebrate at level 1 when all are done.
-      lvl = 1
+    if (userDidToggle.current && habits.length > 0) {
+      // Daily celebration — only if the floored level went up since the last toggle.
+      if (flooredDailyLevel > prevDailyFloorRef.current) {
+        const pill = selectedDayPillRef.current
+        if (pill) {
+          spawnCelebration(pill, Math.min(3, flooredDailyLevel) as 1 | 2 | 3)
+          playCelebrationSound(Math.min(3, flooredDailyLevel) as 1 | 2 | 3)
+        }
+        const msg = `You reached Level ${flooredDailyLevel} for the day! 🎉`
+        setTimeout(() => showToast(msg), 0)
+      }
+
+      // Weekly celebration — only if the floored weekly level went up since the last toggle.
+      if (flooredWeeklyLevel > prevWeeklyFloorRef.current) {
+        spawnWeeklyCelebration(selectedDayPillRef.current)
+        playWeeklyCelebrationSound()
+        const weekMsg = `You reached Level ${flooredWeeklyLevel} for the week! 🌟`
+        setTimeout(() => showToast(weekMsg), 0)
+      }
     }
 
-    if (hasFiredCelebration(selectedDate, lvl)) return
-    markCelebrationFired(selectedDate, lvl)
-    const pill = selectedDayPillRef.current
-    if (pill) {
-      spawnCelebration(pill, lvl)
-      playCelebrationSound(lvl)
-    }
-  }, [habits, selectedDate])
+    prevDailyFloorRef.current = flooredDailyLevel
+    prevWeeklyFloorRef.current = flooredWeeklyLevel
+  }, [habits, selectedDate, showToast])
 
   /* ─── Desktop week navigation ─────────────────────────────────────────── */
 
@@ -474,7 +472,14 @@ export default function HabitsPage() {
           {/* Daily habits section */}
           {!loading && dailyHabits.length > 0 && (
             <div className="mb-6">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Daily</h3>
+              <div className="flex items-baseline gap-2 mb-2 px-1">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Daily</h3>
+                {dailyLevelResult != null && (
+                  <span className="text-xs font-medium" style={{ color: DOT_COLORS[Math.min(3, Math.floor(dailyLevelResult.level))] }}>
+                    · {dailyLevelResult.level.toFixed(2)}
+                  </span>
+                )}
+              </div>
               <div className="space-y-2">
                 {dailyHabits.map(habit => (
                   <HabitCard
@@ -497,7 +502,14 @@ export default function HabitsPage() {
           {/* Weekly habits section */}
           {!loading && weeklyHabits.length > 0 && (
             <div className="mb-6">
-              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 px-1">Weekly</h3>
+              <div className="flex items-baseline gap-2 mb-2 px-1">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Weekly</h3>
+                {weeklyLevelResult != null && (
+                  <span className="text-xs font-medium" style={{ color: DOT_COLORS[Math.min(3, Math.floor(weeklyLevelResult.level))] }}>
+                    · {weeklyLevelResult.level.toFixed(2)}
+                  </span>
+                )}
+              </div>
               <div className="space-y-2">
                 {weeklyHabits.map(habit => (
                   <HabitCard
@@ -557,6 +569,19 @@ export default function HabitsPage() {
         habitName={linkedHabitName}
         habitLevel={linkedHabitLevel}
       />
+
+      {/* Toast — fixed bottom-center pill, auto-dismisses after 3s */}
+      <div
+        className={`fixed bottom-24 left-1/2 -translate-x-1/2 z-50 pointer-events-none transition-all duration-300 ${
+          toastMsg ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2'
+        }`}
+      >
+        {toastMsg && (
+          <div className="bg-gray-900 text-white text-sm font-medium px-4 py-2.5 rounded-full shadow-lg whitespace-nowrap">
+            {toastMsg}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

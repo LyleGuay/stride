@@ -216,6 +216,36 @@ export default function HabitCard({
         </button>
       </div>
 
+      {/* Weekly slot dots — filled/empty circles showing progress toward weekly_target.
+          For multi-level habits, today's slot is colored by the current log level;
+          prior completions use the L1 color (we don't have per-log level history here). */}
+      {habit.frequency === 'weekly' && (() => {
+        const target = habit.weekly_target ?? 1
+        const filled = Math.min(habit.week_count, target)
+        const isMultiLevel = habit.level2_label != null
+        // Today's log level drives the color of the "current" slot; other slots use L1 color.
+        const todayLevel = (habit.log?.level ?? 1) as 1 | 2 | 3
+        const todayColor = isMultiLevel ? LEVEL_COLORS[todayLevel] : (habit.color ?? LEVEL_COLORS[1])
+        const priorColor = isMultiLevel ? LEVEL_COLORS[1] : (habit.color ?? LEVEL_COLORS[1])
+        // The last filled slot is "today's" if logged; slots before it are prior completions.
+        const todaySlotIndex = habit.log ? filled - 1 : -1
+        return (
+          <div className="flex gap-1 px-4 pb-2">
+            {Array.from({ length: target }, (_, i) => {
+              const slotFilled = i < filled
+              const isToday = i === todaySlotIndex
+              return (
+                <div
+                  key={i}
+                  className="w-2 h-2 rounded-full"
+                  style={{ backgroundColor: slotFilled ? (isToday ? todayColor : priorColor) : '#e5e7eb' }}
+                />
+              )
+            })}
+          </div>
+        )
+      })()}
+
       {/* ── Expanded section ────────────────────────────────────────── */}
       {expanded && (
         <div className="border-t border-gray-100 px-4 py-3">

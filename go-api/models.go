@@ -240,6 +240,8 @@ type habitWithLog struct {
 	LongestStreak  int       `json:"longest_streak"`
 	Consistency30d int       `json:"consistency_30d"` // 0–100 percentage
 	AvgLevel30d    float64   `json:"avg_level_30d"`
+	WeekCount      int       `json:"week_count"`     // logs this week (Mon–Sun of requested date)
+	WeekLevelSum   int       `json:"week_level_sum"` // sum of logged levels this week
 }
 
 // habitWeekEntry is one item in the GET /api/habits/week response.

@@ -13,7 +13,7 @@ interface Particle {
   r: number
   color: string
   decay: number
-  shape: 'circle' | 'square' | 'sparkle'
+  shape: 'circle' | 'square' | 'sparkle' | 'star'
   rotation: number
 }
 
@@ -85,7 +85,7 @@ function tick() {
       c.translate(p.x, p.y)
       c.rotate(p.rotation)
       c.fillRect(-p.r, -p.r, p.r * 2, p.r * 2)
-    } else {
+    } else if (p.shape === 'sparkle') {
       // 4-pointed sparkle: two thin crossed rectangles.
       c.fillStyle = p.color
       c.translate(p.x, p.y)
@@ -93,13 +93,28 @@ function tick() {
       c.fillRect(-p.r, -p.r * 0.25, p.r * 2, p.r * 0.5)
       c.rotate(Math.PI / 2)
       c.fillRect(-p.r, -p.r * 0.25, p.r * 2, p.r * 0.5)
+    } else {
+      // 5-pointed star: 10-point polygon alternating outer/inner radius.
+      c.fillStyle = p.color
+      c.translate(p.x, p.y)
+      c.rotate(p.rotation)
+      c.beginPath()
+      for (let k = 0; k < 10; k++) {
+        const angle = (k * Math.PI) / 5 - Math.PI / 2
+        const radius = k % 2 === 0 ? p.r : p.r * 0.45
+        if (k === 0) c.moveTo(Math.cos(angle) * radius, Math.sin(angle) * radius)
+        else c.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius)
+      }
+      c.closePath()
+      c.fill()
     }
 
     c.restore()
 
     p.x += p.vx
     p.y += p.vy
-    p.vy += 0.2      // gravity
+    // Weekly celebration particles have lower decay (0.010) so they stay lighter in the air longer.
+    p.vy += p.decay < 0.015 ? 0.15 : 0.2   // slower gravity for weekly particles
     p.vx *= 0.96     // air resistance
     p.vy *= 0.96
     p.rotation += 0.08
@@ -261,6 +276,83 @@ export function playCheckSound(level: 1 | 2 | 3): void {
   })
 }
 
+/** Dual confetti-cannon burst for the weekly level celebration.
+ *  200 particles total — 100 launched from left edge (x=0), 100 from right edge,
+ *  both angled upward and inward. Shadow glow applied for 1200ms. */
+/** Spawn a dual confetti-cannon burst for the weekly level milestone celebration.
+ *  anchor is accepted for API consistency but unused — the weekly effect launches
+ *  from screen edges rather than a focal element. */
+export function spawnWeeklyCelebration(anchor: HTMLElement | null): void {
+  void anchor  // intentionally unused — weekly animation fires from screen edges
+  getCtx()     // ensure canvas overlay is initialized
+
+  // 6-color multi-hue palette: gold, rose, violet, teal, sky, emerald.
+  const palette = [
+    '#f59e0b', '#fcd34d',
+    '#f43f5e', '#fb7185',
+    '#7c3aed', '#a78bfa',
+    '#0d9488', '#2dd4bf',
+    '#0284c7', '#38bdf8',
+    '#059669', '#34d399',
+  ]
+
+  const randomColor = () => palette[Math.floor(Math.random() * palette.length)]
+  const randomWeeklyShape = (): Particle['shape'] => {
+    const r = Math.random()
+    return r < 0.3 ? 'circle' : r < 0.55 ? 'square' : r < 0.77 ? 'sparkle' : 'star'
+  }
+
+  const w = window.innerWidth
+
+  // Left cannon: shoot upward and rightward from x=0.
+  for (let i = 0; i < 100; i++) {
+    // Angle centered at -70° from horizontal (mostly upward, slightly right); spread ±40°.
+    const angle = (-Math.PI * 7) / 18 + (Math.random() - 0.5) * (Math.PI * 80 / 180)
+    const speed = 6 + Math.random() * 10
+    particles.push({
+      x: 0,
+      y: window.innerHeight * (0.4 + Math.random() * 0.4),
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      alpha: 1,
+      r: 3 + Math.random() * 5,
+      color: randomColor(),
+      decay: 0.010 + Math.random() * 0.008,
+      shape: randomWeeklyShape(),
+      rotation: Math.random() * Math.PI * 2,
+    })
+  }
+
+  // Right cannon: shoot upward and leftward from x=width.
+  for (let i = 0; i < 100; i++) {
+    // Mirror of left cannon — angle centered at -110° from horizontal.
+    const angle = (-Math.PI * 11) / 18 + (Math.random() - 0.5) * (Math.PI * 80 / 180)
+    const speed = 6 + Math.random() * 10
+    particles.push({
+      x: w,
+      y: window.innerHeight * (0.4 + Math.random() * 0.4),
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed,
+      alpha: 1,
+      r: 3 + Math.random() * 5,
+      color: randomColor(),
+      decay: 0.010 + Math.random() * 0.008,
+      shape: randomWeeklyShape(),
+      rotation: Math.random() * Math.PI * 2,
+    })
+  }
+
+  // Slower gravity for weekly particles (override applied in tick via lower gravity constant).
+  // Shadow glow — applied globally for 1200ms.
+  if (ctx) {
+    ctx.shadowBlur = 10
+    ctx.shadowColor = '#f59e0b'
+    setTimeout(() => { if (ctx) ctx.shadowBlur = 0 }, 1200)
+  }
+
+  kickParticles()
+}
+
 /** Ascending 4-note arpeggio for the all-same-level celebration. */
 export function playCelebrationSound(level: 1 | 2 | 3): void {
   const a = getAudioCtx()
@@ -288,6 +380,34 @@ export function playCelebrationSound(level: 1 | 2 | 3): void {
       gain.gain.exponentialRampToValueAtTime(0.001, t + 0.6)
       osc.start(t)
       osc.stop(t + 0.6)
+    } catch { /* ignore AudioContext errors in restricted environments */ }
+  })
+}
+
+/** 6-note ascending arpeggio for the weekly level celebration.
+ *  Higher root pitch, longer spacing (110ms), and longer decay than the daily sound. */
+export function playWeeklyCelebrationSound(): void {
+  const a = getAudioCtx()
+  if (!a) return
+
+  // C major arpeggio two octaves — bright and ascending, clearly distinct from daily.
+  const notes = [523.25, 659.25, 783.99, 1046.5, 1318.51, 1567.98]  // C5 E5 G5 C6 E6 G6
+
+  notes.forEach((freq, i) => {
+    try {
+      const osc = a.createOscillator()
+      const gain = a.createGain()
+      osc.connect(gain)
+      gain.connect(a.destination)
+      osc.type = 'sine'
+
+      const t = a.currentTime + i * 0.11
+      osc.frequency.setValueAtTime(freq, t)
+      gain.gain.setValueAtTime(0, t)
+      gain.gain.linearRampToValueAtTime(0.18, t + 0.03)
+      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.8)
+      osc.start(t)
+      osc.stop(t + 0.8)
     } catch { /* ignore AudioContext errors in restricted environments */ }
   })
 }
