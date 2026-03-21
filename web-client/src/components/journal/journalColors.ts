@@ -6,8 +6,11 @@ import { EMOTION_TAGS } from '../../types'
 // Explicit overrides for tags that need formatting (snake_case values).
 // All other tags fall back to title-casing the value (e.g. 'happy' → 'Happy').
 const TAG_LABEL_OVERRIDES: Partial<Record<JournalTag, string>> = {
-  open_loop:   'Open Loop',
-  life_update: 'Life Update',
+  open_loop:    'Open Loop',
+  life_update:  'Life Update',
+  well_rested:  'Well Rested',
+  stomach_ache: 'Stomach Ache',
+  brain_fog:    'Brain Fog',
 }
 
 // tagLabel returns the human-readable display label for a tag.
@@ -19,7 +22,7 @@ export function tagLabel(tag: JournalTag): string {
 /* ─── Emotion colors ─────────────────────────────────────────────────── */
 
 // EMOTION_COLORS maps emotion tags to their hex accent colors.
-// Entry-type tags have no color and are not present in this map.
+// Entry-type and condition tags have no color entry here.
 export const EMOTION_COLORS: Partial<Record<JournalTag, string>> = {
   excited:     '#fbbf24',  // amber-400
   happy:       '#4ade80',  // green-400
@@ -28,9 +31,16 @@ export const EMOTION_COLORS: Partial<Record<JournalTag, string>> = {
   calm:        '#67e8f9',  // cyan-300
   content:     '#86efac',  // green-300
   grateful:    '#a7f3d0',  // emerald-200
+  well_rested: '#86efac',  // green-300
+  hopeful:     '#6ee7b7',  // emerald-300
+  proud:       '#fde68a',  // amber-200
   neutral:     '#94a3b8',  // slate-400
+  confused:    '#fcd34d',  // amber-300
   bored:       '#93c5fd',  // blue-300
   unmotivated: '#cbd5e1',  // slate-300
+  stressed:    '#f97316',  // orange-500
+  annoyed:     '#fb923c',  // orange-400
+  lonely:      '#93c5fd',  // blue-300
   anxious:     '#a78bfa',  // violet-400
   overwhelmed: '#c084fc',  // purple-400
   low:         '#a78bfa',  // violet-400
@@ -60,9 +70,16 @@ export const EMOTION_EMOJIS: Partial<Record<JournalTag, string>> = {
   calm:        '😌',
   content:     '🙂',
   grateful:    '🙏',
+  well_rested: '😴',
+  hopeful:     '🌱',
+  proud:       '🏆',
   neutral:     '😐',
+  confused:    '😕',
   bored:       '😑',
   unmotivated: '😕',
+  stressed:    '😤',
+  annoyed:     '😒',
+  lonely:      '🌧️',
   anxious:     '😰',
   overwhelmed: '😩',
   low:         '😞',
@@ -70,6 +87,26 @@ export const EMOTION_EMOJIS: Partial<Record<JournalTag, string>> = {
   angry:       '😠',
   frustrated:  '😤',
   depressed:   '😔',
+}
+
+// CONDITION_COLORS maps physical condition tags to their amber/orange accent colors.
+export const CONDITION_COLORS: Partial<Record<JournalTag, string>> = {
+  stomach_ache: '#f97316',  // orange-500
+  nausea:       '#fb923c',  // orange-400
+  brain_fog:    '#d1d5db',  // gray-300
+  fatigue:      '#94a3b8',  // slate-400
+  tired:        '#94a3b8',  // slate-400
+  sick:         '#86efac',  // green-300 (muted/desaturated feel)
+}
+
+// CONDITION_EMOJIS maps each condition tag to a representative emoji.
+export const CONDITION_EMOJIS: Partial<Record<JournalTag, string>> = {
+  stomach_ache: '🤢',
+  nausea:       '🤮',
+  brain_fog:    '🌫️',
+  fatigue:      '🥱',
+  tired:        '😴',
+  sick:         '🤒',
 }
 
 const FALLBACK_COLOR = '#e2e8f0' // slate-200 — used when no emotion tags are present

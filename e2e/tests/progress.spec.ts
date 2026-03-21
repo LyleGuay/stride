@@ -32,7 +32,13 @@ test.describe('Progress tab', () => {
     // Wait for Period Summary card to be visible
     await expect(page.getByText('Period Summary')).toBeVisible()
 
-    // Click "YTD" — selector should update
+    // Wait for the initial data load to complete before switching ranges.
+    // The Calories heading only renders when !loading && !error, so this confirms
+    // the initial fetch succeeded and avoids a race where the range switch fires
+    // before earliestLogDate has resolved and the first fetch has started.
+    await expect(page.getByRole('heading', { name: 'Calories', exact: true })).toBeVisible()
+
+    // Click "YTD" — selector should update and data should reload
     await page.getByRole('button', { name: 'YTD' }).click()
 
     // The Calories card should still render (chart or no-data placeholder)

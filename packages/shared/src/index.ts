@@ -1,4 +1,4 @@
 export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, Recipe, RecipeListItem, RecipeIngredient, RecipeTool, RecipeStep, RecipeDetail, RecipeIngredientInput, RecipeToolInput, RecipeStepInput, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalTag, JournalEntry, JournalSummaryResponse, CreateJournalEntryInput, UpdateJournalEntryInput } from './types'
-export { EMOTION_TAGS, ENTRY_TYPE_TAGS } from './types'
+export { EMOTION_TAGS, CONDITION_TAGS, ENTRY_TYPE_TAGS } from './types'
 export { todayString, getMondayOf, shiftWeek, formatWeekRange, dayLabel, dayNumber } from './utils/dates'
 export { ITEM_TYPES, FOOD_UNITS, EXERCISE_UNITS, UNIT_LABELS } from './constants'

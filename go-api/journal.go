@@ -81,9 +81,18 @@ type journalSummaryResponse struct {
 // mental-state scoring and the top-emotions chart.
 var emotionTags = map[string]bool{
 	"excited": true, "happy": true, "motivated": true, "energized": true,
-	"calm": true, "content": true, "grateful": true, "neutral": true,
-	"bored": true, "unmotivated": true, "anxious": true, "overwhelmed": true,
+	"calm": true, "content": true, "grateful": true, "well_rested": true,
+	"hopeful": true, "proud": true, "neutral": true, "confused": true,
+	"bored": true, "unmotivated": true, "tired": true, "stressed": true,
+	"annoyed": true, "lonely": true, "anxious": true, "overwhelmed": true,
 	"low": true, "sad": true, "angry": true, "frustrated": true, "depressed": true,
+	"sick": true,
+}
+
+// conditionTags is the set of tags that represent physical conditions.
+// Like emotions, they factor into the mental-state score.
+var conditionTags = map[string]bool{
+	"stomach_ache": true, "nausea": true, "brain_fog": true, "fatigue": true,
 }
 
 // entryTypeTags is the set of tags that describe what kind of entry was written.
@@ -92,19 +101,34 @@ var entryTypeTags = map[string]bool{
 	"reminder": true, "life_update": true, "feelings": true,
 }
 
-// mentalStateScore returns the mental-state score (1–5) for a single emotion tag.
-// Non-emotion tags (entry types, unknown values) return 0 and are skipped in scoring.
+// mentalStateScore returns the mental-state score (1–5) for a single emotion or condition tag.
+// Condition tags (physical symptoms) also return a score so they pull the daily average down.
+// Non-scoring tags (entry types, unknown values) return 0 and are skipped in scoring.
 func mentalStateScore(tag string) int {
 	switch tag {
 	case "excited":
 		return 5
+	case "well_rested":
+		return 5
 	case "happy", "motivated", "energized", "calm", "content", "grateful":
+		return 4
+	case "hopeful", "proud":
 		return 4
 	case "neutral":
 		return 3
+	case "confused":
+		return 3
 	case "bored", "unmotivated", "anxious", "overwhelmed", "low":
 		return 2
+	case "tired", "stressed", "annoyed", "lonely":
+		return 2
+	case "stomach_ache", "brain_fog", "fatigue":
+		return 2
 	case "sad", "angry", "frustrated", "depressed":
+		return 1
+	case "sick":
+		return 1
+	case "nausea":
 		return 1
 	}
 	return 0
@@ -363,7 +387,8 @@ func (h *Handler) getJournalSummary(c *gin.Context) {
 				dateScores[dateKey].scoreSum += s
 				dateScores[dateKey].scoreN++
 			}
-			if emotionTags[tag] {
+			// Condition tags count toward the same frequency bucket as emotions
+			if emotionTags[tag] || conditionTags[tag] {
 				emotionCounts[tag]++
 			} else if entryTypeTags[tag] {
 				entryTypeCounts[tag]++

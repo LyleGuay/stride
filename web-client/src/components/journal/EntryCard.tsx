@@ -8,8 +8,8 @@
 import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { JournalEntry, JournalTag } from '../../types'
-import { EMOTION_TAGS, ENTRY_TYPE_TAGS } from '../../types'
-import { emotionGradient, tagLabel, EMOTION_COLORS, EMOTION_EMOJIS, ENTRY_TYPE_EMOJIS } from './journalColors'
+import { EMOTION_TAGS, CONDITION_TAGS, ENTRY_TYPE_TAGS } from '../../types'
+import { emotionGradient, tagLabel, EMOTION_COLORS, EMOTION_EMOJIS, ENTRY_TYPE_EMOJIS, CONDITION_COLORS, CONDITION_EMOJIS } from './journalColors'
 
 interface Props {
   entry: JournalEntry
@@ -21,6 +21,7 @@ export default function EntryCard({ entry, onEdit, onDelete }: Props) {
   const [showMenu, setShowMenu] = useState(false)
 
   const emotionTagList = entry.tags.filter(t => EMOTION_TAGS.has(t))
+  const conditionTagList = entry.tags.filter(t => CONDITION_TAGS.has(t))
   const entryTypeTagList = entry.tags.filter(t => ENTRY_TYPE_TAGS.has(t))
   const accentBg = emotionGradient(entry.tags)
 
@@ -44,13 +45,16 @@ export default function EntryCard({ entry, onEdit, onDelete }: Props) {
             {entry.entry_time}
           </span>
 
-          {/* Tag chips — entry-type first, then emotion */}
+          {/* Tag chips — entry-type first, then emotion, then conditions */}
           <div className="flex flex-wrap gap-1 flex-1 min-w-0">
             {entryTypeTagList.map(tag => (
               <EntryTypeChip key={tag} tag={tag} />
             ))}
             {emotionTagList.map(tag => (
               <EmotionChip key={tag} tag={tag} />
+            ))}
+            {conditionTagList.map(tag => (
+              <ConditionChip key={tag} tag={tag} />
             ))}
           </div>
 
@@ -135,6 +139,21 @@ function EntryTypeChip({ tag }: { tag: JournalTag }) {
 function EmotionChip({ tag }: { tag: JournalTag }) {
   const color = EMOTION_COLORS[tag]
   const emoji = EMOTION_EMOJIS[tag]
+  return (
+    <span
+      className="inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full border"
+      style={color ? { borderColor: color, color, backgroundColor: `${color}25` } : undefined}
+    >
+      {emoji && <span>{emoji}</span>}
+      {tagLabel(tag)}
+    </span>
+  )
+}
+
+// ConditionChip — chip for physical condition tags, styled with amber/gray tones
+function ConditionChip({ tag }: { tag: JournalTag }) {
+  const color = CONDITION_COLORS[tag]
+  const emoji = CONDITION_EMOJIS[tag]
   return (
     <span
       className="inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full border"

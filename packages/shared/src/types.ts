@@ -314,13 +314,18 @@ export type UpdateHabitInput = Partial<CreateHabitInput>
 
 /* ─── Journal ────────────────────────────────────────────────────────────── */
 
-// JournalTag is the union of all emotion and entry-type tag values.
+// JournalTag is the union of all emotion, condition, and entry-type tag values.
 // Mirrors the journal_tag PostgreSQL enum.
 export type JournalTag =
   // Emotions
   | 'happy' | 'excited' | 'motivated' | 'energized' | 'calm' | 'content' | 'grateful'
-  | 'neutral' | 'bored' | 'unmotivated' | 'anxious' | 'overwhelmed' | 'low'
-  | 'sad' | 'angry' | 'frustrated' | 'depressed'
+  | 'well_rested' | 'hopeful' | 'proud'
+  | 'neutral' | 'confused' | 'bored' | 'unmotivated'
+  | 'tired' | 'stressed' | 'annoyed' | 'lonely'
+  | 'anxious' | 'overwhelmed' | 'low' | 'sad' | 'angry' | 'frustrated' | 'depressed'
+  | 'sick'
+  // Conditions (physical symptoms that also affect the mental state score)
+  | 'stomach_ache' | 'nausea' | 'brain_fog' | 'fatigue'
   // Entry types
   | 'thoughts' | 'idea' | 'venting' | 'open_loop' | 'reminder' | 'life_update' | 'feelings'
 
@@ -328,8 +333,17 @@ export type JournalTag =
 // Used to classify tags for coloring and mental-state scoring.
 export const EMOTION_TAGS = new Set<JournalTag>([
   'happy', 'excited', 'motivated', 'energized', 'calm', 'content', 'grateful',
-  'neutral', 'bored', 'unmotivated', 'anxious', 'overwhelmed', 'low',
-  'sad', 'angry', 'frustrated', 'depressed',
+  'well_rested', 'hopeful', 'proud',
+  'neutral', 'confused', 'bored', 'unmotivated',
+  'stressed', 'annoyed', 'lonely',
+  'anxious', 'overwhelmed', 'low', 'sad', 'angry', 'frustrated', 'depressed',
+])
+
+// CONDITION_TAGS is the set of tags that represent physical conditions.
+// Like emotions, they factor into the mental-state score (bad symptoms pull the average down).
+// Displayed in their own "Conditions" chip group in the UI.
+export const CONDITION_TAGS = new Set<JournalTag>([
+  'stomach_ache', 'nausea', 'brain_fog', 'fatigue', 'tired', 'sick',
 ])
 
 // ENTRY_TYPE_TAGS is the set of tags that describe the kind of entry written.

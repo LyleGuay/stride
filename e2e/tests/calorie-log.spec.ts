@@ -34,9 +34,14 @@ test.describe('Settings', () => {
       await autoToggle.click()
     }
 
-    // Fill manual budget input (min=1200, max=5000 — unique enough to target)
+    // Fill manual budget input (min=1200, max=5000 — unique enough to target).
+    // Use triple-click to select then keyboard.type() instead of fill() — fill() on
+    // React-controlled number inputs doesn't reliably fire the synthetic input event
+    // that updates React state, so the save would send the old value.
     const budgetInput = page.locator('input[type="number"][min="1200"]')
-    await budgetInput.fill('2150')
+    await budgetInput.click({ clickCount: 3 })
+    await page.keyboard.type('2150')
+    await expect(budgetInput).toHaveValue('2150')
 
     await page.getByRole('button', { name: /save changes/i }).click()
     // Wait for save to complete
@@ -49,7 +54,9 @@ test.describe('Settings', () => {
     // Restore original budget (cleanup so other tests are unaffected)
     await page.goto('/settings')
     const restoreInput = page.locator('input[type="number"][min="1200"]')
-    await restoreInput.fill('2300')
+    await restoreInput.click({ clickCount: 3 })
+    await page.keyboard.type('2300')
+    await expect(restoreInput).toHaveValue('2300')
     await page.getByRole('button', { name: /save changes/i }).click()
     await expect(page.getByText('Saved!')).toBeVisible()
   })

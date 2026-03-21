@@ -7,14 +7,19 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { JournalEntry, JournalTag, CreateJournalEntryInput, UpdateJournalEntryInput } from '../../types'
-import { tagLabel, EMOTION_COLORS, EMOTION_EMOJIS, ENTRY_TYPE_EMOJIS } from './journalColors'
+import { tagLabel, EMOTION_COLORS, EMOTION_EMOJIS, ENTRY_TYPE_EMOJIS, CONDITION_COLORS, CONDITION_EMOJIS } from './journalColors'
 import { createJournalEntry, updateJournalEntry } from '../../api'
 
-// Ordered lists for consistent chip display order in the UI
+// Ordered lists for consistent chip display order in the UI.
+// Positives first, then neutral/mixed, then negatives.
 const EMOTION_TAG_LIST: JournalTag[] = [
-  'excited', 'happy', 'motivated', 'energized', 'calm', 'content', 'grateful',
-  'neutral', 'bored', 'unmotivated', 'anxious', 'overwhelmed', 'low', 'sad',
-  'angry', 'frustrated', 'depressed',
+  'excited', 'happy', 'motivated', 'energized', 'calm', 'content', 'grateful', 'well_rested', 'hopeful', 'proud',
+  'neutral', 'confused', 'bored', 'unmotivated',
+  'stressed', 'annoyed', 'lonely',
+  'anxious', 'overwhelmed', 'low', 'sad', 'angry', 'frustrated', 'depressed',
+]
+const CONDITION_TAG_LIST: JournalTag[] = [
+  'stomach_ache', 'nausea', 'brain_fog', 'fatigue', 'tired', 'sick',
 ]
 const ENTRY_TYPE_TAG_LIST: JournalTag[] = [
   'thoughts', 'idea', 'venting', 'open_loop', 'reminder', 'life_update', 'feelings',
@@ -215,13 +220,41 @@ export default function AddEntrySheet({ open, onClose, onSaved, date, editEntry,
             </div>
 
             {/* Emotion/mood tag chips — selected chip uses the tag's accent color */}
-            <div className="mb-5">
+            <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Mood</label>
               <div className="flex flex-wrap gap-1.5">
                 {EMOTION_TAG_LIST.map(tag => {
                   const selected = tags.includes(tag)
                   const color = EMOTION_COLORS[tag]
                   const emoji = EMOTION_EMOJIS[tag]
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => toggleTag(tag)}
+                      className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                        selected ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'
+                      }`}
+                      style={selected && color
+                        ? { backgroundColor: color, borderColor: color }
+                        : color ? { backgroundColor: `${color}18` } : undefined}
+                    >
+                      {emoji && <span>{emoji}</span>}
+                      {tagLabel(tag)}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Condition chips — physical symptoms that also pull the mental-state score down */}
+            <div className="mb-5">
+              <label className="block text-sm font-medium text-gray-700 mb-2">Conditions</label>
+              <div className="flex flex-wrap gap-1.5">
+                {CONDITION_TAG_LIST.map(tag => {
+                  const selected = tags.includes(tag)
+                  const color = CONDITION_COLORS[tag]
+                  const emoji = CONDITION_EMOJIS[tag]
                   return (
                     <button
                       key={tag}
