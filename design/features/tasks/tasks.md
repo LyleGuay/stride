@@ -37,11 +37,11 @@ Four statuses, one of which is the terminal state:
 |--------|-------------|--------|
 | **Todo** | Default state on creation | Empty circle, priority-colored border |
 | **In Progress** | Actively being worked on | Half-filled circle (indigo) |
-| **Done** | Completed; sets `completed_at` timestamp | Filled green circle with checkmark |
+| **Completed** | Completed; sets `completed_at` timestamp | Filled green circle with checkmark |
 | **Canceled** | Intentionally dropped; sets `canceled_at` | Gray circle with × |
 
 **Checkbox behavior:**
-- Single tap → marks **Done** immediately (same as current Todoist muscle memory)
+- Single tap → marks **Completed** immediately (same as current Todoist muscle memory)
 - Long-press on mobile / hover+click on desktop → opens a small status dropdown with all four options
 
 Done and Canceled tasks are removed from active views and moved to a collapsed "Completed / Canceled" section at the bottom. They can be un-done by tapping the checkbox again from that section (sets status back to Todo).
@@ -53,7 +53,7 @@ Done and Canceled tasks are removed from active views and moved to a collapsed "
 Recurring tasks are out of scope for v1 but the data model is designed to support them without migration pain. When added, the implementation will:
 
 - Add a `recurrence_rule` text column on `tasks` (e.g. `RRULE:FREQ=WEEKLY;BYDAY=MO`)
-- On completion, instead of a simple `status = done`, spawn a new task row for the next occurrence
+- On completion, instead of a simple `status = completed`, spawn a new task row for the next occurrence
 - The original task row keeps its `completed_at`; a new row is inserted with the next `due_date`
 
 No recurring-specific UI is designed yet, but the schema leaves room for it.
@@ -110,7 +110,7 @@ No recurring-specific UI is designed yet, but the schema leaves room for it.
 |--------|---------------|
 | **Active** | Tasks with `status IN ('todo', 'in_progress')` and a due date; grouped by priority |
 | **Backlog** | Tasks with no `due_date` (`status IN ('todo', 'in_progress')`); grouped by priority. An intentionally calm holding area — nothing here is "due." Each row has a Schedule button to assign a date. |
-| **Completed** | All `done` tasks; sorted by `completed_at` descending |
+| **Completed** | All `completed` tasks; sorted by `completed_at` descending |
 | **Canceled** | All `canceled` tasks; sorted by `canceled_at` descending |
 
 **Search bar** (Active filter only): filters task rows in real time by name.
@@ -141,7 +141,7 @@ A small popover anchored to the status circle:
 ```
 ○  Todo
 ◑  In Progress
-✓  Done
+✓  Completed
 ×  Canceled
 ```
 
@@ -181,7 +181,7 @@ tasks (
   due_date        date,                        -- null = no due date; routes to Backlog
   priority        task_priority not null default 'medium',
   status          task_status   not null default 'todo',
-  completed_at    timestamptz,                 -- set when status → done
+  completed_at    timestamptz,                 -- set when status → completed
   canceled_at     timestamptz,                 -- set when status → canceled
   -- Future: recurrence_rule text,            -- RRULE string, null = non-recurring
   created_at      timestamptz default now(),
@@ -194,16 +194,17 @@ task_tags (
   primary key (task_id, tag)
 )
 
-create type task_priority as enum ('emergency', 'high', 'medium', 'low');
-create type task_status   as enum ('todo', 'in_progress', 'done', 'canceled');
+create type task_priority as enum ('urgent', 'high', 'medium', 'low');
+create type task_status   as enum ('todo', 'in_progress', 'completed', 'canceled');
 ```
 
 **API routes (sketch):**
-- `GET /api/tasks?view=today|upcoming|all|backlog&status=active` — filtered task list; `active` excludes done+canceled
-- `POST /api/tasks` — create task
-- `PATCH /api/tasks/:id` — update (name, description, due_date, priority, status)
+- `GET /api/tasks?view=today|upcoming|all|backlog|completed|canceled&today=YYYY-MM-DD&search=&limit=25&offset=0` — paginated task list; response: `{ tasks, has_more }`
+- `GET /api/tasks/overdue-count?today=YYYY-MM-DD` — returns `{ count }` for the nav badge
+- `POST /api/tasks` — create task (tags sent inline as `string[]`)
+- `GET /api/tasks/:id` — fetch single task
+- `PATCH /api/tasks/:id` — update (any fields; tags as `string[]` full-replace when provided)
 - `DELETE /api/tasks/:id` — hard delete
-- `POST /api/tasks/:id/tags` / `DELETE /api/tasks/:id/tags/:tag`
 
 ---
 
@@ -261,7 +262,7 @@ Post-MVP; noted here so the gesture targets are accounted for in layout (no inte
 ### All tab filters
 The All tab has three filter pills: **Active** (default) | **Completed** | **Canceled**.
 - Active: all tasks with status `todo` or `in_progress`, grouped by priority
-- Completed: all `done` tasks, sorted by `completed_at` descending
+- Completed: all `completed` tasks, sorted by `completed_at` descending
 - Canceled: all `canceled` tasks, sorted by `canceled_at` descending
 
 This replaces a separate "Completed tasks" screen — history lives in the All tab.

@@ -5,12 +5,27 @@
 // Profile/account actions live in a footer at the bottom of the sidebar.
 // Page content renders via <Outlet /> with no top bar — each page owns its header.
 
-import { Outlet, NavLink, Link } from 'react-router'
+import { useState, useEffect } from 'react'
+import { Outlet, NavLink, Link, useLocation } from 'react-router'
 import { SidebarProvider, useSidebar } from './SidebarContext'
 import ProfileDropdown from './ProfileDropdown'
+import { fetchOverdueTaskCount } from '../api'
+import { todayString } from '../utils/dates'
+import { TaskMutationProvider, useTaskMutation } from './tasks/TaskMutationContext'
 
 function Shell() {
   const { open, setOpen } = useSidebar()
+  const location = useLocation()
+  const { mutationKey } = useTaskMutation()
+
+  // Overdue task count for the nav badge — refetched on navigation and after
+  // any task mutation (mutationKey bumped by TaskMutationContext).
+  const [overdueCount, setOverdueCount] = useState(0)
+  useEffect(() => {
+    fetchOverdueTaskCount(todayString())
+      .then(res => setOverdueCount(res.count))
+      .catch(() => setOverdueCount(0))
+  }, [location.pathname, mutationKey])
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -95,6 +110,27 @@ function Shell() {
             Journal
           </NavLink>
           <NavLink
+            to="/tasks"
+            onClick={() => setOpen(false)}
+            className={({ isActive }) =>
+              `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm mt-1 ${
+                isActive ? 'bg-stride-50 text-stride-700 font-medium' : 'text-gray-600 hover:bg-gray-50'
+              }`
+            }
+          >
+            {/* Checklist / queue-list icon */}
+            <svg className="w-5 h-5 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+            </svg>
+            Tasks
+            {/* Overdue badge — shown when there are tasks past their due date */}
+            {overdueCount > 0 && (
+              <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full leading-none">
+                {overdueCount > 99 ? '99+' : overdueCount}
+              </span>
+            )}
+          </NavLink>
+          <NavLink
             to="/recipes"
             onClick={() => setOpen(false)}
             className={({ isActive }) =>
@@ -124,11 +160,14 @@ function Shell() {
   )
 }
 
-// AppShell wraps Shell in SidebarProvider so useSidebar() works anywhere in the tree.
+// AppShell wraps Shell in both SidebarProvider and TaskMutationProvider so
+// useSidebar() and useTaskMutation() work anywhere in the routed tree.
 export default function AppShell() {
   return (
-    <SidebarProvider>
-      <Shell />
-    </SidebarProvider>
+    <TaskMutationProvider>
+      <SidebarProvider>
+        <Shell />
+      </SidebarProvider>
+    </TaskMutationProvider>
   )
 }

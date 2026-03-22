@@ -393,3 +393,54 @@ export interface CreateJournalEntryInput {
 
 // UpdateJournalEntryInput is the body for PUT /api/journal/:id — all fields optional.
 export type UpdateJournalEntryInput = Partial<CreateJournalEntryInput>
+
+/* ─── Task types ────────────────────────────────────────────────────── */
+
+// Task mirrors the Go task struct from go-api/models.go.
+// due_time is "HH:MM" (formatted server-side) or null when no time is set.
+// tags is always an array (never null); empty when the task has no tags.
+export interface Task {
+  id: number
+  user_id: number
+  name: string
+  description: string | null
+  due_date: string | null   // YYYY-MM-DD
+  due_time: string | null   // HH:MM
+  priority: 'urgent' | 'high' | 'medium' | 'low'
+  status: 'todo' | 'in_progress' | 'completed' | 'canceled'
+  completed_at: string | null
+  canceled_at: string | null
+  created_at: string
+  updated_at: string
+  tags: string[]
+}
+
+// TaskListResponse is the paginated response from GET /api/tasks.
+// has_more signals the client that another page is available.
+export interface TaskListResponse {
+  tasks: Task[]
+  has_more: boolean
+}
+
+// CreateTaskInput is the body for POST /api/tasks.
+export interface CreateTaskInput {
+  name: string
+  description?: string
+  due_date?: string   // YYYY-MM-DD; omit to route to Backlog
+  due_time?: string   // HH:MM
+  priority?: 'urgent' | 'high' | 'medium' | 'low'
+  tags?: string[]
+}
+
+// UpdateTaskInput is the body for PATCH /api/tasks/:id.
+// All fields are optional — only provided fields are written.
+// Send due_date: "" or due_time: "" to clear those fields.
+export interface UpdateTaskInput {
+  name?: string
+  description?: string
+  due_date?: string
+  due_time?: string
+  priority?: 'urgent' | 'high' | 'medium' | 'low'
+  status?: 'todo' | 'in_progress' | 'completed' | 'canceled'
+  tags?: string[]
+}

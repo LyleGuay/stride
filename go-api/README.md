@@ -12,7 +12,7 @@ Go backend for Stride. Gin HTTP server backed by PostgreSQL (hosted on Neon in p
 
 ```bash
 go run .                  # Start the server (localhost:3000)
-go run ./cmd/migrate      # Apply pending migrations from migrations/
+go run ./cmd/migrate      # Apply pending migrations from db/migrations/ (project root)
 go run ./cmd/create-user  # Create a user (prompts for username, email, password)
 go mod tidy               # Sync dependencies
 go test ./...             # Run unit tests
@@ -45,10 +45,13 @@ go-api/
   tdee.go           # TDEE computation, currentMonday(), activityMultipliers
   tdee_test.go      # Unit tests for computeTDEE and currentMonday
   cmd/
-    migrate/        # CLI: applies pending SQL migrations from migrations/
+    migrate/        # CLI: applies pending SQL migrations from db/migrations/ (project root)
     create-user/    # CLI: creates a user account interactively
-  migrations/       # Plain SQL migration files (YYYY-MM-DD-SEQ-name.sql)
   static/           # Embedded compiled frontend (copied from web-client/dist at build)
+
+db/                 # Lives at project root (one level above go-api/)
+  migrations/       # Plain SQL migration files (YYYY-MM-DD-SEQ-name.sql)
+  misc/             # One-off scripts (data imports, etc.)
 ```
 
 ## API routes
@@ -68,7 +71,7 @@ All routes under `/api` except `/api/login` require a `Authorization: Bearer <to
 
 ## Migrations
 
-Migrations are plain SQL files in `migrations/`, named `YYYY-MM-DD-SEQ-name.sql`. The migrate CLI wraps each in a transaction and tracks applied migrations in a `migrations` table — re-running is safe.
+Migrations are plain SQL files in `db/migrations/` at the **project root** (one level above `go-api/`). The migrate CLI resolves this as `../db/migrations` relative to `go-api/`. Named `YYYY-MM-DD-SEQ-name.sql`. The migrate CLI wraps each in a transaction and tracks applied migrations in a `migrations` table — re-running is safe.
 
 ```bash
 DB_URL=... go run ./cmd/migrate

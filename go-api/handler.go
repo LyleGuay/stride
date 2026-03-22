@@ -117,6 +117,13 @@ func (h *Handler) registerRoutes(router *gin.Engine) {
 	api.PUT("/journal/:id", h.updateJournalEntry)
 	api.DELETE("/journal/:id", h.deleteJournalEntry)
 	api.GET("/journal/summary", h.getJournalSummary)
+	// Task routes — overdue-count must be registered before /:id to avoid param capture
+	api.GET("/tasks/overdue-count", h.getOverdueCount)
+	api.GET("/tasks", h.listTasks)
+	api.POST("/tasks", h.createTask)
+	api.GET("/tasks/:id", h.getTask)
+	api.PATCH("/tasks/:id", h.updateTask)
+	api.DELETE("/tasks/:id", h.deleteTask)
 	// Habit routes — /week must be registered before /:id to avoid param capture
 	api.GET("/habits/week", h.listHabitsWeek)
 	api.GET("/habits", h.listHabits)

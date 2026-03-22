@@ -13,6 +13,7 @@ import RequireAuth from './components/RequireAuth'
 import HabitsPage from './pages/HabitsPage'
 import HabitDetail from './pages/HabitDetail'
 import JournalPage from './pages/JournalPage'
+import TasksPage from './pages/TasksPage'
 
 export default function Router() {
   return (
@@ -30,6 +31,7 @@ export default function Router() {
           <Route path="calorie-log" element={<CalorieLog />} />
           <Route path="habits" element={<HabitsPage />} />
           <Route path="journal" element={<JournalPage />} />
+          <Route path="tasks" element={<TasksPage />} />
           <Route path="habits/:id" element={<HabitDetail />} />
           <Route path="settings" element={<Settings />} />
           <Route path="recipes" element={<RecipeList />} />

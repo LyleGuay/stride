@@ -487,3 +487,57 @@ type patchUserSettingsRequest struct {
 	BudgetAuto             *bool    `json:"budget_auto"`
 	SetupComplete          *bool    `json:"setup_complete"`
 }
+
+/* ─── Task structs ───────────────────────────────────────────────────── */
+
+// task maps to the tasks table. Tags is populated by the handler via a separate
+// task_tags query and is not a real column — it must be aliased in every SELECT
+// (e.g. via ARRAY subquery or batch join). DueTime is formatted as "HH:MM" by
+// TO_CHAR in SQL so it scans cleanly into *string; same pattern as journal entry_time.
+type task struct {
+	ID          int        `json:"id"           db:"id"`
+	UserID      int        `json:"user_id"      db:"user_id"`
+	Name        string     `json:"name"         db:"name"`
+	Description *string    `json:"description"  db:"description"`
+	DueDate     *DateOnly  `json:"due_date"     db:"due_date"`
+	DueTime     *string    `json:"due_time"     db:"due_time"`     // "HH:MM", formatted by TO_CHAR in SQL
+	Priority    string     `json:"priority"     db:"priority"`     // task_priority enum: urgent|high|medium|low
+	Status      string     `json:"status"       db:"status"`       // task_status enum: todo|in_progress|completed|canceled
+	CompletedAt *time.Time `json:"completed_at" db:"completed_at"` // set when status → completed
+	CanceledAt  *time.Time `json:"canceled_at"  db:"canceled_at"`  // set when status → canceled
+	CreatedAt   time.Time  `json:"created_at"   db:"created_at"`
+	UpdatedAt   time.Time  `json:"updated_at"   db:"updated_at"`
+	Tags        []string   `json:"tags"         db:"tags"` // populated from task_tags; not a real column
+}
+
+// taskListResponse is the paginated response shape for GET /api/tasks.
+// HasMore is true when the returned task count equals the requested limit,
+// signalling the client that another page is available.
+type taskListResponse struct {
+	Tasks   []task `json:"tasks"`
+	HasMore bool   `json:"has_more"`
+}
+
+// createTaskRequest is the request body for POST /api/tasks.
+// Tags are sent inline and written to task_tags by the handler.
+type createTaskRequest struct {
+	Name        string   `json:"name"        binding:"required"`
+	Description *string  `json:"description"`
+	DueDate     *string  `json:"due_date"`  // YYYY-MM-DD; nil routes task to Backlog
+	DueTime     *string  `json:"due_time"`  // HH:MM local time; nil = no time set
+	Priority    string   `json:"priority"`  // defaults to 'medium' if empty
+	Tags        []string `json:"tags"`
+}
+
+// updateTaskRequest is the request body for PATCH /api/tasks/:id.
+// All fields are pointers — only non-nil values are written to the DB.
+// Tags, when non-nil, fully replace the existing tag set for the task.
+type updateTaskRequest struct {
+	Name        *string   `json:"name"`
+	Description *string   `json:"description"`
+	DueDate     *string   `json:"due_date"`  // YYYY-MM-DD; empty string clears the date
+	DueTime     *string   `json:"due_time"`  // HH:MM; empty string clears the time
+	Priority    *string   `json:"priority"`
+	Status      *string   `json:"status"`
+	Tags        *[]string `json:"tags"`
+}

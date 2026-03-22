@@ -1,10 +1,10 @@
 // API service layer — all backend calls go through request() which handles
 // auth headers, 401 redirects, and consistent error extraction.
 
-import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, CreateJournalEntryInput, UpdateJournalEntryInput } from './types'
+import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, CreateJournalEntryInput, UpdateJournalEntryInput, Task, TaskListResponse, CreateTaskInput, UpdateTaskInput } from './types'
 
 // Re-export types so existing imports from api.ts keep working.
-export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, CreateJournalEntryInput, UpdateJournalEntryInput }
+export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, CreateJournalEntryInput, UpdateJournalEntryInput, Task, TaskListResponse, CreateTaskInput, UpdateTaskInput }
 
 function getToken(): string | null {
   return localStorage.getItem('token')
@@ -373,4 +373,40 @@ export async function fetchSuggestion(description: string, type: string, signal?
   if (body.error === 'unrecognized') return null
 
   return body as AISuggestion
+}
+
+/* ─── Tasks ───────────────────────────────────────────────────────── */
+
+export function fetchTasks(params: {
+  view: string
+  today: string
+  search?: string
+  limit?: number
+  offset?: number
+}): Promise<TaskListResponse> {
+  const qs = new URLSearchParams({ view: params.view, today: params.today })
+  if (params.search) qs.set('search', params.search)
+  if (params.limit !== undefined) qs.set('limit', String(params.limit))
+  if (params.offset !== undefined) qs.set('offset', String(params.offset))
+  return request<TaskListResponse>(`/api/tasks?${qs}`)
+}
+
+export function fetchOverdueTaskCount(today: string): Promise<{ count: number }> {
+  return request<{ count: number }>(`/api/tasks/overdue-count?today=${today}`)
+}
+
+export function createTask(input: CreateTaskInput): Promise<Task> {
+  return request<Task>('/api/tasks', { method: 'POST', body: JSON.stringify(input) })
+}
+
+export function fetchTask(id: number): Promise<Task> {
+  return request<Task>(`/api/tasks/${id}`)
+}
+
+export function updateTask(id: number, input: UpdateTaskInput): Promise<Task> {
+  return request<Task>(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(input) })
+}
+
+export function deleteTask(id: number): Promise<void> {
+  return request<void>(`/api/tasks/${id}`, { method: 'DELETE' })
 }

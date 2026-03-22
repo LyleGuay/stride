@@ -199,7 +199,7 @@ Stride is a personal life & productivity dashboard — habits, tasks, goals, cal
 
 ```bash
 go run .                  # Run server (localhost:3000)
-go run ./cmd/migrate      # Run pending migrations from db/migrations/
+go run ./cmd/migrate      # Run pending migrations from db/migrations/ (project root, NOT go-api/)
 go run ./cmd/create-user  # Create a user (prompts for username, email, password)
 go mod tidy               # Manage dependencies
 ```
@@ -217,7 +217,7 @@ npm run preview   # Preview production build
 
 ### Go API
 
-Uses Gin framework with a `Handler` struct that holds a `*pgxpool.Pool` connection pool and an `openAIBaseURL` string (overridable for tests). Routes are registered in `main.go`. PostgreSQL queries use `queryOne[T]` / `queryMany[T]` generic helpers with `pgx.NamedArgs` and `RowToStructByName` for scanning into Go structs. Migrations are plain SQL files in `db/migrations/` (pure DDL, no guard checks). Naming: `YYYY-MM-DD-SEQ-name.sql` (e.g. `2026-01-31-001-schema-versions.sql`). The migrate CLI tool handles transaction wrapping and tracking. One-off scripts (data imports, etc.) live in `db/misc/`.
+Uses Gin framework with a `Handler` struct that holds a `*pgxpool.Pool` connection pool and an `openAIBaseURL` string (overridable for tests). Routes are registered in `main.go`. PostgreSQL queries use `queryOne[T]` / `queryMany[T]` generic helpers with `pgx.NamedArgs` and `RowToStructByName` for scanning into Go structs. Migrations are plain SQL files in `db/migrations/` at the **project root** (not inside `go-api/`). The migrate CLI resolves this as `../db/migrations` relative to `go-api/`. Pure DDL, no guard checks. Naming: `YYYY-MM-DD-SEQ-name.sql` (e.g. `2026-01-31-001-schema-versions.sql`). The migrate CLI tool handles transaction wrapping and tracking. One-off scripts (data imports, etc.) live in `db/misc/`.
 
 `POST /api/calorie-log/suggest` — AI-powered nutrition/exercise calorie estimation. Accepts `{ description, type }`, calls OpenAI GPT-4o-mini, and returns structured nutrition data (`item_name`, `qty`, `uom`, `calories`, `protein_g`, `carbs_g`, `fat_g`). For exercise entries, loads the user's body stats from DB to improve calorie-burn estimates. Returns `{"error": "unrecognized"}` (200) for unparseable input or `{"error": "openai request failed"}` (500) on API errors. Implementation in `go-api/suggest.go`.
 
@@ -227,7 +227,11 @@ React 19 + TypeScript + Vite 7 + Tailwind CSS 4. Configured as a PWA (`vite-plug
 
 ### Database
 
-PostgreSQL (hosted on Neon). Current tables: `users`, `calorie_log_items`, `calorie_log_user_settings`, `habits`, `habit_logs`. Enum types follow the pattern `{table}_{column}` (e.g. `calorie_log_item_type`, `habit_frequency`). Migration tracking via a `migrations` table (keyed by filename).
+PostgreSQL (hosted on Neon). Current tables: `users`, `calorie_log_items`, `calorie_log_user_settings`, `habits`, `habit_logs`, `tasks`, `task_tags`. Enum types follow the pattern `{table}_{column}` (e.g. `calorie_log_item_type`, `habit_frequency`). Migration tracking via a `migrations` table (keyed by filename).
+
+## Markdown
+
+**All multi-line description/body fields across the app support Markdown.** This includes journal entry bodies, task descriptions, and any future freeform text field. The frontend renders these with a markdown-aware editor (matching the journal's implementation) rather than a plain `<textarea>`. When adding a new description field to any module, use the same markdown editor component — do not use a plain textarea.
 
 ## Environment Variables
 

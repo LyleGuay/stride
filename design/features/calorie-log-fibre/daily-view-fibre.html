@@ -1,0 +1,771 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Calorie Log — Fibre (Mockup)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: { extend: { colors: { stride: { 50:'#f0f4ff', 400:'#818cf8', 600:'#4f46e5' } } } }
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+
+    /* ── Viewport toggle ─────────────────────────────────────────────
+       All show/hide is driven by the .view-desktop / .view-mobile class
+       on #viewport. No inline style overrides anywhere.
+    ────────────────────────────────────────────────────────────────── */
+
+    /* table cell visibility */
+    .view-desktop .d-only { display: table-cell !important; }
+    .view-desktop .m-only { display: none        !important; }
+    .view-mobile  .d-only { display: none        !important; }
+    .view-mobile  .m-only { display: table-cell  !important; }
+
+    /* table row visibility */
+    .view-desktop .d-row  { display: table-row   !important; }
+    .view-desktop .m-row  { display: none        !important; }
+    .view-mobile  .d-row  { display: none        !important; }
+    .view-mobile  .m-row  { display: table-row   !important; }
+
+    /* summary panel sections */
+    .view-desktop .desktop-summary { display: flex  !important; }
+    .view-mobile  .desktop-summary { display: none  !important; }
+
+    .view-desktop #summary-toggle-bar { display: none !important; }
+    .view-mobile  #summary-toggle-bar { display: flex !important; }
+
+    /* Mobile: cal view shown by default, macro view hidden */
+    .view-desktop #summary-cal   { display: none !important; }
+    .view-mobile  #summary-cal   { display: flex !important; }
+    .view-desktop #summary-macro { display: none !important; }
+    .view-mobile  #summary-macro { display: none !important; }
+
+    /* Mobile: when .show-macro is on #viewport, swap the views */
+    .view-mobile.show-macro #summary-cal   { display: none !important; }
+    .view-mobile.show-macro #summary-macro { display: flex !important; }
+
+    /* ── Item table ──────────────────────────────────────────────── */
+    .item-row { cursor: default; }
+    .view-mobile .item-row { cursor: pointer; }
+    .item-row.expanded { background: #f8fafc; }
+
+    .detail-strip { display: none; }
+    .detail-strip.open { display: table-row; }
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .detail-strip.open td > div { animation: slideDown 0.15s ease; }
+
+    /* ── Macro label hover tooltip (desktop only) ────────────────── */
+    .macro-tip { position: relative; }
+    .macro-tip .tip {
+      display: none; position: absolute;
+      bottom: calc(100% + 6px); left: 50%; transform: translateX(-50%);
+      background: #1f2937; color: #fff; font-size: 10px;
+      white-space: nowrap; padding: 4px 8px; border-radius: 4px;
+      pointer-events: none; z-index: 50;
+    }
+    .macro-tip .tip::after {
+      content: ''; position: absolute; top: 100%; left: 50%;
+      transform: translateX(-50%);
+      border: 4px solid transparent; border-top-color: #1f2937;
+    }
+    .view-desktop .macro-tip:hover .tip { display: block; }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen p-4">
+
+  <!-- Controls (outside #viewport so never affected by view classes) -->
+  <div class="max-w-5xl mx-auto mb-4 flex flex-wrap items-center gap-3">
+    <h1 class="text-base font-semibold text-gray-700 mr-2">Fibre — Daily View Mockup</h1>
+    <div class="flex rounded-md overflow-hidden border border-gray-300 text-xs font-medium">
+      <button onclick="setView('desktop')" id="btn-desktop"
+        class="px-3 py-1.5 bg-indigo-600 text-white">Desktop</button>
+      <button onclick="setView('mobile')" id="btn-mobile"
+        class="px-3 py-1.5 bg-white text-gray-600 hover:bg-gray-50">Mobile</button>
+    </div>
+    <span id="hint-desktop" class="text-xs text-gray-400 italic">
+      Hover a macro label to see its configured target / limit.
+    </span>
+    <span id="hint-mobile" class="text-xs text-gray-400 italic hidden">
+      Tap summary header to switch Cal ↔ Macros. Tap a food row to expand macros.
+    </span>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════════════
+       #viewport — the only element whose class controls all visibility.
+       Starts as view-desktop.
+  ════════════════════════════════════════════════════════════════════ -->
+  <div id="viewport" class="view-desktop max-w-5xl mx-auto bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+
+    <!-- Date header -->
+    <div class="flex items-center justify-between px-4 py-3 border-b border-gray-100">
+      <button class="p-1 text-gray-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/>
+        </svg>
+      </button>
+      <span class="text-sm font-semibold text-gray-700">Sunday, 22 March 2026</span>
+      <button class="p-1 text-gray-400">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/>
+        </svg>
+      </button>
+    </div>
+
+    <div class="p-4">
+
+      <!-- ═══════════════════════════════════════════════════════════
+           DailySummary card
+      ══════════════════════════════════════════════════════════════ -->
+      <div class="bg-white border border-gray-200 rounded-lg mb-4 overflow-hidden">
+
+        <!-- Mobile toggle bar — hidden on desktop via CSS -->
+        <div id="summary-toggle-bar"
+          class="border-b border-gray-100 px-4 py-2 items-center justify-between cursor-pointer select-none"
+          onclick="toggleSummaryView()">
+          <span id="toggle-label" class="text-xs font-semibold text-gray-600 tracking-wide uppercase">Calories</span>
+          <span class="text-[10px] text-gray-400">tap to switch →</span>
+        </div>
+
+        <div class="p-4">
+
+          <!-- ─── Desktop summary (ring + calorie stats + macro row + per-meal) ─── -->
+          <!--
+            .desktop-summary is shown on desktop, hidden on mobile via CSS.
+            Contains the calorie ring, stats grid (calories + macros), and per-meal table.
+          -->
+          <div class="desktop-summary items-center gap-6">
+
+            <!-- Calorie ring -->
+            <div class="relative w-24 h-24 shrink-0">
+              <svg class="w-full h-full -rotate-90" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="52" fill="none" stroke-width="10" stroke="#e5e7eb"/>
+                <circle cx="60" cy="60" r="52" fill="none" stroke-width="10" stroke="#22c55e"
+                  stroke-dasharray="326.73" stroke-dashoffset="68.6" stroke-linecap="round"/>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span class="text-lg font-bold">1,847</span>
+                <span class="text-[10px] text-gray-400">net</span>
+              </div>
+            </div>
+
+            <!-- Stats grid: calorie row + macro row -->
+            <div class="flex-1 min-w-0">
+              <div class="grid grid-cols-3 gap-x-4 text-xs mb-2">
+                <div><div class="text-gray-400 mb-0.5">Eaten</div><span class="font-semibold text-sm">2,120</span></div>
+                <div><div class="text-gray-400 mb-0.5">Exercise</div><span class="font-semibold text-sm text-emerald-600">273 / 300</span></div>
+                <div><div class="text-gray-400 mb-0.5">Budget</div><span class="font-semibold text-sm">2,000</span></div>
+              </div>
+
+              <!--
+                Macro row — three indicator states shown simultaneously:
+                  Protein  90g  ↑ amber  — below min target
+                  Carbs   245g  ↑ red    — over max limit
+                  Fat      71g  (none)   — fine, under limit
+                  Fibre    32g  ✓ green  — min target met
+                Hover each label to see the configured min/max value.
+              -->
+              <div class="grid grid-cols-4 gap-x-3 text-xs border-t border-gray-100 pt-2">
+                <div class="macro-tip">
+                  <span class="text-blue-500 font-medium">Protein</span>
+                  <span class="tip">min target: 150g</span><br/>
+                  <span class="font-semibold">90g</span>
+                  <span class="ml-0.5 text-amber-400 font-bold text-[11px]">↑</span>
+                </div>
+                <div class="macro-tip">
+                  <span class="text-amber-500 font-medium">Carbs</span>
+                  <span class="tip">max limit: 220g</span><br/>
+                  <span class="font-semibold text-red-500">245g</span>
+                  <span class="ml-0.5 text-red-500 font-bold text-[11px]">↓</span>
+                </div>
+                <div class="macro-tip">
+                  <span class="text-pink-500 font-medium">Fat</span>
+                  <span class="tip">max limit: 80g</span><br/>
+                  <span class="font-semibold">71g</span>
+                </div>
+                <div class="macro-tip">
+                  <span class="text-teal-500 font-medium">Fibre</span>
+                  <span class="tip">min target: 30g</span><br/>
+                  <span class="font-semibold">32g</span>
+                  <span class="ml-0.5 text-green-500 font-bold text-[11px]">✓</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Per-meal budget table -->
+            <div class="shrink-0 border-l border-gray-100 pl-4">
+              <table class="text-xs">
+                <thead>
+                  <tr class="text-gray-400">
+                    <th class="text-left pr-3 font-normal">Type</th>
+                    <th class="text-right pr-3 font-normal">Cur</th>
+                    <th class="text-right font-normal">Budg</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr><td class="pr-3 py-0.5">Breakfast</td><td class="text-right pr-3 font-medium">420</td><td class="text-right text-gray-400">450</td></tr>
+                  <tr><td class="pr-3 py-0.5">Lunch</td><td class="text-right pr-3 font-medium text-red-500">680</td><td class="text-right text-gray-400">600</td></tr>
+                  <tr><td class="pr-3 py-0.5">Dinner</td><td class="text-right pr-3 font-medium">740</td><td class="text-right text-gray-400">800</td></tr>
+                  <tr><td class="pr-3 py-0.5">Snack</td><td class="text-right pr-3 font-medium">280</td><td class="text-right text-gray-400">300</td></tr>
+                  <tr class="border-t border-gray-100 font-semibold">
+                    <td class="pr-3 pt-1.5 pb-0.5">Total</td>
+                    <td class="text-right pr-3 pt-1.5 pb-0.5">2,120</td>
+                    <td class="text-right text-gray-500 pt-1.5 pb-0.5">2,150</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div class="mt-2 pt-2 border-t border-gray-100 text-xs font-medium text-emerald-600">
+                -0.04 lbs Estimated
+              </div>
+            </div>
+          </div><!-- /desktop-summary -->
+
+          <!-- ─── Mobile: Cal view ──────────────────────────────────────
+               Shown by default on mobile. Hidden when .show-macro is active.
+               Hidden entirely on desktop.
+          ──────────────────────────────────────────────────────────── -->
+          <div id="summary-cal" class="items-center gap-4">
+            <div class="relative w-20 h-20 shrink-0">
+              <svg class="w-full h-full -rotate-90" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="52" fill="none" stroke-width="10" stroke="#e5e7eb"/>
+                <circle cx="60" cy="60" r="52" fill="none" stroke-width="10" stroke="#22c55e"
+                  stroke-dasharray="326.73" stroke-dashoffset="68.6" stroke-linecap="round"/>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span class="text-base font-bold">1,847</span>
+                <span class="text-[9px] text-gray-400">net</span>
+              </div>
+            </div>
+            <div class="flex-1">
+              <div class="grid grid-cols-3 gap-x-3 text-xs">
+                <div><div class="text-gray-400 mb-0.5">Eaten</div><span class="font-semibold text-sm">2,120</span></div>
+                <div><div class="text-gray-400 mb-0.5">Exercise</div><span class="font-semibold text-sm text-emerald-600">273</span></div>
+                <div><div class="text-gray-400 mb-0.5">Budget</div><span class="font-semibold text-sm">2,000</span></div>
+              </div>
+              <div class="mt-1.5 text-[10px] text-emerald-600 font-medium">-0.04 lbs today</div>
+            </div>
+          </div>
+
+          <!-- ─── Mobile: Macros view ───────────────────────────────────
+               Hidden by default on mobile. Shown when .show-macro is active.
+               Hidden entirely on desktop.
+          ──────────────────────────────────────────────────────────── -->
+          <div id="summary-macro" class="flex-col gap-3">
+            <div class="grid grid-cols-2 gap-3 text-sm">
+
+              <!-- Protein: below min → amber ↑ -->
+              <div class="bg-gray-50 rounded-lg p-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-blue-500 font-semibold text-xs">Protein</span>
+                  <span class="text-[10px] text-gray-400">min 150g</span>
+                </div>
+                <div class="flex items-baseline gap-1">
+                  <span class="text-xl font-bold text-gray-800">90</span>
+                  <span class="text-xs text-gray-400">g</span>
+                  <span class="ml-auto text-amber-400 font-bold text-base">↑</span>
+                </div>
+                <div class="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
+                  <div class="h-full bg-amber-400 rounded-full" style="width:60%"></div>
+                </div>
+                <div class="text-[10px] text-gray-400 mt-0.5">60 of 150g</div>
+              </div>
+
+              <!-- Carbs: over max → red ↑ -->
+              <div class="bg-red-50 rounded-lg p-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-amber-500 font-semibold text-xs">Carbs</span>
+                  <span class="text-[10px] text-gray-400">max 220g</span>
+                </div>
+                <div class="flex items-baseline gap-1">
+                  <span class="text-xl font-bold text-red-500">245</span>
+                  <span class="text-xs text-gray-400">g</span>
+                  <span class="ml-auto text-red-500 font-bold text-base">↓</span>
+                </div>
+                <div class="mt-2 h-1 bg-red-200 rounded-full overflow-hidden">
+                  <div class="h-full bg-red-500 rounded-full" style="width:100%"></div>
+                </div>
+                <div class="text-[10px] text-red-400 mt-0.5">25g over limit</div>
+              </div>
+
+              <!-- Fat: under limit → no indicator -->
+              <div class="bg-gray-50 rounded-lg p-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-pink-500 font-semibold text-xs">Fat</span>
+                  <span class="text-[10px] text-gray-400">max 80g</span>
+                </div>
+                <div class="flex items-baseline gap-1">
+                  <span class="text-xl font-bold text-gray-800">71</span>
+                  <span class="text-xs text-gray-400">g</span>
+                </div>
+                <div class="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
+                  <div class="h-full bg-pink-400 rounded-full" style="width:89%"></div>
+                </div>
+                <div class="text-[10px] text-gray-400 mt-0.5">9g remaining</div>
+              </div>
+
+              <!-- Fibre: min target met → green ✓ -->
+              <div class="bg-green-50 rounded-lg p-3">
+                <div class="flex items-center justify-between mb-1">
+                  <span class="text-teal-500 font-semibold text-xs">Fibre</span>
+                  <span class="text-[10px] text-gray-400">min 30g</span>
+                </div>
+                <div class="flex items-baseline gap-1">
+                  <span class="text-xl font-bold text-gray-800">32</span>
+                  <span class="text-xs text-gray-400">g</span>
+                  <span class="ml-auto text-green-500 font-bold text-base">✓</span>
+                </div>
+                <div class="mt-2 h-1 bg-gray-200 rounded-full overflow-hidden">
+                  <div class="h-full bg-green-500 rounded-full" style="width:100%"></div>
+                </div>
+                <div class="text-[10px] text-green-500 mt-0.5">Target met</div>
+              </div>
+
+            </div>
+          </div><!-- /summary-macro -->
+
+        </div><!-- /p-4 -->
+      </div><!-- /DailySummary card -->
+
+      <!-- ═══════════════════════════════════════════════════════════
+           Item Table
+           Desktop: Item | Qty | Unit | Cal | P | C | F | Fi  (8 cols)
+           Mobile:  Item | Qty (combined) | Cal                  (3 cols)
+           Expanded strip: spans all cols, shows Cal+P+C+F+Fi grid
+      ══════════════════════════════════════════════════════════════ -->
+      <div class="bg-white border border-gray-200 rounded-lg overflow-x-auto">
+        <table class="w-full text-xs" style="border-collapse:collapse">
+          <thead>
+            <tr class="bg-gray-50 border-b border-gray-200 text-gray-500 uppercase tracking-wide">
+              <th class="text-left  py-2 px-3 font-medium">Item</th>
+              <th class="text-right py-2 px-2 font-medium w-14 d-only">Qty</th>
+              <th class="text-left  py-2 px-2 font-medium w-20 d-only">Unit</th>
+              <th class="text-right py-2 px-2 font-medium w-20 m-only">Qty</th>
+              <th class="text-right py-2 px-2 font-medium w-16">Cal</th>
+              <th class="text-right py-2 px-2 font-medium w-12 d-only">P</th>
+              <th class="text-right py-2 px-2 font-medium w-12 d-only">C</th>
+              <th class="text-right py-2 px-2 font-medium w-12 d-only">F</th>
+              <th class="text-right py-2 px-2 font-medium w-12 d-only text-teal-600">Fi</th>
+            </tr>
+          </thead>
+          <tbody>
+
+            <!-- ── Breakfast ─────────────────────────────────────────── -->
+            <!--
+              Section header: desktop spans Item+Qty+Unit (colspan=3), mobile spans Item+Qty (colspan=2).
+              Each variant shown/hidden via d-only / m-only.
+            -->
+            <tr class="border-t border-gray-200 bg-[#f0f0f4]">
+              <td colspan="3" class="py-1.5 px-3 font-semibold text-gray-700 border-l-[3px] border-l-orange-400 d-only">Breakfast</td>
+              <td colspan="2" class="py-1.5 px-3 font-semibold text-gray-700 border-l-[3px] border-l-orange-400 m-only">Breakfast</td>
+              <td class="py-1.5 px-2 text-right font-semibold text-gray-600 d-only">420</td>
+              <td class="py-1.5 px-2 text-right font-semibold text-gray-600 m-only">420</td>
+              <td colspan="4" class="d-only"></td>
+            </tr>
+
+            <tr class="item-row border-t border-gray-50 hover:bg-gray-50" onclick="toggleExpand(this,'exp-yoghurt')">
+              <td class="py-1.5 px-3 pl-[18px] font-medium text-gray-800 relative">Greek Yoghurt (full fat)
+                <button class="absolute right-1 top-1/2 -translate-y-1/2 px-1 text-gray-400 m-only" onclick="event.stopPropagation()">···</button>
+              </td>
+              <td class="py-1.5 px-2 text-right text-gray-500 d-only">200</td>
+              <td class="py-1.5 px-2 text-gray-500 d-only">g</td>
+              <td class="py-1.5 px-2 text-right text-gray-500 m-only">200g</td>
+              <td class="py-1.5 px-2 text-right font-medium">220</td>
+              <td class="py-1.5 px-2 text-right text-blue-500  d-only">18</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 d-only">8</td>
+              <td class="py-1.5 px-2 text-right text-pink-500  d-only">10</td>
+              <td class="py-1.5 px-2 text-right text-teal-500  d-only">0</td>
+            </tr>
+            <tr class="detail-strip" id="exp-yoghurt">
+              <td colspan="9" class="pb-2 px-3 pl-[18px]">
+                <div class="grid grid-cols-5 gap-2 text-center bg-gray-50 rounded-md p-2 border border-gray-100">
+                  <div><div class="text-gray-400 text-[10px] mb-0.5">Cal</div><div class="font-semibold">220</div></div>
+                  <div><div class="text-blue-500  text-[10px] mb-0.5">Protein</div><div class="font-semibold">18g</div></div>
+                  <div><div class="text-amber-500 text-[10px] mb-0.5">Carbs</div><div class="font-semibold">8g</div></div>
+                  <div><div class="text-pink-500  text-[10px] mb-0.5">Fat</div><div class="font-semibold">10g</div></div>
+                  <div><div class="text-teal-500  text-[10px] mb-0.5">Fibre</div><div class="font-semibold">0g</div></div>
+                </div>
+              </td>
+            </tr>
+
+            <tr class="item-row border-t border-gray-50 hover:bg-gray-50" onclick="toggleExpand(this,'exp-blueberries')">
+              <td class="py-1.5 px-3 pl-[18px] font-medium text-gray-800 relative">Blueberries
+                <button class="absolute right-1 top-1/2 -translate-y-1/2 px-1 text-gray-400 m-only" onclick="event.stopPropagation()">···</button>
+              </td>
+              <td class="py-1.5 px-2 text-right text-gray-500 d-only">120</td>
+              <td class="py-1.5 px-2 text-gray-500 d-only">g</td>
+              <td class="py-1.5 px-2 text-right text-gray-500 m-only">120g</td>
+              <td class="py-1.5 px-2 text-right font-medium">68</td>
+              <td class="py-1.5 px-2 text-right text-blue-500  d-only">1</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 d-only">17</td>
+              <td class="py-1.5 px-2 text-right text-pink-500  d-only">0</td>
+              <td class="py-1.5 px-2 text-right text-teal-500  d-only">2</td>
+            </tr>
+            <tr class="detail-strip" id="exp-blueberries">
+              <td colspan="9" class="pb-2 px-3 pl-[18px]">
+                <div class="grid grid-cols-5 gap-2 text-center bg-gray-50 rounded-md p-2 border border-gray-100">
+                  <div><div class="text-gray-400 text-[10px] mb-0.5">Cal</div><div class="font-semibold">68</div></div>
+                  <div><div class="text-blue-500  text-[10px] mb-0.5">Protein</div><div class="font-semibold">1g</div></div>
+                  <div><div class="text-amber-500 text-[10px] mb-0.5">Carbs</div><div class="font-semibold">17g</div></div>
+                  <div><div class="text-pink-500  text-[10px] mb-0.5">Fat</div><div class="font-semibold">0g</div></div>
+                  <div><div class="text-teal-500  text-[10px] mb-0.5">Fibre</div><div class="font-semibold">2g</div></div>
+                </div>
+              </td>
+            </tr>
+
+            <tr class="item-row border-t border-gray-50 hover:bg-gray-50" onclick="toggleExpand(this,'exp-oats')">
+              <td class="py-1.5 px-3 pl-[18px] font-medium text-gray-800 relative">Oats
+                <button class="absolute right-1 top-1/2 -translate-y-1/2 px-1 text-gray-400 m-only" onclick="event.stopPropagation()">···</button>
+              </td>
+              <td class="py-1.5 px-2 text-right text-gray-500 d-only">80</td>
+              <td class="py-1.5 px-2 text-gray-500 d-only">g</td>
+              <td class="py-1.5 px-2 text-right text-gray-500 m-only">80g</td>
+              <td class="py-1.5 px-2 text-right font-medium">132</td>
+              <td class="py-1.5 px-2 text-right text-blue-500  d-only">5</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 d-only">23</td>
+              <td class="py-1.5 px-2 text-right text-pink-500  d-only">3</td>
+              <td class="py-1.5 px-2 text-right text-teal-500  d-only">3</td>
+            </tr>
+            <tr class="detail-strip" id="exp-oats">
+              <td colspan="9" class="pb-2 px-3 pl-[18px]">
+                <div class="grid grid-cols-5 gap-2 text-center bg-gray-50 rounded-md p-2 border border-gray-100">
+                  <div><div class="text-gray-400 text-[10px] mb-0.5">Cal</div><div class="font-semibold">132</div></div>
+                  <div><div class="text-blue-500  text-[10px] mb-0.5">Protein</div><div class="font-semibold">5g</div></div>
+                  <div><div class="text-amber-500 text-[10px] mb-0.5">Carbs</div><div class="font-semibold">23g</div></div>
+                  <div><div class="text-pink-500  text-[10px] mb-0.5">Fat</div><div class="font-semibold">3g</div></div>
+                  <div><div class="text-teal-500  text-[10px] mb-0.5">Fibre</div><div class="font-semibold">3g</div></div>
+                </div>
+              </td>
+            </tr>
+
+            <tr class="border-t border-dashed border-gray-200 bg-gray-50/50">
+              <td colspan="9" class="py-1.5 px-3 text-gray-400 italic cursor-pointer hover:text-indigo-600">+ Add breakfast item…</td>
+            </tr>
+
+            <!-- ── Lunch ──────────────────────────────────────────────── -->
+            <tr class="border-t border-gray-200 bg-[#f0f0f4]">
+              <td colspan="3" class="py-1.5 px-3 font-semibold text-gray-700 border-l-[3px] border-l-yellow-400 d-only">Lunch</td>
+              <td colspan="2" class="py-1.5 px-3 font-semibold text-gray-700 border-l-[3px] border-l-yellow-400 m-only">Lunch</td>
+              <td class="py-1.5 px-2 text-right font-semibold text-gray-600 d-only">680</td>
+              <td class="py-1.5 px-2 text-right font-semibold text-gray-600 m-only">680</td>
+              <td colspan="4" class="d-only"></td>
+            </tr>
+
+            <tr class="item-row border-t border-gray-50 hover:bg-gray-50" onclick="toggleExpand(this,'exp-chicken')">
+              <td class="py-1.5 px-3 pl-[18px] font-medium text-gray-800 relative">Chicken breast (grilled)
+                <button class="absolute right-1 top-1/2 -translate-y-1/2 px-1 text-gray-400 m-only" onclick="event.stopPropagation()">···</button>
+              </td>
+              <td class="py-1.5 px-2 text-right text-gray-500 d-only">180</td>
+              <td class="py-1.5 px-2 text-gray-500 d-only">g</td>
+              <td class="py-1.5 px-2 text-right text-gray-500 m-only">180g</td>
+              <td class="py-1.5 px-2 text-right font-medium">297</td>
+              <td class="py-1.5 px-2 text-right text-blue-500  d-only">56</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 d-only">0</td>
+              <td class="py-1.5 px-2 text-right text-pink-500  d-only">6</td>
+              <td class="py-1.5 px-2 text-right text-teal-500  d-only">0</td>
+            </tr>
+            <tr class="detail-strip" id="exp-chicken">
+              <td colspan="9" class="pb-2 px-3 pl-[18px]">
+                <div class="grid grid-cols-5 gap-2 text-center bg-gray-50 rounded-md p-2 border border-gray-100">
+                  <div><div class="text-gray-400 text-[10px] mb-0.5">Cal</div><div class="font-semibold">297</div></div>
+                  <div><div class="text-blue-500  text-[10px] mb-0.5">Protein</div><div class="font-semibold">56g</div></div>
+                  <div><div class="text-amber-500 text-[10px] mb-0.5">Carbs</div><div class="font-semibold">0g</div></div>
+                  <div><div class="text-pink-500  text-[10px] mb-0.5">Fat</div><div class="font-semibold">6g</div></div>
+                  <div><div class="text-teal-500  text-[10px] mb-0.5">Fibre</div><div class="font-semibold">0g</div></div>
+                </div>
+              </td>
+            </tr>
+
+            <tr class="item-row border-t border-gray-50 hover:bg-gray-50" onclick="toggleExpand(this,'exp-rice')">
+              <td class="py-1.5 px-3 pl-[18px] font-medium text-gray-800 relative">Brown rice (cooked)
+                <button class="absolute right-1 top-1/2 -translate-y-1/2 px-1 text-gray-400 m-only" onclick="event.stopPropagation()">···</button>
+              </td>
+              <td class="py-1.5 px-2 text-right text-gray-500 d-only">200</td>
+              <td class="py-1.5 px-2 text-gray-500 d-only">g</td>
+              <td class="py-1.5 px-2 text-right text-gray-500 m-only">200g</td>
+              <td class="py-1.5 px-2 text-right font-medium">218</td>
+              <td class="py-1.5 px-2 text-right text-blue-500  d-only">5</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 d-only">46</td>
+              <td class="py-1.5 px-2 text-right text-pink-500  d-only">2</td>
+              <td class="py-1.5 px-2 text-right text-teal-500  d-only">4</td>
+            </tr>
+            <tr class="detail-strip" id="exp-rice">
+              <td colspan="9" class="pb-2 px-3 pl-[18px]">
+                <div class="grid grid-cols-5 gap-2 text-center bg-gray-50 rounded-md p-2 border border-gray-100">
+                  <div><div class="text-gray-400 text-[10px] mb-0.5">Cal</div><div class="font-semibold">218</div></div>
+                  <div><div class="text-blue-500  text-[10px] mb-0.5">Protein</div><div class="font-semibold">5g</div></div>
+                  <div><div class="text-amber-500 text-[10px] mb-0.5">Carbs</div><div class="font-semibold">46g</div></div>
+                  <div><div class="text-pink-500  text-[10px] mb-0.5">Fat</div><div class="font-semibold">2g</div></div>
+                  <div><div class="text-teal-500  text-[10px] mb-0.5">Fibre</div><div class="font-semibold">4g</div></div>
+                </div>
+              </td>
+            </tr>
+
+            <tr class="border-t border-dashed border-gray-200 bg-gray-50/50">
+              <td colspan="9" class="py-1.5 px-3 text-gray-400 italic cursor-pointer hover:text-indigo-600">+ Add lunch item…</td>
+            </tr>
+
+            <!-- ── Dinner ─────────────────────────────────────────────── -->
+            <tr class="border-t border-gray-200 bg-[#f0f0f4]">
+              <td colspan="3" class="py-1.5 px-3 font-semibold text-gray-700 border-l-[3px] border-l-indigo-400 d-only">Dinner</td>
+              <td colspan="2" class="py-1.5 px-3 font-semibold text-gray-700 border-l-[3px] border-l-indigo-400 m-only">Dinner</td>
+              <td class="py-1.5 px-2 text-right font-semibold text-gray-600 d-only">740</td>
+              <td class="py-1.5 px-2 text-right font-semibold text-gray-600 m-only">740</td>
+              <td colspan="4" class="d-only"></td>
+            </tr>
+
+            <tr class="item-row border-t border-gray-50 hover:bg-gray-50" onclick="toggleExpand(this,'exp-salmon')">
+              <td class="py-1.5 px-3 pl-[18px] font-medium text-gray-800 relative">Salmon fillet (baked)
+                <button class="absolute right-1 top-1/2 -translate-y-1/2 px-1 text-gray-400 m-only" onclick="event.stopPropagation()">···</button>
+              </td>
+              <td class="py-1.5 px-2 text-right text-gray-500 d-only">200</td>
+              <td class="py-1.5 px-2 text-gray-500 d-only">g</td>
+              <td class="py-1.5 px-2 text-right text-gray-500 m-only">200g</td>
+              <td class="py-1.5 px-2 text-right font-medium">412</td>
+              <td class="py-1.5 px-2 text-right text-blue-500  d-only">40</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 d-only">0</td>
+              <td class="py-1.5 px-2 text-right text-pink-500  d-only">28</td>
+              <td class="py-1.5 px-2 text-right text-teal-500  d-only">0</td>
+            </tr>
+            <tr class="detail-strip" id="exp-salmon">
+              <td colspan="9" class="pb-2 px-3 pl-[18px]">
+                <div class="grid grid-cols-5 gap-2 text-center bg-gray-50 rounded-md p-2 border border-gray-100">
+                  <div><div class="text-gray-400 text-[10px] mb-0.5">Cal</div><div class="font-semibold">412</div></div>
+                  <div><div class="text-blue-500  text-[10px] mb-0.5">Protein</div><div class="font-semibold">40g</div></div>
+                  <div><div class="text-amber-500 text-[10px] mb-0.5">Carbs</div><div class="font-semibold">0g</div></div>
+                  <div><div class="text-pink-500  text-[10px] mb-0.5">Fat</div><div class="font-semibold">28g</div></div>
+                  <div><div class="text-teal-500  text-[10px] mb-0.5">Fibre</div><div class="font-semibold">0g</div></div>
+                </div>
+              </td>
+            </tr>
+
+            <tr class="item-row border-t border-gray-50 hover:bg-gray-50" onclick="toggleExpand(this,'exp-potato')">
+              <td class="py-1.5 px-3 pl-[18px] font-medium text-gray-800 relative">Sweet potato (roasted)
+                <button class="absolute right-1 top-1/2 -translate-y-1/2 px-1 text-gray-400 m-only" onclick="event.stopPropagation()">···</button>
+              </td>
+              <td class="py-1.5 px-2 text-right text-gray-500 d-only">250</td>
+              <td class="py-1.5 px-2 text-gray-500 d-only">g</td>
+              <td class="py-1.5 px-2 text-right text-gray-500 m-only">250g</td>
+              <td class="py-1.5 px-2 text-right font-medium">225</td>
+              <td class="py-1.5 px-2 text-right text-blue-500  d-only">4</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 d-only">52</td>
+              <td class="py-1.5 px-2 text-right text-pink-500  d-only">0</td>
+              <td class="py-1.5 px-2 text-right text-teal-500  d-only">6</td>
+            </tr>
+            <tr class="detail-strip" id="exp-potato">
+              <td colspan="9" class="pb-2 px-3 pl-[18px]">
+                <div class="grid grid-cols-5 gap-2 text-center bg-gray-50 rounded-md p-2 border border-gray-100">
+                  <div><div class="text-gray-400 text-[10px] mb-0.5">Cal</div><div class="font-semibold">225</div></div>
+                  <div><div class="text-blue-500  text-[10px] mb-0.5">Protein</div><div class="font-semibold">4g</div></div>
+                  <div><div class="text-amber-500 text-[10px] mb-0.5">Carbs</div><div class="font-semibold">52g</div></div>
+                  <div><div class="text-pink-500  text-[10px] mb-0.5">Fat</div><div class="font-semibold">0g</div></div>
+                  <div><div class="text-teal-500  text-[10px] mb-0.5">Fibre</div><div class="font-semibold">6g</div></div>
+                </div>
+              </td>
+            </tr>
+
+            <tr class="item-row border-t border-gray-50 hover:bg-gray-50" onclick="toggleExpand(this,'exp-broccoli')">
+              <td class="py-1.5 px-3 pl-[18px] font-medium text-gray-800 relative">Broccoli (steamed)
+                <button class="absolute right-1 top-1/2 -translate-y-1/2 px-1 text-gray-400 m-only" onclick="event.stopPropagation()">···</button>
+              </td>
+              <td class="py-1.5 px-2 text-right text-gray-500 d-only">150</td>
+              <td class="py-1.5 px-2 text-gray-500 d-only">g</td>
+              <td class="py-1.5 px-2 text-right text-gray-500 m-only">150g</td>
+              <td class="py-1.5 px-2 text-right font-medium">51</td>
+              <td class="py-1.5 px-2 text-right text-blue-500  d-only">4</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 d-only">7</td>
+              <td class="py-1.5 px-2 text-right text-pink-500  d-only">1</td>
+              <td class="py-1.5 px-2 text-right text-teal-500  d-only">4</td>
+            </tr>
+            <tr class="detail-strip" id="exp-broccoli">
+              <td colspan="9" class="pb-2 px-3 pl-[18px]">
+                <div class="grid grid-cols-5 gap-2 text-center bg-gray-50 rounded-md p-2 border border-gray-100">
+                  <div><div class="text-gray-400 text-[10px] mb-0.5">Cal</div><div class="font-semibold">51</div></div>
+                  <div><div class="text-blue-500  text-[10px] mb-0.5">Protein</div><div class="font-semibold">4g</div></div>
+                  <div><div class="text-amber-500 text-[10px] mb-0.5">Carbs</div><div class="font-semibold">7g</div></div>
+                  <div><div class="text-pink-500  text-[10px] mb-0.5">Fat</div><div class="font-semibold">1g</div></div>
+                  <div><div class="text-teal-500  text-[10px] mb-0.5">Fibre</div><div class="font-semibold">4g</div></div>
+                </div>
+              </td>
+            </tr>
+
+            <tr class="border-t border-dashed border-gray-200 bg-gray-50/50">
+              <td colspan="9" class="py-1.5 px-3 text-gray-400 italic cursor-pointer hover:text-indigo-600">+ Add dinner item…</td>
+            </tr>
+
+            <!-- ── Snack ───────────────────────────────────────────────── -->
+            <tr class="border-t border-gray-200 bg-[#f0f0f4]">
+              <td colspan="3" class="py-1.5 px-3 font-semibold text-gray-700 border-l-[3px] border-l-green-400 d-only">Snack</td>
+              <td colspan="2" class="py-1.5 px-3 font-semibold text-gray-700 border-l-[3px] border-l-green-400 m-only">Snack</td>
+              <td class="py-1.5 px-2 text-right font-semibold text-gray-600 d-only">280</td>
+              <td class="py-1.5 px-2 text-right font-semibold text-gray-600 m-only">280</td>
+              <td colspan="4" class="d-only"></td>
+            </tr>
+
+            <tr class="item-row border-t border-gray-50 hover:bg-gray-50" onclick="toggleExpand(this,'exp-apple')">
+              <td class="py-1.5 px-3 pl-[18px] font-medium text-gray-800 relative">Apple
+                <button class="absolute right-1 top-1/2 -translate-y-1/2 px-1 text-gray-400 m-only" onclick="event.stopPropagation()">···</button>
+              </td>
+              <td class="py-1.5 px-2 text-right text-gray-500 d-only">1</td>
+              <td class="py-1.5 px-2 text-gray-500 d-only">each</td>
+              <td class="py-1.5 px-2 text-right text-gray-500 m-only">1 each</td>
+              <td class="py-1.5 px-2 text-right font-medium">95</td>
+              <td class="py-1.5 px-2 text-right text-blue-500  d-only">0</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 d-only">25</td>
+              <td class="py-1.5 px-2 text-right text-pink-500  d-only">0</td>
+              <td class="py-1.5 px-2 text-right text-teal-500  d-only">4</td>
+            </tr>
+            <tr class="detail-strip" id="exp-apple">
+              <td colspan="9" class="pb-2 px-3 pl-[18px]">
+                <div class="grid grid-cols-5 gap-2 text-center bg-gray-50 rounded-md p-2 border border-gray-100">
+                  <div><div class="text-gray-400 text-[10px] mb-0.5">Cal</div><div class="font-semibold">95</div></div>
+                  <div><div class="text-blue-500  text-[10px] mb-0.5">Protein</div><div class="font-semibold">0g</div></div>
+                  <div><div class="text-amber-500 text-[10px] mb-0.5">Carbs</div><div class="font-semibold">25g</div></div>
+                  <div><div class="text-pink-500  text-[10px] mb-0.5">Fat</div><div class="font-semibold">0g</div></div>
+                  <div><div class="text-teal-500  text-[10px] mb-0.5">Fibre</div><div class="font-semibold">4g</div></div>
+                </div>
+              </td>
+            </tr>
+
+            <tr class="item-row border-t border-gray-50 hover:bg-gray-50" onclick="toggleExpand(this,'exp-almonds')">
+              <td class="py-1.5 px-3 pl-[18px] font-medium text-gray-800 relative">Almonds
+                <button class="absolute right-1 top-1/2 -translate-y-1/2 px-1 text-gray-400 m-only" onclick="event.stopPropagation()">···</button>
+              </td>
+              <td class="py-1.5 px-2 text-right text-gray-500 d-only">30</td>
+              <td class="py-1.5 px-2 text-gray-500 d-only">g</td>
+              <td class="py-1.5 px-2 text-right text-gray-500 m-only">30g</td>
+              <td class="py-1.5 px-2 text-right font-medium">185</td>
+              <td class="py-1.5 px-2 text-right text-blue-500  d-only">7</td>
+              <td class="py-1.5 px-2 text-right text-amber-500 d-only">5</td>
+              <td class="py-1.5 px-2 text-right text-pink-500  d-only">16</td>
+              <td class="py-1.5 px-2 text-right text-teal-500  d-only">4</td>
+            </tr>
+            <tr class="detail-strip" id="exp-almonds">
+              <td colspan="9" class="pb-2 px-3 pl-[18px]">
+                <div class="grid grid-cols-5 gap-2 text-center bg-gray-50 rounded-md p-2 border border-gray-100">
+                  <div><div class="text-gray-400 text-[10px] mb-0.5">Cal</div><div class="font-semibold">185</div></div>
+                  <div><div class="text-blue-500  text-[10px] mb-0.5">Protein</div><div class="font-semibold">7g</div></div>
+                  <div><div class="text-amber-500 text-[10px] mb-0.5">Carbs</div><div class="font-semibold">5g</div></div>
+                  <div><div class="text-pink-500  text-[10px] mb-0.5">Fat</div><div class="font-semibold">16g</div></div>
+                  <div><div class="text-teal-500  text-[10px] mb-0.5">Fibre</div><div class="font-semibold">4g</div></div>
+                </div>
+              </td>
+            </tr>
+
+            <tr class="border-t border-dashed border-gray-200 bg-gray-50/50">
+              <td colspan="9" class="py-1.5 px-3 text-gray-400 italic cursor-pointer hover:text-indigo-600">+ Add snack item…</td>
+            </tr>
+
+            <!-- ── Exercise ────────────────────────────────────────────── -->
+            <tr class="border-t border-gray-200 bg-[#f0f0f4]">
+              <td colspan="3" class="py-1.5 px-3 font-semibold text-gray-700 border-l-[3px] border-l-emerald-500 d-only">Exercise</td>
+              <td colspan="2" class="py-1.5 px-3 font-semibold text-gray-700 border-l-[3px] border-l-emerald-500 m-only">Exercise</td>
+              <td class="d-only"></td>
+              <td class="m-only"></td>
+              <td colspan="4" class="d-only"></td>
+            </tr>
+
+            <!-- Exercise rows are not tappable — no macros to expand -->
+            <tr class="border-t border-gray-50 hover:bg-gray-50">
+              <td class="py-1.5 px-3 pl-[18px] font-medium text-gray-800 relative">Running (5k)
+                <button class="absolute right-1 top-1/2 -translate-y-1/2 px-1 text-gray-400 m-only">···</button>
+              </td>
+              <td class="py-1.5 px-2 text-right text-gray-500 d-only">30</td>
+              <td class="py-1.5 px-2 text-gray-500 d-only">minutes</td>
+              <td class="py-1.5 px-2 text-right text-gray-500 m-only">30 min</td>
+              <td class="py-1.5 px-2 text-right font-medium text-emerald-600">-273</td>
+              <td class="d-only"></td><td class="d-only"></td><td class="d-only"></td><td class="d-only"></td>
+            </tr>
+
+            <tr class="border-t border-dashed border-gray-200 bg-gray-50/50">
+              <td colspan="9" class="py-1.5 px-3 text-gray-400 italic cursor-pointer hover:text-indigo-600">+ Add exercise…</td>
+            </tr>
+
+            <!-- ── Net Total — Desktop ─────────────────────────────────── -->
+            <tr class="d-row border-t-2 border-gray-300 bg-gray-50 font-semibold text-xs">
+              <td class="py-2 px-3 text-gray-700">Net Total</td>
+              <td class="py-2 px-2 d-only"></td>
+              <td class="py-2 px-2 d-only"></td>
+              <td class="py-2 px-2 text-right">1,847</td>
+              <td class="py-2 px-2 text-right text-blue-600  d-only">97</td>
+              <td class="py-2 px-2 text-right text-red-500   d-only">245</td>
+              <td class="py-2 px-2 text-right text-pink-600  d-only">71</td>
+              <td class="py-2 px-2 text-right text-teal-600  d-only">32</td>
+            </tr>
+
+            <!-- ── Net Total — Mobile ──────────────────────────────────── -->
+            <tr class="m-row border-t-2 border-gray-300 bg-gray-50 font-semibold text-xs">
+              <td class="py-2 px-3 text-gray-700">Net Total</td>
+              <td class="py-2 px-2"></td>
+              <td class="py-2 px-2 text-right">1,847</td>
+            </tr>
+            <tr class="m-row bg-gray-50 text-xs">
+              <td colspan="3" class="pb-2 px-3">
+                <span class="text-teal-600 font-medium">Fibre</span>
+                <span class="text-gray-700 font-semibold ml-1">32g</span>
+                <span class="ml-0.5 text-green-500 font-bold">✓</span>
+                <span class="text-gray-400 font-normal ml-1">of 30g target</span>
+              </td>
+            </tr>
+
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </div><!-- /#viewport -->
+
+  <script>
+    // ── Viewport toggle — only toggles classes, no style.display ─────────
+    function setView(v) {
+      const vp = document.getElementById('viewport')
+      vp.classList.remove('view-desktop', 'view-mobile', 'show-macro')
+      vp.classList.add('view-' + v)
+
+      document.getElementById('btn-desktop').className = v === 'desktop'
+        ? 'px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium'
+        : 'px-3 py-1.5 bg-white text-gray-600 hover:bg-gray-50 text-xs font-medium'
+      document.getElementById('btn-mobile').className = v === 'mobile'
+        ? 'px-3 py-1.5 bg-indigo-600 text-white text-xs font-medium'
+        : 'px-3 py-1.5 bg-white text-gray-600 hover:bg-gray-50 text-xs font-medium'
+
+      document.getElementById('hint-desktop').classList.toggle('hidden', v !== 'desktop')
+      document.getElementById('hint-mobile').classList.toggle('hidden',  v !== 'mobile')
+
+      document.getElementById('toggle-label').textContent = 'Calories'
+
+      // Collapse open strips
+      document.querySelectorAll('.detail-strip').forEach(el => el.classList.remove('open'))
+      document.querySelectorAll('.item-row').forEach(el => el.classList.remove('expanded'))
+      currentExpand = null
+    }
+
+    // ── Summary view toggle (mobile only) — single class on #viewport ────
+    function toggleSummaryView() {
+      const vp = document.getElementById('viewport')
+      if (!vp.classList.contains('view-mobile')) return
+      const macro = vp.classList.toggle('show-macro')
+      document.getElementById('toggle-label').textContent = macro ? 'Macros & Fibre' : 'Calories'
+    }
+
+    // ── Row expand (mobile only) ──────────────────────────────────────────
+    let currentExpand = null
+    function toggleExpand(row, stripId) {
+      if (!document.getElementById('viewport').classList.contains('view-mobile')) return
+      const strip = document.getElementById(stripId)
+      if (currentExpand && currentExpand !== stripId) {
+        document.getElementById(currentExpand).classList.remove('open')
+        document.querySelectorAll('.item-row').forEach(r => r.classList.remove('expanded'))
+      }
+      const opening = !strip.classList.contains('open')
+      strip.classList.toggle('open', opening)
+      row.classList.toggle('expanded', opening)
+      currentExpand = opening ? stripId : null
+    }
+  </script>
+</body>
+</html>
