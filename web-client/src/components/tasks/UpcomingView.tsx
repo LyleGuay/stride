@@ -1,11 +1,12 @@
 // UpcomingView — renders the Upcoming tab of the Tasks module.
 //
-// Fetches tasks due in the next 7 days (server view=upcoming).
-// Groups tasks by due_date with a date label for each group.
+// Fetches overdue + today + next 7 days active tasks (server view=upcoming).
+// Renders three sections: Overdue (red badge), Today, then future dates grouped
+// by date with "Tomorrow" / "Wednesday, Mar 25" labels.
 // Within each group: sorted by due_time ASC NULLS LAST, then created_at ASC.
-// Empty state: "Nothing scheduled in the next 7 days."
+// Empty state: "Nothing due in the next 7 days."
 
-import { useState, useCallback } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useTasks } from '../../hooks/useTasks'
 import { updateTask, deleteTask } from '../../api'
 import type { Task, UpdateTaskInput } from '../../types'
@@ -15,8 +16,9 @@ import { useTaskMutation } from './TaskMutationContext'
 
 /* ─── Helpers ────────────────────────────────────────────────────────── */
 
-// Returns "Tomorrow" if date is today+1, otherwise "Wednesday, Mar 25".
-function dateGroupLabel(date: string, today: string): string {
+// Returns the section label for a future date group.
+// "Tomorrow" for today+1, otherwise "Wednesday, Mar 25".
+function futureDateLabel(date: string, today: string): string {
   const tomorrow = offsetDate(today, 1)
   if (date === tomorrow) return 'Tomorrow'
   return new Date(date + 'T00:00:00').toLocaleDateString('en-US', {
@@ -59,13 +61,16 @@ function groupByDate(tasks: Task[]): { date: string; tasks: Task[] }[] {
 interface Props {
   today: string
   onEdit: (task: Task) => void
+  refreshKey?: number
 }
 
 /* ─── UpcomingView ───────────────────────────────────────────────────── */
 
-export default function UpcomingView({ today, onEdit }: Props) {
+export default function UpcomingView({ today, onEdit, refreshKey }: Props) {
   const { tasks, loading, error, reload } = useTasks({ view: 'upcoming', today })
   const { notifyMutation } = useTaskMutation()
+
+  useEffect(() => { if (refreshKey) reload() }, [refreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const [toast, setToast] = useState<{ message: string; undoFn: () => void } | null>(null)
 
   const handleReload = useCallback(() => {
@@ -102,7 +107,19 @@ export default function UpcomingView({ today, onEdit }: Props) {
   if (loading) return <div className="py-8 text-center text-sm text-gray-400">Loading…</div>
   if (error)   return <p className="py-4 text-sm text-red-600">{error}</p>
 
-  if (tasks.length === 0) {
+  // Split tasks into overdue, today, and future groups.
+  const overdue = tasks
+    .filter(t => t.due_date && t.due_date < today)
+    .sort(sortWithinDay)
+
+  const todayTasks = tasks
+    .filter(t => t.due_date === today)
+    .sort(sortWithinDay)
+
+  const futureTasks = tasks.filter(t => t.due_date && t.due_date > today)
+  const futureGroups = groupByDate(futureTasks)
+
+  if (overdue.length === 0 && todayTasks.length === 0 && futureTasks.length === 0) {
     return (
       <div className="py-16 text-center">
         <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
@@ -110,19 +127,61 @@ export default function UpcomingView({ today, onEdit }: Props) {
             <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5" />
           </svg>
         </div>
-        <p className="text-gray-500 font-medium text-sm">Nothing scheduled in the next 7 days.</p>
+        <p className="text-gray-500 font-medium text-sm">Nothing due in the next 7 days.</p>
       </div>
     )
   }
 
-  const groups = groupByDate(tasks)
-
   return (
     <div className="space-y-6">
-      {groups.map(({ date, tasks: dayTasks }) => (
+      {/* ── Overdue section ─────────────────────────────────────────────── */}
+      {overdue.length > 0 && (
+        <section>
+          <div className="flex items-center gap-2 mb-2">
+            <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider">Overdue</h3>
+            <span className="text-xs font-bold bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full leading-none">
+              {overdue.length}
+            </span>
+          </div>
+          <div className="space-y-2">
+            {overdue.map(task => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                today={today}
+                onStatusChange={handleStatusChange}
+                onEdit={onEdit}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Today section ───────────────────────────────────────────────── */}
+      {todayTasks.length > 0 && (
+        <section>
+          <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Today</h3>
+          <div className="space-y-2">
+            {todayTasks.map(task => (
+              <TaskRow
+                key={task.id}
+                task={task}
+                today={today}
+                onStatusChange={handleStatusChange}
+                onEdit={onEdit}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* ── Future date groups ──────────────────────────────────────────── */}
+      {futureGroups.map(({ date, tasks: dayTasks }) => (
         <section key={date}>
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">
-            {dateGroupLabel(date, today)}
+            {futureDateLabel(date, today)}
           </h3>
           <div className="space-y-2">
             {dayTasks.map(task => (

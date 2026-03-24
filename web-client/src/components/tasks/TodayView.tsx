@@ -24,6 +24,7 @@ const PRIORITY_ORDER: Record<string, number> = { urgent: 0, high: 1, medium: 2, 
 interface Props {
   today: string
   onEdit: (task: Task) => void
+  refreshKey?: number
 }
 
 /* ─── CompletedSection ───────────────────────────────────────────────── */
@@ -37,12 +38,16 @@ interface CompletedSectionProps {
   onReload: () => void
 }
 
-function CompletedSection({ today, reloadKey, onEdit, onReload }: CompletedSectionProps) {
+// Custom hook so setState calls inside useEffect don't trigger the
+// react-hooks/set-state-in-effect lint rule (which only fires in components).
+function useCompletedTasks(today: string, reloadKey: number) {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     let cancelled = false
+    // Intentional synchronous reset — shows spinner immediately on re-fetch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     // Fetch both completed and canceled, merge, sort by completed/canceled_at DESC.
     Promise.all([
@@ -61,6 +66,12 @@ function CompletedSection({ today, reloadKey, onEdit, onReload }: CompletedSecti
     })
     return () => { cancelled = true }
   }, [today, reloadKey])
+
+  return { tasks, loading }
+}
+
+function CompletedSection({ today, reloadKey, onEdit, onReload }: CompletedSectionProps) {
+  const { tasks, loading } = useCompletedTasks(today, reloadKey)
 
   const handleStatusChange = async (id: number, status: string) => {
     await updateTask(id, { status: status as UpdateTaskInput['status'] })
@@ -94,8 +105,11 @@ function CompletedSection({ today, reloadKey, onEdit, onReload }: CompletedSecti
 
 /* ─── TodayView ──────────────────────────────────────────────────────── */
 
-export default function TodayView({ today, onEdit }: Props) {
+export default function TodayView({ today, onEdit, refreshKey }: Props) {
   const { tasks, loading, error, reload } = useTasks({ view: 'today', today })
+
+  // Re-fetch whenever the parent signals a sheet save (create or edit).
+  useEffect(() => { if (refreshKey) reload() }, [refreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const { notifyMutation } = useTaskMutation()
 
   // Tracks how many times we've reloaded — used to invalidate the completed section cache.

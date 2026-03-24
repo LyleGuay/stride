@@ -41,12 +41,12 @@ test.describe('Progress tab', () => {
     // Click "YTD" — selector should update and data should reload
     await page.getByRole('button', { name: 'YTD' }).click()
 
-    // The Calories card should still render (chart or no-data placeholder)
-    await expect(page.getByRole('heading', { name: 'Calories', exact: true })).toBeVisible()
+    // The Calories heading disappears while loading then reappears — allow extra time.
+    await expect(page.getByRole('heading', { name: 'Calories', exact: true })).toBeVisible({ timeout: 10000 })
 
     // Click "All"
     await page.getByRole('button', { name: 'All' }).click()
-    await expect(page.getByRole('heading', { name: 'Calories', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Calories', exact: true })).toBeVisible({ timeout: 10000 })
   })
 
   test('Period Summary shows estimated weight impact when data exists', async ({ page }) => {

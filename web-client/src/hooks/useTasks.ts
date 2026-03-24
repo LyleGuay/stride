@@ -39,6 +39,9 @@ export function useTasks({ view, today, search }: Params): UseTasksResult {
   useEffect(() => {
     let cancelled = false
     offsetRef.current = 0
+    // Synchronous resets are intentional: we clear stale data and show a spinner
+    // immediately when fetch params change so the UI never shows stale results.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setTasks([])
     setHasMore(false)
     setError(null)
@@ -60,7 +63,6 @@ export function useTasks({ view, today, search }: Params): UseTasksResult {
       })
 
     return () => { cancelled = true }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [view, today, search, reloadCounter])
 
   // loadMore appends the next page. Guarded so it can't be called concurrently.

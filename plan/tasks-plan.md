@@ -344,7 +344,7 @@ Due dates are **calendar dates, not timestamps**. All server-side "is this today
 
 ### Phase K: E2E Tests
 
-- [ ] **K.1 — Playwright E2E for core task flows**
+- [x] **K.1 — Playwright E2E for core task flows**
   Create `e2e/tests/tasks.spec.ts` and `e2e/tests/tasks-mobile.spec.ts`.
 
   **Desktop flows (`tasks.spec.ts`):**

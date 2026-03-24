@@ -47,7 +47,7 @@ func insertTaskTags(h *Handler, c *gin.Context, taskID int, tags []string) error
 // The view param drives which tasks are returned:
 //
 //	today     — due today or overdue, active tasks
-//	upcoming  — due in the next 7 days, active tasks
+//	upcoming  — overdue + today + next 7 days, active tasks with a due date
 //	all       — all active tasks regardless of due date
 //	backlog   — active tasks with no due date
 //	completed — completed tasks, newest first
@@ -94,7 +94,9 @@ func (h *Handler) listTasks(c *gin.Context) {
 		whereExtra = "AND t.due_date <= @today::date AND t.status::text IN ('todo', 'in_progress')"
 		orderBy = "t.due_date ASC, t.created_at ASC, t.id ASC"
 	case "upcoming":
-		whereExtra = "AND t.due_date > @today::date AND t.due_date <= (@today::date + INTERVAL '7 days') AND t.status::text IN ('todo', 'in_progress')"
+		// Includes overdue + today + next 7 days so the view covers everything
+		// the user needs to action, not just future-scheduled tasks.
+		whereExtra = "AND t.due_date IS NOT NULL AND t.due_date <= (@today::date + INTERVAL '7 days') AND t.status::text IN ('todo', 'in_progress')"
 		orderBy = "t.due_date ASC, t.created_at ASC, t.id ASC"
 	case "all":
 		whereExtra = "AND t.status::text IN ('todo', 'in_progress')"

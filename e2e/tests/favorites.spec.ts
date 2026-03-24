@@ -62,8 +62,9 @@ test.describe('Favorites feature', () => {
 
     await expect(page.getByText('Test Protein Bar')).toBeVisible()
 
-    // Right-click the item to open the context menu
-    await page.getByText('Test Protein Bar').click({ button: 'right' })
+    // Right-click the item to open the context menu — .first() avoids strict-mode
+    // violations if the item name matches multiple DOM nodes (e.g. table cell + form input).
+    await page.getByText('Test Protein Bar').first().click({ button: 'right' })
     await expect(page.getByText('Save as Favorite')).toBeVisible()
   })
 
@@ -80,8 +81,8 @@ test.describe('Favorites feature', () => {
 
     await expect(page.getByText('Test Protein Bar')).toBeVisible()
 
-    // Step 2: Right-click → "Save as Favorite"
-    await page.getByText('Test Protein Bar').click({ button: 'right' })
+    // Step 2: Right-click → "Save as Favorite" — .first() avoids strict-mode violations
+    await page.getByText('Test Protein Bar').first().click({ button: 'right' })
     await page.getByText('Save as Favorite').click()
     await expect(page.getByText('Save as Favorite')).not.toBeVisible()
 

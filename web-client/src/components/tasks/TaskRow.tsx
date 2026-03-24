@@ -178,7 +178,10 @@ export default function TaskRow({ task, today, onStatusChange, onEdit, onDelete,
   const closePopover = () => {
     if (hoverTimer.current) clearTimeout(hoverTimer.current)
     if (longPressTimer.current) clearTimeout(longPressTimer.current)
-    setPopoverOpen(false)
+    // Don't close on mouse-leave if the popover was opened via long-press —
+    // touch devices fire a synthetic mouseleave when the finger lifts, which
+    // would immediately dismiss the popover before the user can select an option.
+    if (!longPressActive.current) setPopoverOpen(false)
   }
   // Long-press (mobile): separate timer with 500ms delay.
   const startLongPress = () => {
@@ -205,13 +208,14 @@ export default function TaskRow({ task, today, onStatusChange, onEdit, onDelete,
   }
 
   const handlePopoverSelect = (status: string) => {
+    longPressActive.current = false
     setPopoverOpen(false)
     onStatusChange(task.id, status)
   }
 
   return (
     // group — enables the hover-opacity pattern for the ··· menu on desktop
-    <div className="group flex items-stretch bg-white rounded-lg border border-gray-100 shadow-sm">
+    <div data-testid="task-row" className="group flex items-stretch bg-white rounded-lg border border-gray-100 shadow-sm">
 
       {/* Priority border bar */}
       <div
@@ -236,7 +240,7 @@ export default function TaskRow({ task, today, onStatusChange, onEdit, onDelete,
           />
           {popoverOpen && (
             <>
-              <div className="fixed inset-0 z-10" onClick={closePopover} />
+              <div className="fixed inset-0 z-10" onClick={() => { longPressActive.current = false; setPopoverOpen(false) }} />
               <div className="absolute left-0 top-[calc(100%+4px)] z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-36">
                 {STATUS_OPTIONS.map(opt => (
                   <button

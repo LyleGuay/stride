@@ -40,11 +40,12 @@ interface Props {
   today: string
   onEdit: (task: Task) => void
   onSchedule?: (task: Task) => void
+  refreshKey?: number
 }
 
 /* ─── AllView ────────────────────────────────────────────────────────── */
 
-export default function AllView({ today, onEdit, onSchedule }: Props) {
+export default function AllView({ today, onEdit, onSchedule, refreshKey }: Props) {
   const [filter, setFilter] = useState<Filter>('all')
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -98,6 +99,8 @@ export default function AllView({ today, onEdit, onSchedule }: Props) {
     reload()
     notifyMutation()
   }, [reload, notifyMutation])
+
+  useEffect(() => { if (refreshKey) handleReload() }, [refreshKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleStatusChange = useCallback(async (id: number, newStatus: string) => {
     const prev = tasks.find(t => t.id === id)?.status

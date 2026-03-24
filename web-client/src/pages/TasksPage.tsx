@@ -53,6 +53,8 @@ export default function TasksPage() {
   const [editTask, setEditTask] = useState<Task | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
   const [initialFocusDueDate, setInitialFocusDueDate] = useState(false)
+  // Incremented after every successful save so the active view re-fetches.
+  const [refreshKey, setRefreshKey] = useState(0)
 
   const today = todayString()
   const { setOpen: setSidebarOpen } = useSidebar()
@@ -79,6 +81,11 @@ export default function TasksPage() {
   const handleClose = () => {
     setSheetOpen(false)
     setEditTask(null)
+  }
+
+  const handleSave = () => {
+    handleClose()
+    setRefreshKey(k => k + 1)
   }
 
   /* ─── Render ──────────────────────────────────────────────────────────── */
@@ -120,9 +127,9 @@ export default function TasksPage() {
 
       {/* ── Views — each owns its own data fetch ────────────────────────── */}
       <div className="max-w-2xl mx-auto px-4 pt-4">
-        {tab === 'today'    && <TodayView    today={today} onEdit={handleEdit} />}
-        {tab === 'upcoming' && <UpcomingView today={today} onEdit={handleEdit} />}
-        {tab === 'all'      && <AllView      today={today} onEdit={handleEdit} onSchedule={handleSchedule} />}
+        {tab === 'today'    && <TodayView    today={today} onEdit={handleEdit} refreshKey={refreshKey} />}
+        {tab === 'upcoming' && <UpcomingView today={today} onEdit={handleEdit} refreshKey={refreshKey} />}
+        {tab === 'all'      && <AllView      today={today} onEdit={handleEdit} onSchedule={handleSchedule} refreshKey={refreshKey} />}
       </div>
 
       {/* FAB — opens Add Task sheet */}
@@ -140,7 +147,7 @@ export default function TasksPage() {
         task={editTask}
         open={sheetOpen}
         onClose={handleClose}
-        onSave={() => handleClose()}
+        onSave={handleSave}
         today={today}
         initialFocusDueDate={initialFocusDueDate}
       />

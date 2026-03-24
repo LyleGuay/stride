@@ -47,8 +47,12 @@ test.describe('Settings', () => {
     // Wait for save to complete
     await expect(page.getByText('Saved!')).toBeVisible()
 
-    // Return to daily view — 2,150 should appear in the budget display
-    await page.goto('/calorie-log')
+    // Return to daily view — wait for the daily summary API call so the budget
+    // is guaranteed loaded before asserting (goto resolves before async fetches complete).
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/calorie-log/daily')),
+      page.goto('/calorie-log'),
+    ])
     await expect(page.getByText('2,150')).toBeVisible()
 
     // Restore original budget (cleanup so other tests are unaffected)
