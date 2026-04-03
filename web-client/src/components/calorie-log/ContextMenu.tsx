@@ -1,6 +1,6 @@
 // ContextMenu — fixed-position menu shown on right-click (desktop) or "···" tap
-// (mobile) on an item row. Options: Edit item, Duplicate, Save as Favorite, Delete.
-// When the item was logged from a recipe, also shows "Open Recipe".
+// (mobile) on an item row. Options: Edit item, Duplicate, Copy to Today (past days only),
+// Save as Favorite, Delete. When the item was logged from a recipe, also shows "Open Recipe".
 // Click outside or Escape closes it.
 
 import { useEffect, useRef } from 'react'
@@ -13,12 +13,15 @@ interface Props {
   onFavorite: () => void
   onDelete: () => void
   onClose: () => void
+  // Show "Copy to Today" only when viewing a past day.
+  isPastDay?: boolean
+  onCopyToToday?: () => void
   // Optional recipe actions — only rendered when the item was logged from a recipe.
   recipeId?: number | null
   onOpenRecipe?: () => void
 }
 
-export default function ContextMenu({ x, y, onEdit, onDuplicate, onFavorite, onDelete, onClose, recipeId, onOpenRecipe }: Props) {
+export default function ContextMenu({ x, y, onEdit, onDuplicate, onFavorite, onDelete, onClose, isPastDay, onCopyToToday, recipeId, onOpenRecipe }: Props) {
   const ref = useRef<HTMLDivElement>(null)
 
   // Close on click outside or Escape
@@ -73,6 +76,17 @@ export default function ContextMenu({ x, y, onEdit, onDuplicate, onFavorite, onD
         </svg>
         Duplicate
       </button>
+      {isPastDay && onCopyToToday && (
+        <button
+          onClick={onCopyToToday}
+          className="flex items-center gap-2 w-full px-3.5 py-[7px] text-[13px] text-gray-700 hover:bg-gray-100"
+        >
+          <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5" />
+          </svg>
+          Copy to Today
+        </button>
+      )}
       <button
         onClick={onFavorite}
         className="flex items-center gap-2 w-full px-3.5 py-[7px] text-[13px] text-amber-600 hover:bg-amber-50"

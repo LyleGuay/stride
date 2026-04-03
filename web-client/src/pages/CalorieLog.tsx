@@ -230,6 +230,24 @@ export default function CalorieLog() {
     closeCtxMenu()
   }
 
+  // "Copy to Today" — create a copy of the item on today's date.
+  const handleCtxCopyToToday = async () => {
+    if (!ctxMenu) return
+    const src = ctxMenu.item
+    closeCtxMenu()
+    try {
+      await createCalorieLogItem({
+        date: todayString(), item_name: src.item_name, type: src.type,
+        qty: src.qty, uom: src.uom, calories: src.calories,
+        protein_g: src.protein_g, carbs_g: src.carbs_g, fat_g: src.fat_g,
+        // recipe_id intentionally omitted — copying the resolved nutrition values,
+        // not re-linking to the recipe.
+      })
+    } catch {
+      setError('Failed to copy item to today')
+    }
+  }
+
   // "Duplicate" — create a copy of the item.
   const handleCtxDuplicate = async () => {
     if (!ctxMenu) return
@@ -554,6 +572,8 @@ export default function CalorieLog() {
           onFavorite={handleCtxFavorite}
           onDelete={handleCtxDelete}
           onClose={closeCtxMenu}
+          isPastDay={date < todayString()}
+          onCopyToToday={handleCtxCopyToToday}
           recipeId={ctxMenu.item.recipe_id}
           onOpenRecipe={ctxMenu.item.recipe_id != null
             ? () => navigate(`/recipes/${ctxMenu.item.recipe_id}`)
