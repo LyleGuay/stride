@@ -124,37 +124,35 @@ var entryTypeTags = map[string]bool{
 	"reminder": true, "life_update": true, "feelings": true,
 }
 
-// mentalStateScore returns the mental-state score (1–5) for a single emotion or condition tag.
-// Condition tags (physical symptoms) also return a score so they pull the daily average down.
-// Non-scoring tags (entry types, unknown values) return 0 and are skipped in scoring.
-func mentalStateScore(tag string) int {
+// tagDelta returns the signed float64 contribution of a single emotion or condition
+// tag to the additive mental-state score. The score formula is:
+//
+//	clamp(2.5 + Σ deltas, 1.0, 5.0)
+//
+// The bool return (ok idiom) indicates whether a tag is a scoring tag at all.
+// Callers must check ok rather than comparing the float to zero — neutral returns
+// (0.0, true) and still activates the baseline even though it adds no delta.
+// Non-scoring tags (entry types, unknown values) return (0, false).
+func tagDelta(tag string) (float64, bool) {
 	switch tag {
-	case "excited":
-		return 5
-	case "well_rested":
-		return 5
-	case "happy", "motivated", "energized", "calm", "content", "grateful":
-		return 4
-	case "hopeful", "proud":
-		return 4
+	case "excited", "well_rested", "happy":
+		return 1.00, true
+	case "proud", "motivated", "energized":
+		return 0.75, true
+	case "calm", "content", "grateful", "hopeful":
+		return 0.50, true
 	case "neutral":
-		return 3
-	case "confused":
-		return 3
-	case "bored", "unmotivated", "anxious", "overwhelmed", "low":
-		return 2
-	case "tired", "stressed", "annoyed", "lonely":
-		return 2
-	case "stomach_ache", "brain_fog", "fatigue":
-		return 2
-	case "sad", "angry", "frustrated", "depressed":
-		return 1
-	case "sick":
-		return 1
-	case "nausea":
-		return 1
+		return 0.00, true
+	case "unmotivated", "annoyed", "lonely", "confused", "bored":
+		return -0.50, true
+	case "brain_fog", "low", "fatigue", "tired":
+		return -0.75, true
+	case "sad", "overwhelmed", "angry", "frustrated", "stressed", "anxious":
+		return -1.00, true
+	case "depressed", "stomach_ache", "sick", "nausea":
+		return -1.25, true
 	}
-	return 0
+	return 0, false
 }
 
 /* ─── Get entries (daily list) ────────────────────────────────────────── */
@@ -393,10 +391,9 @@ func resolveDateRange(rangeParam, refDateStr string, now time.Time) (time.Time, 
 // ISO week for 6m/1yr — even when there are no entries (EntryCount=0, Score=nil).
 func buildMentalStateBars(rangeParam string, startDate time.Time, rows []journalSummaryRow) []mentalStateBar {
 	type barAccum struct {
-		count    int
-		scoreSum int
-		scoreN   int
-		emotions map[string]bool // distinct emotion/condition tags seen
+		count     int
+		tagCounts map[string]int  // occurrence count per scoring tag
+		emotions  map[string]bool // distinct emotion/condition tags for tooltip
 	}
 
 	// Group rows by their bar key: YYYY-MM-DD for day ranges, Monday for week ranges.
@@ -409,14 +406,16 @@ func buildMentalStateBars(rangeParam string, startDate time.Time, rows []journal
 			barKey = row.EntryDate.Time.Format("2006-01-02")
 		}
 		if accums[barKey] == nil {
-			accums[barKey] = &barAccum{emotions: make(map[string]bool)}
+			accums[barKey] = &barAccum{
+				tagCounts: make(map[string]int),
+				emotions:  make(map[string]bool),
+			}
 		}
 		acc := accums[barKey]
 		acc.count++
 		for _, tag := range row.Tags {
-			if s := mentalStateScore(tag); s > 0 {
-				acc.scoreSum += s
-				acc.scoreN++
+			if _, ok := tagDelta(tag); ok {
+				acc.tagCounts[tag]++
 			}
 			if emotionTags[tag] || conditionTags[tag] {
 				acc.emotions[tag] = true
@@ -431,9 +430,22 @@ func buildMentalStateBars(rangeParam string, startDate time.Time, rows []journal
 			return
 		}
 		bar.EntryCount = acc.count
-		if acc.scoreN > 0 {
-			score := float64(acc.scoreSum) / float64(acc.scoreN)
-			score = float64(int(score*10+0.5)) / 10 // one-decimal rounding
+		if len(acc.tagCounts) > 0 {
+			// Additive scoring: baseline 2.5 + each tag's delta.
+			// Repeated tags count at diminishing weight: first occurrence = full delta,
+			// each additional occurrence = 0.25× the base delta.
+			raw := 2.5
+			for tag, count := range acc.tagCounts {
+				d, _ := tagDelta(tag)
+				raw += d * (1 + 0.25*float64(count-1))
+			}
+			if raw < 1.0 {
+				raw = 1.0
+			}
+			if raw > 5.0 {
+				raw = 5.0
+			}
+			score := float64(int(raw*10+0.5)) / 10 // one-decimal rounding
 			bar.Score = &score
 		}
 		for tag := range acc.emotions {
@@ -530,9 +542,8 @@ func (h *Handler) getJournalCalendar(c *gin.Context) {
 // Kept as a standalone function so it can be unit-tested without a database.
 func computeCalendarDays(rows []journalSummaryRow) []journalCalendarDay {
 	type dayAccum struct {
-		count    int
-		scoreSum int
-		scoreN   int
+		count     int
+		tagCounts map[string]int // occurrence count per scoring tag
 	}
 	// Use a slice to preserve date order (rows arrive sorted by entry_date).
 	var dateOrder []string
@@ -541,15 +552,14 @@ func computeCalendarDays(rows []journalSummaryRow) []journalCalendarDay {
 	for _, row := range rows {
 		dateKey := row.EntryDate.Time.Format("2006-01-02")
 		if accums[dateKey] == nil {
-			accums[dateKey] = &dayAccum{}
+			accums[dateKey] = &dayAccum{tagCounts: make(map[string]int)}
 			dateOrder = append(dateOrder, dateKey)
 		}
 		acc := accums[dateKey]
 		acc.count++
 		for _, tag := range row.Tags {
-			if s := mentalStateScore(tag); s > 0 {
-				acc.scoreSum += s
-				acc.scoreN++
+			if _, ok := tagDelta(tag); ok {
+				acc.tagCounts[tag]++
 			}
 		}
 	}
@@ -558,10 +568,21 @@ func computeCalendarDays(rows []journalSummaryRow) []journalCalendarDay {
 	for _, dateKey := range dateOrder {
 		acc := accums[dateKey]
 		var avgScore *float64
-		if acc.scoreN > 0 {
-			// One-decimal rounding — matches getJournalSummary behaviour.
-			score := float64(acc.scoreSum) / float64(acc.scoreN)
-			score = float64(int(score*10+0.5)) / 10
+		if len(acc.tagCounts) > 0 {
+			// Additive scoring: baseline 2.5 + each tag's delta.
+			// Repeated tags count at diminishing weight: first = full, each extra = 0.25×.
+			raw := 2.5
+			for tag, count := range acc.tagCounts {
+				d, _ := tagDelta(tag)
+				raw += d * (1 + 0.25*float64(count-1))
+			}
+			if raw < 1.0 {
+				raw = 1.0
+			}
+			if raw > 5.0 {
+				raw = 5.0
+			}
+			score := float64(int(raw*10+0.5)) / 10 // one-decimal rounding
 			avgScore = &score
 		}
 		result = append(result, journalCalendarDay{

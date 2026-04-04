@@ -14,115 +14,153 @@ func mustDateOnly(s string) DateOnly {
 	return DateOnly{t}
 }
 
-/* ─── mentalStateScore ───────────────────────────────────────────────── */
+/* ─── tagDelta ───────────────────────────────────────────────────────── */
 
-func TestMentalStateScore_AllEmotions(t *testing.T) {
+func TestTagDelta_Values(t *testing.T) {
 	cases := []struct {
-		tag  string
-		want int
+		tag     string
+		wantD   float64
+		wantOk  bool
 	}{
-		// Score 5
-		{"excited", 5},
-		// Score 4
-		{"happy", 4},
-		{"motivated", 4},
-		{"energized", 4},
-		{"calm", 4},
-		{"content", 4},
-		{"grateful", 4},
-		// Score 3
-		{"neutral", 3},
-		// Score 2
-		{"bored", 2},
-		{"unmotivated", 2},
-		{"anxious", 2},
-		{"overwhelmed", 2},
-		{"low", 2},
-		// Score 1
-		{"sad", 1},
-		{"angry", 1},
-		{"frustrated", 1},
-		{"depressed", 1},
+		{"excited", 1.00, true},
+		{"well_rested", 1.00, true},
+		{"happy", 1.00, true},
+		{"proud", 0.75, true},
+		{"calm", 0.50, true},
+		{"neutral", 0.00, true}, // ok=true even though delta is zero
+		{"annoyed", -0.50, true},
+		{"tired", -0.75, true},
+		{"anxious", -1.00, true},
+		{"depressed", -1.25, true},
+		{"sick", -1.25, true},
+		{"thoughts", 0, false}, // entry-type tag
+		{"", 0, false},         // unknown
 	}
 	for _, tc := range cases {
-		got := mentalStateScore(tc.tag)
-		if got != tc.want {
-			t.Errorf("mentalStateScore(%q) = %d, want %d", tc.tag, got, tc.want)
+		gotD, gotOk := tagDelta(tc.tag)
+		if gotOk != tc.wantOk {
+			t.Errorf("tagDelta(%q) ok = %v, want %v", tc.tag, gotOk, tc.wantOk)
+		}
+		if gotOk && gotD != tc.wantD {
+			t.Errorf("tagDelta(%q) delta = %v, want %v", tc.tag, gotD, tc.wantD)
 		}
 	}
 }
 
-func TestMentalStateScore_EntryTypeTags_ReturnZero(t *testing.T) {
-	// Entry-type tags must return 0 so they are skipped during scoring.
+func TestTagDelta_EntryTypeTags_ReturnFalse(t *testing.T) {
+	// Entry-type tags must return ok=false so they are excluded from scoring.
 	for tag := range entryTypeTags {
-		if got := mentalStateScore(tag); got != 0 {
-			t.Errorf("mentalStateScore(%q) = %d, want 0 (entry type tag should be skipped)", tag, got)
+		if _, ok := tagDelta(tag); ok {
+			t.Errorf("tagDelta(%q) ok = true, want false (entry type tag should be skipped)", tag)
 		}
 	}
 }
 
-func TestMentalStateScore_UnknownTag_ReturnsZero(t *testing.T) {
-	unknowns := []string{"", "unknown", "HAPPY", "excited2", "😊"}
-	for _, tag := range unknowns {
-		if got := mentalStateScore(tag); got != 0 {
-			t.Errorf("mentalStateScore(%q) = %d, want 0", tag, got)
+func TestTagDelta_AllScoringTagsHaveOkTrue(t *testing.T) {
+	// Every emotion and condition tag must have a delta registered.
+	// This guards against adding a new tag without updating tagDelta.
+	for tag := range emotionTags {
+		if _, ok := tagDelta(tag); !ok {
+			t.Errorf("emotionTags contains %q but tagDelta returns ok=false — add it to the switch", tag)
+		}
+	}
+	for tag := range conditionTags {
+		if _, ok := tagDelta(tag); !ok {
+			t.Errorf("conditionTags contains %q but tagDelta returns ok=false — add it to the switch", tag)
 		}
 	}
 }
 
-/* ─── per-date average scoring (via getJournalSummary logic) ─────────── */
+/* ─── additive scoring helper (mirrors per-slot logic without a DB) ──── */
 
-// averageScore replicates the per-date averaging logic from getJournalSummary
-// for unit-testing without a database.
-func averageScore(tags []string) float64 {
-	sum, n := 0, 0
-	for _, tag := range tags {
-		if s := mentalStateScore(tag); s > 0 {
-			sum += s
-			n++
+// additiveMentalStateScore replicates the additive scoring logic used by
+// buildMentalStateBars and computeCalendarDays for unit tests without a database.
+// tagLists is a slice of per-entry tag slices (one inner slice per journal entry).
+func additiveMentalStateScore(tagLists [][]string) *float64 {
+	tagCounts := make(map[string]int)
+	for _, tags := range tagLists {
+		for _, tag := range tags {
+			if _, ok := tagDelta(tag); ok {
+				tagCounts[tag]++
+			}
 		}
 	}
-	if n == 0 {
-		return 0
+	if len(tagCounts) == 0 {
+		return nil
 	}
-	score := float64(sum) / float64(n)
-	// One-decimal rounding (matches handler logic).
-	return float64(int(score*10+0.5)) / 10
+	raw := 2.5
+	for tag, count := range tagCounts {
+		d, _ := tagDelta(tag)
+		raw += d * (1 + 0.25*float64(count-1))
+	}
+	if raw < 1.0 {
+		raw = 1.0
+	}
+	if raw > 5.0 {
+		raw = 5.0
+	}
+	score := float64(int(raw*10+0.5)) / 10
+	return &score
 }
 
-func TestAverageScore_SingleEmotion(t *testing.T) {
-	if got := averageScore([]string{"excited"}); got != 5.0 {
-		t.Errorf("got %.1f, want 5.0", got)
-	}
-}
-
-func TestAverageScore_MixedEmotions(t *testing.T) {
-	// happy(4) + depressed(1) = 5/2 = 2.5
-	got := averageScore([]string{"happy", "depressed"})
-	if got != 2.5 {
-		t.Errorf("got %.1f, want 2.5", got)
-	}
-}
-
-func TestAverageScore_EntryTagsIgnored(t *testing.T) {
-	// Entry-type tags don't contribute to the score.
-	got := averageScore([]string{"thoughts", "idea", "excited"})
-	if got != 5.0 {
-		t.Errorf("got %.1f, want 5.0 (entry-type tags should be ignored)", got)
+func TestAdditiveScore_SingleEmotion(t *testing.T) {
+	// happy alone: 2.5 + 1.00 = 3.5
+	got := additiveMentalStateScore([][]string{{"happy"}})
+	if got == nil || *got != 3.5 {
+		t.Errorf("got %v, want 3.5", got)
 	}
 }
 
-func TestAverageScore_NoEmotionTags_ReturnsZero(t *testing.T) {
-	got := averageScore([]string{"thoughts", "reminder"})
-	if got != 0 {
-		t.Errorf("got %.1f, want 0.0 (no emotion tags)", got)
+func TestAdditiveScore_NeutralTag(t *testing.T) {
+	// neutral: activates baseline but adds no delta → 2.5
+	got := additiveMentalStateScore([][]string{{"neutral"}})
+	if got == nil || *got != 2.5 {
+		t.Errorf("got %v, want 2.5", got)
 	}
 }
 
-func TestAverageScore_EmptyTags_ReturnsZero(t *testing.T) {
-	got := averageScore([]string{})
-	if got != 0 {
-		t.Errorf("got %.1f, want 0.0", got)
+func TestAdditiveScore_EntryTagsIgnored(t *testing.T) {
+	// Entry-type tags don't affect the score; excited(+1.00) → 3.5
+	got := additiveMentalStateScore([][]string{{"thoughts", "idea", "excited"}})
+	if got == nil || *got != 3.5 {
+		t.Errorf("got %v, want 3.5 (entry-type tags should be ignored)", got)
+	}
+}
+
+func TestAdditiveScore_NoEmotionTags_ReturnsNil(t *testing.T) {
+	got := additiveMentalStateScore([][]string{{"thoughts", "reminder"}})
+	if got != nil {
+		t.Errorf("got %v, want nil (no scoring tags)", got)
+	}
+}
+
+func TestAdditiveScore_SameTagAcrossEntries_DiminishingRepeats(t *testing.T) {
+	// 2× happy: 2.5 + 1.00*(1+0.25*1) = 2.5 + 1.25 = 3.75 → rounds to 3.8
+	got := additiveMentalStateScore([][]string{{"happy"}, {"happy"}})
+	if got == nil || *got != 3.8 {
+		t.Errorf("got %v, want 3.8", got)
+	}
+}
+
+func TestAdditiveScore_TwoPositives(t *testing.T) {
+	// happy(+1.00) + excited(+1.00): 2.5 + 2.00 = 4.5
+	got := additiveMentalStateScore([][]string{{"happy"}, {"excited"}})
+	if got == nil || *got != 4.5 {
+		t.Errorf("got %v, want 4.5", got)
+	}
+}
+
+func TestAdditiveScore_ClampCeiling(t *testing.T) {
+	got := additiveMentalStateScore([][]string{{"excited", "well_rested", "happy", "proud", "motivated"}})
+	if got == nil || *got != 5.0 {
+		t.Errorf("got %v, want 5.0 (ceiling clamp)", got)
+	}
+}
+
+func TestAdditiveScore_ClampFloor(t *testing.T) {
+	got := additiveMentalStateScore([][]string{{"depressed", "sad", "overwhelmed", "anxious", "frustrated"}})
+	if got == nil || *got != 1.0 {
+		t.Errorf("got %v, want 1.0 (floor clamp)", got)
 	}
 }
 
@@ -142,7 +180,7 @@ func TestComputeCalendarDays_Basic(t *testing.T) {
 		t.Fatalf("want 2 days, got %d", len(days))
 	}
 
-	// Apr 1: 3 entries, avg of happy(4)+excited(5) = 4.5
+	// Apr 1: 3 entries, baseline 2.5 + happy(+1.00) + excited(+1.00) = 4.5
 	if days[0].Date != "2026-04-01" {
 		t.Errorf("day[0].Date = %q, want 2026-04-01", days[0].Date)
 	}
@@ -153,15 +191,15 @@ func TestComputeCalendarDays_Basic(t *testing.T) {
 		t.Errorf("day[0].AvgScore = %v, want 4.5", days[0].AvgScore)
 	}
 
-	// Apr 3: 2 entries, avg of anxious(2)+frustrated(1) = 1.5
+	// Apr 3: 2 entries, baseline 2.5 + anxious(-1.00) + frustrated(-1.00) = 0.5 → clamped → 1.0
 	if days[1].Date != "2026-04-03" {
 		t.Errorf("day[1].Date = %q, want 2026-04-03", days[1].Date)
 	}
 	if days[1].EntryCount != 2 {
 		t.Errorf("day[1].EntryCount = %d, want 2", days[1].EntryCount)
 	}
-	if days[1].AvgScore == nil || *days[1].AvgScore != 1.5 {
-		t.Errorf("day[1].AvgScore = %v, want 1.5", days[1].AvgScore)
+	if days[1].AvgScore == nil || *days[1].AvgScore != 1.0 {
+		t.Errorf("day[1].AvgScore = %v, want 1.0", days[1].AvgScore)
 	}
 }
 
@@ -186,18 +224,6 @@ func TestComputeCalendarDays_Empty(t *testing.T) {
 	days := computeCalendarDays(nil)
 	if len(days) != 0 {
 		t.Errorf("want empty result for no rows, got %d days", len(days))
-	}
-}
-
-/* ─── Ensure all emotion tags are covered in scoring ────────────────── */
-
-func TestMentalStateScore_AllEmotionTagsHaveNonZeroScore(t *testing.T) {
-	// Every tag in emotionTags must return a score > 0.
-	// This guards against adding a new emotion tag without updating the score map.
-	for tag := range emotionTags {
-		if got := mentalStateScore(tag); got == 0 {
-			t.Errorf("emotionTags contains %q but mentalStateScore returns 0 — add it to the score switch", tag)
-		}
 	}
 }
 
@@ -258,13 +284,13 @@ func TestBuildMentalStateBars_Week_CorrectSlots(t *testing.T) {
 			t.Errorf("bars[%d].Label = %q, want %q", i, bar.Label, labels[i])
 		}
 	}
-	// Wed bar: 1 entry, score 4.0
+	// Wed bar: 1 entry, baseline 2.5 + happy(+1.00) = 3.5
 	wed := bars[2]
 	if wed.EntryCount != 1 {
 		t.Errorf("Wed EntryCount = %d, want 1", wed.EntryCount)
 	}
-	if wed.Score == nil || *wed.Score != 4.0 {
-		t.Errorf("Wed Score = %v, want 4.0", wed.Score)
+	if wed.Score == nil || *wed.Score != 3.5 {
+		t.Errorf("Wed Score = %v, want 3.5", wed.Score)
 	}
 	// Fri bar: 1 entry (entry-type tag only), score nil
 	fri := bars[4]
@@ -295,13 +321,13 @@ func TestBuildMentalStateBars_Month_CorrectCount(t *testing.T) {
 	if bars[29].Label != "30" {
 		t.Errorf("bars[29].Label = %q, want %q", bars[29].Label, "30")
 	}
-	// Day 15 (index 14)
+	// Day 15 (index 14): baseline 2.5 + calm(+0.50) = 3.0
 	day15 := bars[14]
 	if day15.EntryCount != 1 {
 		t.Errorf("day15 EntryCount = %d, want 1", day15.EntryCount)
 	}
-	if day15.Score == nil || *day15.Score != 4.0 {
-		t.Errorf("day15 Score = %v, want 4.0", day15.Score)
+	if day15.Score == nil || *day15.Score != 3.0 {
+		t.Errorf("day15 Score = %v, want 3.0", day15.Score)
 	}
 }
 

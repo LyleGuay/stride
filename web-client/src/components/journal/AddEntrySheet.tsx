@@ -10,16 +10,27 @@ import type { JournalEntry, JournalTag, CreateJournalEntryInput, UpdateJournalEn
 import { tagLabel, TAG_META, ENTRY_TYPE_EMOJIS } from './journalColors'
 import { createJournalEntry, updateJournalEntry } from '../../api'
 
-// Ordered lists for consistent chip display order in the UI.
-// Positives first, then neutral/mixed, then negatives.
-const EMOTION_TAG_LIST: JournalTag[] = [
-  'excited', 'happy', 'motivated', 'energized', 'calm', 'content', 'grateful', 'well_rested', 'hopeful', 'proud',
-  'neutral', 'confused', 'bored', 'unmotivated',
-  'stressed', 'annoyed', 'lonely',
-  'anxious', 'overwhelmed', 'low', 'sad', 'angry', 'frustrated', 'depressed',
+// Mood tags grouped by score band and ordered by delta (highest first within each group).
+// Positive: delta ≥ 0.75 | Neutral: |delta| < 0.75 | Negative: delta ≤ -0.75
+const POSITIVE_EMOTION_TAGS: JournalTag[] = [
+  'excited', 'happy', 'well_rested',   // +1.00
+  'proud', 'motivated', 'energized',   // +0.75
 ]
+const NEUTRAL_EMOTION_TAGS: JournalTag[] = [
+  'calm', 'content', 'grateful', 'hopeful',           // +0.50
+  'neutral',                                           //  0.00
+  'confused', 'bored', 'unmotivated', 'annoyed', 'lonely', // -0.50
+]
+const NEGATIVE_EMOTION_TAGS: JournalTag[] = [
+  'low',                                               // -0.75
+  'sad', 'overwhelmed', 'angry', 'frustrated', 'stressed', 'anxious', // -1.00
+  'depressed',                                         // -1.25
+]
+
+// Conditions ordered by score — least negative first (-0.75), then most negative (-1.25).
 const CONDITION_TAG_LIST: JournalTag[] = [
-  'stomach_ache', 'nausea', 'brain_fog', 'fatigue', 'tired', 'sick',
+  'tired', 'brain_fog', 'fatigue',       // -0.75
+  'sick', 'stomach_ache', 'nausea',      // -1.25
 ]
 const ENTRY_TYPE_TAG_LIST: JournalTag[] = [
   'thoughts', 'idea', 'venting', 'open_loop', 'reminder', 'life_update', 'feelings',
@@ -104,12 +115,13 @@ export default function AddEntrySheet({ open, onClose, onSaved, date, editEntry,
 
   return (
     <>
-      {/* Backdrop — also acts as flex centering container on desktop */}
+      {/* Backdrop — also acts as flex centering container on desktop.
+          Intentionally no onClick handler: clicking outside the modal does not close it
+          to prevent accidental dismissal while typing. Use the × button instead. */}
       <div
         className={`fixed inset-0 bg-black/40 z-50 transition-opacity duration-300
           sm:flex sm:items-center sm:justify-center sm:p-4
           ${open ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}
-        onClick={onClose}
       >
         {/* Mobile: bottom sheet (slide up). Desktop: centered modal (scale in). */}
         <div
@@ -219,32 +231,42 @@ export default function AddEntrySheet({ open, onClose, onSaved, date, editEntry,
               </div>
             </div>
 
-            {/* Emotion/mood tag chips — selected chip uses the tag's accent color */}
+            {/* Emotion/mood tag chips — grouped by score band (Positive / Neutral / Negative).
+                Selected chip uses the tag's accent color; unselected shows a faint tint. */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Mood</label>
-              <div className="flex flex-wrap gap-1.5">
-                {EMOTION_TAG_LIST.map(tag => {
-                  const selected = tags.includes(tag)
-                  const color = TAG_META[tag]?.color
-                  const emoji = TAG_META[tag]?.emoji
-                  return (
-                    <button
-                      key={tag}
-                      type="button"
-                      onClick={() => toggleTag(tag)}
-                      className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
-                        selected ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'
-                      }`}
-                      style={selected && color
-                        ? { backgroundColor: color, borderColor: color }
-                        : color ? { backgroundColor: `${color}18` } : undefined}
-                    >
-                      {emoji && <span>{emoji}</span>}
-                      {tagLabel(tag)}
-                    </button>
-                  )
-                })}
-              </div>
+              {([
+                { label: 'Positive', tags: POSITIVE_EMOTION_TAGS },
+                { label: 'Neutral',  tags: NEUTRAL_EMOTION_TAGS  },
+                { label: 'Negative', tags: NEGATIVE_EMOTION_TAGS },
+              ] as const).map(({ label, tags: groupTags }) => (
+                <div key={label} className="mb-2 last:mb-0">
+                  <span className="text-xs text-gray-400 mb-1 block">{label}</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {groupTags.map(tag => {
+                      const selected = tags.includes(tag)
+                      const color = TAG_META[tag]?.color
+                      const emoji = TAG_META[tag]?.emoji
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={() => toggleTag(tag)}
+                          className={`inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full border transition-colors ${
+                            selected ? 'text-white border-transparent' : 'border-gray-200 text-gray-600'
+                          }`}
+                          style={selected && color
+                            ? { backgroundColor: color, borderColor: color }
+                            : color ? { backgroundColor: `${color}18` } : undefined}
+                        >
+                          {emoji && <span>{emoji}</span>}
+                          {tagLabel(tag)}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              ))}
             </div>
 
             {/* Condition chips — physical symptoms that also pull the mental-state score down */}
@@ -283,6 +305,14 @@ export default function AddEntrySheet({ open, onClose, onSaved, date, editEntry,
               className="w-full bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white font-medium py-3 rounded-xl transition-colors"
             >
               {saving ? 'Saving…' : isEditMode ? 'Save Changes' : 'Save Entry'}
+            </button>
+            {/* Cancel button — mobile only; desktop has the × in the header */}
+            <button
+              type="button"
+              onClick={onClose}
+              className="sm:hidden w-full mt-2 text-gray-500 font-medium py-3 rounded-xl transition-colors hover:bg-gray-100"
+            >
+              Cancel
             </button>
           </form>
         </div>
