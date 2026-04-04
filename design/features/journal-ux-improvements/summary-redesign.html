@@ -1,0 +1,540 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Journal — Summary Redesign</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: { 50:'#eef2ff', 100:'#e0e7ff', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f9fafb; }
+    .fade-in { animation: fadeIn .15s ease; }
+    @keyframes fadeIn { from { opacity:0; transform:translateY(4px); } to { opacity:1; transform:translateY(0); } }
+    .drill-in { animation: drillIn .2s ease; }
+    @keyframes drillIn { from { opacity:0; max-height:0; } to { opacity:1; max-height:500px; } }
+  </style>
+</head>
+<body>
+<div class="flex min-h-screen">
+
+  <!-- ── Sidebar (desktop) ──────────────────────────────────────────── -->
+  <aside class="hidden lg:flex flex-col fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-30">
+    <div class="flex items-center h-14 px-5 border-b border-gray-200 shrink-0">
+      <span class="text-xl font-bold text-indigo-600">Stride</span>
+    </div>
+    <nav class="flex-1 p-3 space-y-0.5 text-sm text-gray-600">
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50">📋 Calorie Log</a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50">✅ Habits</a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-indigo-50 text-indigo-700 font-medium">📔 Journal</a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50">☑️ Tasks</a>
+    </nav>
+  </aside>
+
+  <!-- ── Main content ───────────────────────────────────────────────── -->
+  <div class="flex-1 lg:ml-64 flex flex-col min-h-screen">
+
+    <!-- Sticky header -->
+    <div class="sticky top-0 z-20 bg-white">
+      <div class="flex items-end px-4 sm:px-6 border-b border-gray-200" style="height:56px">
+        <button class="px-4 h-full flex items-center gap-1.5 text-sm font-medium text-gray-400 border-b-[3px] border-transparent -mb-px hover:text-gray-600">
+          ✏️ Daily
+        </button>
+        <button class="px-4 h-full flex items-center gap-1.5 text-sm font-semibold text-gray-900 border-b-[3px] border-gray-900 -mb-px transition-colors">
+          📊 Summary
+        </button>
+      </div>
+    </div>
+
+    <!-- ── Summary content ────────────────────────────────────────────── -->
+    <div class="max-w-2xl mx-auto w-full px-4 py-4 space-y-5 pb-16">
+
+      <!-- ── Range selector: Week | Month | 6M | 1yr ─────────────────── -->
+      <div class="flex justify-center">
+        <div class="flex items-center bg-gray-100 rounded-full px-1 py-1 gap-0.5">
+          <button onclick="setRange('week')"  id="btn-week"  class="range-btn active px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-900 shadow-sm transition-colors">Week</button>
+          <button onclick="setRange('month')" id="btn-month" class="range-btn px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-700 transition-colors">Month</button>
+          <button onclick="setRange('6m')"    id="btn-6m"    class="range-btn px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-700 transition-colors">6M</button>
+          <button onclick="setRange('1yr')"   id="btn-1yr"   class="range-btn px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-700 transition-colors">1yr</button>
+        </div>
+      </div>
+
+      <!-- ── Sub-navigator (Week / Month only) ──────────────────────── -->
+      <div id="subNav" class="flex items-center justify-center">
+        <div class="flex items-center bg-gray-100 rounded-full px-1 py-1">
+          <button onclick="shiftPeriod(-1)" class="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/>
+            </svg>
+          </button>
+          <span id="subNavLabel" class="px-3 text-sm font-medium text-gray-700 min-w-[160px] text-center">Mar 30 – Apr 5, 2026</span>
+          <button onclick="shiftPeriod(1)" class="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Mental State Over Time — Bar Chart ────────────────────────── -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <h3 class="text-sm font-semibold text-gray-800 mb-3">Mental State Over Time</h3>
+
+        <!-- Chart wrapper — overflow-x scroll on mobile for month/dense views -->
+        <div class="relative">
+          <div class="overflow-x-auto -mx-1 px-1" id="chartScrollWrapper">
+            <svg id="mentalStateChart" viewBox="0 0 420 160" width="100%" class="overflow-visible" style="min-width:300px"></svg>
+          </div>
+
+          <!-- Context menu tooltip — dark bg matching calorie log style -->
+          <div id="barTooltip"
+            class="hidden absolute z-30 fade-in pointer-events-auto"
+            style="width:160px; bottom:28%"
+            onclick="event.stopPropagation()">
+            <div class="bg-gray-800 rounded-lg p-2.5 shadow-lg">
+              <!-- Date -->
+              <div class="text-[10px] text-gray-400 mb-2" id="tipDate"></div>
+
+              <!-- Entries row -->
+              <div class="flex justify-between text-[10px] mb-1">
+                <span class="text-gray-400">Entries</span>
+                <span class="text-white font-semibold" id="tipEntries"></span>
+              </div>
+
+              <!-- Score row -->
+              <div class="flex justify-between text-[10px] mb-2">
+                <span class="text-gray-400">Score</span>
+                <span class="font-semibold" id="tipScore"></span>
+              </div>
+
+              <!-- Emotion emojis — up to 4, then +X -->
+              <div class="flex items-center gap-1 mb-2.5" id="tipEmojis"></div>
+
+              <!-- Go to day button -->
+              <button onclick="goToDay()"
+                class="w-full bg-blue-600 hover:bg-blue-500 text-white text-[11px] font-medium py-1 rounded transition-colors">
+                Go to day →
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Stats row — Days logged + Total entries ─────────────────── -->
+      <div class="grid grid-cols-2 gap-3">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-3 text-center">
+          <p class="text-2xl font-bold text-gray-900" id="statDays">5</p>
+          <p class="text-xs text-gray-400 mt-0.5">Days logged</p>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-3 text-center">
+          <p class="text-2xl font-bold text-gray-900" id="statEntries">12</p>
+          <p class="text-xs text-gray-400 mt-0.5">Total entries</p>
+        </div>
+      </div>
+
+      <!-- ── Top Emotions — Clickable bars ─────────────────────────────── -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <h3 class="text-sm font-semibold text-gray-800 mb-1">Top Emotions</h3>
+        <p class="text-xs text-gray-400 mb-3">Tap a bar to see matching entries</p>
+        <div id="emotionBars" class="space-y-2"></div>
+        <!-- Drill-down panel -->
+        <div id="emotionDrill" class="hidden mt-4 pt-4 border-t border-gray-100 overflow-hidden">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-sm font-semibold text-gray-800" id="drillEmotionTitle"></h4>
+            <button onclick="closeDrill('emotion')" class="text-gray-300 hover:text-gray-500 text-xl leading-none">×</button>
+          </div>
+          <div id="drillEmotionList" class="space-y-2"></div>
+        </div>
+      </div>
+
+      <!-- ── Entry Types — Clickable bars ──────────────────────────────── -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+        <h3 class="text-sm font-semibold text-gray-800 mb-1">Entry Types</h3>
+        <p class="text-xs text-gray-400 mb-3">Tap a bar to see matching entries</p>
+        <div id="typeBars" class="space-y-2"></div>
+        <!-- Drill-down panel -->
+        <div id="typeDrill" class="hidden mt-4 pt-4 border-t border-gray-100 overflow-hidden">
+          <div class="flex items-center justify-between mb-3">
+            <h4 class="text-sm font-semibold text-gray-800" id="drillTypeTitle"></h4>
+            <button onclick="closeDrill('type')" class="text-gray-300 hover:text-gray-500 text-xl leading-none">×</button>
+          </div>
+          <div id="drillTypeList" class="space-y-2"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Click-outside dismisses tooltip -->
+<div onclick="closeTooltip()" class="fixed inset-0 z-20" id="tooltipOverlay" style="display:none; pointer-events:none"></div>
+
+<script>
+// ── Mock data ──────────────────────────────────────────────────────────────
+
+// Each day has a score + array of emotion emojis present that day
+const WEEK_DATA = [
+  { label:'Mon', date:'Mon, Mar 30', score:4.2, entries:2, emotions:['😊','💪'] },
+  { label:'Tue', date:'Tue, Mar 31', score:3.1, entries:1, emotions:['😐'] },
+  { label:'Wed', date:'Wed, Apr 1',  score:4.8, entries:6, emotions:['🤩','😊','💪','😄','😌','🥳'] },
+  { label:'Thu', date:'Thu, Apr 2',  score:2.0, entries:3, emotions:['😰','😟','😐'] },
+  { label:'Fri', date:'Fri, Apr 3',  score:4.0, entries:3, emotions:['💪','😊'] },
+  { label:'Sat', date:'Sat, Apr 4',  score:null, entries:0, emotions:[] },
+  { label:'Sun', date:'Sun, Apr 5',  score:null, entries:0, emotions:[] },
+]
+
+// A day with 6 emotion emojis to show the +X truncation
+const WEEK_DATA_MANY_EMOTIONS = [
+  { label:'Mon', date:'Mon, Mar 30', score:3.5, entries:5, emotions:['😊','💪','😐','😰','🤩','😄'] },
+  ...WEEK_DATA.slice(1),
+]
+
+const MONTH_DATA = Array.from({length:31}, (_,i) => {
+  const scores = [null,3.5,4.2,null,2.0,4.8,3.1,4.0,null,null,3.8,4.5,2.5,null,3.0,4.1,null,4.7,3.2,null,null,2.8,4.0,3.5,null,4.2,3.8,null,2.1,4.5,null]
+  const s = scores[i] ?? null
+  return { label:String(i+1), date:`Apr ${i+1}`, score:s, entries:s?Math.floor(Math.random()*3+1):0, emotions:s?['😊','💪'].slice(0,Math.floor(Math.random()*2+1)):[] }
+})
+
+const SIX_M_DATA = Array.from({length:26}, (_,i) => {
+  const scores = [3.2,4.1,null,2.8,4.5,3.8,null,4.2,3.5,2.0,4.7,3.1,null,4.4,3.9,2.5,4.1,null,3.6,4.8,3.2,null,2.9,4.3,3.7,4.0]
+  const s = scores[i] ?? null
+  return { label:`W${i+1}`, date:`Week ${i+1}`, score:s, entries:s?Math.floor(Math.random()*8+2):0, emotions:s?['😊']:[] }
+})
+
+const ONE_YR_DATA = Array.from({length:52}, (_,i) => {
+  const s = i%7===3?null:(Math.sin(i/5)*1.5+3.2)
+  return { label:`W${i+1}`, date:`Week ${i+1}`, score:s?Math.min(5,Math.max(1,s)):null, entries:s?Math.floor(Math.random()*10+1):0, emotions:s?['😊']:[] }
+})
+
+const EMOTIONS = [
+  { tag:'happy',     label:'Happy',     emoji:'😊', count:18, color:'#4ade80' },
+  { tag:'motivated', label:'Motivated', emoji:'💪', count:12, color:'#2dd4bf' },
+  { tag:'neutral',   label:'Neutral',   emoji:'😐', count:9,  color:'#a78bfa' },
+  { tag:'anxious',   label:'Anxious',   emoji:'😰', count:7,  color:'#f59e0b' },
+  { tag:'excited',   label:'Excited',   emoji:'🤩', count:5,  color:'#fb923c' },
+]
+
+const EMOTION_DAYS = {
+  happy:     [{date:'Apr 3',entries:3,preview:'Good sleep, feeling great about the day.'},{date:'Apr 1',entries:2,preview:'Excited to ship the new feature.'},{date:'Mar 29',entries:1,preview:'Had a really productive morning.'}],
+  motivated: [{date:'Apr 3',entries:1,preview:'Just finished the design. Really on a roll.'},{date:'Mar 26',entries:2,preview:'Morning run followed by solid focus block.'}],
+  neutral:   [{date:'Apr 2',entries:1,preview:'Average day.'},{date:'Mar 31',entries:1,preview:'Nothing particularly exciting today.'}],
+  anxious:   [{date:'Apr 2',entries:2,preview:'Feeling overwhelmed with all the tasks.'},{date:'Mar 30',entries:1,preview:'Big presentation coming up.'}],
+  excited:   [{date:'Apr 1',entries:1,preview:'Finished ahead of schedule!'}],
+}
+
+const TYPES = [
+  { tag:'thoughts',    label:'Thoughts',    emoji:'💭', count:22 },
+  { tag:'idea',        label:'Idea',        emoji:'💡', count:15 },
+  { tag:'open_loop',   label:'Open Loop',   emoji:'🔄', count:8  },
+  { tag:'venting',     label:'Venting',     emoji:'😤', count:6  },
+  { tag:'life_update', label:'Life Update', emoji:'📰', count:5  },
+]
+
+const TYPE_DAYS = {
+  thoughts:    [{date:'Apr 3',entries:2,preview:'Thinking about the calendar UX.'},{date:'Apr 1',entries:3,preview:'Brainstorming session this morning.'}],
+  idea:        [{date:'Apr 3',entries:1,preview:'New approach to the bar chart interaction.'},{date:'Mar 29',entries:2,preview:'Better way to structure the weekly view.'}],
+  open_loop:   [{date:'Apr 2',entries:1,preview:'Need to figure out grocery situation.'},{date:'Mar 28',entries:1,preview:'Still haven\'t resolved the deployment issue.'}],
+  venting:     [{date:'Mar 25',entries:2,preview:'Really frustrated with the build process today.'}],
+  life_update: [{date:'Mar 22',entries:1,preview:'Started new morning routine.'}],
+}
+
+// ── State ──────────────────────────────────────────────────────────────────
+let currentRange = 'week'
+let periodOffset = 0
+let activeDrill = null
+let tipBarData = null
+let tipBarIdx = -1
+
+const PERIOD_LABELS = {
+  week:  ['Mar 30 – Apr 5, 2026','Mar 23 – Mar 29, 2026','Apr 6 – Apr 12, 2026'],
+  month: ['April 2026','March 2026','February 2026'],
+}
+
+// ── Range selector ─────────────────────────────────────────────────────────
+function setRange(r) {
+  currentRange = r
+  periodOffset = 0
+  closeTooltip()
+  closeDrill('emotion')
+  closeDrill('type')
+
+  // Pill styles
+  document.querySelectorAll('.range-btn').forEach(b => {
+    b.className = 'range-btn px-3 py-1.5 rounded-full text-xs font-semibold text-gray-500 hover:text-gray-700 transition-colors'
+  })
+  document.getElementById(`btn-${r}`).className = 'range-btn px-3 py-1.5 rounded-full text-xs font-semibold bg-white text-gray-900 shadow-sm transition-colors'
+
+  // Sub-navigator visibility
+  document.getElementById('subNav').style.display = (r === 'week' || r === 'month') ? 'flex' : 'none'
+
+  updateSubNavLabel()
+  updateStats()
+  renderChart()
+}
+
+function shiftPeriod(delta) {
+  periodOffset = Math.max(-2, Math.min(2, periodOffset + delta))
+  updateSubNavLabel()
+  renderChart()
+  closeTooltip()
+}
+
+function updateSubNavLabel() {
+  const labels = PERIOD_LABELS[currentRange]
+  if (!labels) return
+  const idx = Math.max(0, Math.min(labels.length - 1, -periodOffset + 1))
+  document.getElementById('subNavLabel').textContent = labels[Math.max(0, Math.min(idx, labels.length-1))]
+}
+
+function updateStats() {
+  const data = getCurrentData()
+  const days = data.filter(d => d.score !== null).length
+  const entries = data.reduce((s, d) => s + d.entries, 0)
+  document.getElementById('statDays').textContent = days
+  document.getElementById('statEntries').textContent = entries
+}
+
+// ── Chart ─────────────────────────────────────────────────────────────────
+function scoreColor(s) {
+  if (s === null) return '#e5e7eb'
+  if (s >= 4)    return '#4ade80'
+  if (s >= 2)    return '#a78bfa'
+  return '#f87171'
+}
+
+function scoreColorTip(s) {
+  if (s === null) return 'text-gray-400'
+  if (s >= 4)    return 'text-green-400'
+  if (s >= 2)    return 'text-violet-400'
+  return 'text-red-400'
+}
+
+function getCurrentData() {
+  if (currentRange === 'week')  return WEEK_DATA
+  if (currentRange === 'month') return MONTH_DATA
+  if (currentRange === '6m')    return SIX_M_DATA
+  return ONE_YR_DATA
+}
+
+function renderChart() {
+  const data = getCurrentData()
+  const svg = document.getElementById('mentalStateChart')
+
+  const VB_W = 420, VB_H = 160
+  const PAD_L = 6, PAD_R = 6, PAD_T = 8, PAD_B = 28
+  const chartW = VB_W - PAD_L - PAD_R
+  const chartH = VB_H - PAD_T - PAD_B
+
+  const n = data.length
+  const slotW = chartW / n
+  const barW = Math.max(2, Math.min(slotW * 0.65, 30))
+
+  // Scale chart SVG width for dense ranges so bars don't get too thin
+  const svgMinW = currentRange === '1yr' ? 600 : currentRange === '6m' ? 420 : 300
+  svg.style.minWidth = `${svgMinW}px`
+
+  let html = ''
+
+  data.forEach((d, i) => {
+    const barH = d.score !== null ? Math.max(4, (d.score / 5) * chartH) : 4
+    const x = PAD_L + i * slotW + (slotW - barW) / 2
+    const y = PAD_T + chartH - barH
+    const color = scoreColor(d.score)
+    const clickable = d.score !== null || (currentRange === '6m' || currentRange === '1yr')
+
+    // Bar rect — clickable group
+    html += `<g onclick="onBarClick(event,${i})" style="cursor:${clickable?'pointer':'default'}">
+      <rect x="${x}" y="${y}" width="${barW}" height="${barH}" rx="3" fill="${color}" opacity="0.9"/>
+      <!-- Invisible larger hit area for easy tapping -->
+      <rect x="${x - slotW*0.1}" y="${PAD_T}" width="${barW + slotW*0.2}" height="${chartH}" fill="transparent"/>
+    </g>`
+
+    // X-axis label — show for all in week, every 4 in month, every 4 in 6m/1yr
+    const showLabel = currentRange === 'week'
+      ? true
+      : currentRange === 'month'
+        ? (i % 5 === 0 || i === n - 1)
+        : (i % 4 === 0)
+
+    if (showLabel) {
+      const fontSize = currentRange === 'week' ? 10 : 8
+      html += `<text x="${x + barW/2}" y="${VB_H - 6}" text-anchor="middle" font-size="${fontSize}" fill="#94a3b8">${d.label}</text>`
+    }
+  })
+
+  // Y-axis score labels (1–5)
+  ;[1,2,3,4,5].forEach(s => {
+    const y = PAD_T + chartH - (s/5)*chartH
+    html += `<line x1="${PAD_L}" y1="${y}" x2="${VB_W-PAD_R}" y2="${y}" stroke="#f3f4f6" stroke-width="1"/>`
+    html += `<text x="${PAD_L - 2}" y="${y+3}" text-anchor="end" font-size="8" fill="#e5e7eb">${s}</text>`
+  })
+
+  svg.innerHTML = html
+}
+
+// ── Bar click / tooltip ────────────────────────────────────────────────────
+function onBarClick(event, i) {
+  event.stopPropagation()
+  const data = getCurrentData()
+  const d = data[i]
+
+  // For 6M/1yr: clicking jumps to that week in Week view
+  if ((currentRange === '6m' || currentRange === '1yr') && d.score === null) return
+  if (currentRange === '6m' || currentRange === '1yr') {
+    setRange('week')
+    document.getElementById('subNavLabel').textContent = `Week of ${d.date}`
+    return
+  }
+
+  if (!d.score) return
+
+  // Toggle same bar
+  if (tipBarIdx === i) { closeTooltip(); return }
+  tipBarIdx = i
+  tipBarData = d
+
+  // Populate tooltip
+  document.getElementById('tipDate').textContent = d.date
+  document.getElementById('tipEntries').textContent = `${d.entries} ${d.entries===1?'entry':'entries'}`
+
+  const scoreEl = document.getElementById('tipScore')
+  scoreEl.textContent = d.score.toFixed(1) + ' / 5'
+  scoreEl.className = `font-semibold ${scoreColorTip(d.score)}`
+
+  // Emotion emojis — show up to 4, then +X
+  const emojisEl = document.getElementById('tipEmojis')
+  const MAX_SHOWN = 4
+  const emojis = d.emotions
+  let emojiHtml = ''
+  if (emojis.length === 0) {
+    emojiHtml = '<span class="text-[10px] text-gray-500 italic">No emotion tags</span>'
+  } else {
+    const shown = emojis.slice(0, MAX_SHOWN)
+    shown.forEach(em => {
+      emojiHtml += `<span class="text-base leading-none bg-gray-700 rounded-md w-7 h-7 flex items-center justify-center">${em}</span>`
+    })
+    if (emojis.length > MAX_SHOWN) {
+      const extra = emojis.length - MAX_SHOWN
+      emojiHtml += `<span class="text-[10px] font-semibold text-gray-400 bg-gray-700 rounded-md px-1.5 h-7 flex items-center">+${extra}</span>`
+    }
+  }
+  emojisEl.innerHTML = emojiHtml
+
+  // Position: centered on bar, bottom anchored
+  const svgEl = document.getElementById('mentalStateChart')
+  const svgRect = svgEl.getBoundingClientRect()
+  const svgW = svgRect.width
+  const n = data.length
+  const slotW = (420 - 12) / n  // chartW / n approximation
+  const barCenterPct = ((6 + i * slotW + slotW / 2) / 420) * 100
+  const clampedPct = Math.min(Math.max(barCenterPct, 14), 86)
+
+  const tip = document.getElementById('barTooltip')
+  tip.style.left = `${clampedPct}%`
+  tip.style.transform = 'translateX(-50%)'
+  tip.classList.remove('hidden')
+
+  // Enable click-outside overlay (non-blocking, just for dismissal)
+  document.getElementById('tooltipOverlay').style.pointerEvents = 'auto'
+  document.getElementById('tooltipOverlay').style.display = 'block'
+}
+
+function closeTooltip() {
+  tipBarIdx = -1
+  tipBarData = null
+  document.getElementById('barTooltip').classList.add('hidden')
+  const ov = document.getElementById('tooltipOverlay')
+  ov.style.display = 'none'
+  ov.style.pointerEvents = 'none'
+}
+
+function goToDay() {
+  if (tipBarData) alert(`Navigate to Daily tab → ${tipBarData.date}`)
+  closeTooltip()
+}
+
+// ── Emotion/type bars ──────────────────────────────────────────────────────
+function renderHBars(containerId, items, maxCount, clickFn, colorFn) {
+  const el = document.getElementById(containerId)
+  el.innerHTML = items.map((item, i) => `
+    <div class="flex items-center gap-2 cursor-pointer group" onclick="${clickFn}(${i})">
+      <span class="text-xs text-gray-600 w-28 shrink-0 flex items-center gap-1.5">
+        <span>${item.emoji||''}</span>
+        <span class="truncate">${item.label}</span>
+      </span>
+      <div class="flex-1 bg-gray-100 rounded-full h-4 overflow-hidden relative group-hover:bg-gray-200 transition-colors">
+        <div class="h-full rounded-full transition-all duration-300"
+          style="width:${maxCount>0?((item.count/maxCount)*100):0}%;background-color:${colorFn(item)}"></div>
+        <!-- Chevron hint on hover -->
+        <span class="absolute right-1.5 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <svg class="w-2.5 h-2.5 text-gray-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+          </svg>
+        </span>
+      </div>
+      <span class="text-xs text-gray-500 w-5 text-right shrink-0">${item.count}</span>
+    </div>
+  `).join('')
+}
+
+function onEmotionClick(i) {
+  const em = EMOTIONS[i]
+  const drill = document.getElementById('emotionDrill')
+  const key = `emotion-${i}`
+  if (activeDrill === key) { closeDrill('emotion'); return }
+  activeDrill = key
+  const days = EMOTION_DAYS[em.tag] || []
+  document.getElementById('drillEmotionTitle').textContent = `${em.emoji} ${em.label} — ${em.count} entries across ${days.length} days`
+  document.getElementById('drillEmotionList').innerHTML = renderDrillDays(days)
+  drill.classList.remove('hidden')
+  drill.scrollIntoView({ behavior:'smooth', block:'nearest' })
+}
+
+function onTypeClick(i) {
+  const tp = TYPES[i]
+  const drill = document.getElementById('typeDrill')
+  const key = `type-${i}`
+  if (activeDrill === key) { closeDrill('type'); return }
+  activeDrill = key
+  const days = TYPE_DAYS[tp.tag] || []
+  document.getElementById('drillTypeTitle').textContent = `${tp.emoji} ${tp.label} — ${tp.count} entries across ${days.length} days`
+  document.getElementById('drillTypeList').innerHTML = renderDrillDays(days)
+  drill.classList.remove('hidden')
+  drill.scrollIntoView({ behavior:'smooth', block:'nearest' })
+}
+
+function renderDrillDays(days) {
+  return days.map(d => `
+    <div class="flex items-start justify-between gap-2 bg-gray-50 rounded-lg p-2.5">
+      <div class="flex-1 min-w-0">
+        <p class="text-xs font-semibold text-gray-700">${d.date}</p>
+        <p class="text-xs text-gray-500 truncate mt-0.5">${d.preview}</p>
+        <p class="text-xs text-gray-400 mt-0.5">${d.entries} ${d.entries===1?'entry':'entries'}</p>
+      </div>
+      <button onclick="alert('Navigate to Daily → ${d.date}')"
+        class="text-xs text-indigo-600 font-medium shrink-0 hover:underline mt-0.5">View →</button>
+    </div>
+  `).join('')
+}
+
+function closeDrill(which) {
+  document.getElementById(`${which}Drill`).classList.add('hidden')
+  if (activeDrill?.startsWith(which)) activeDrill = null
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+setRange('week')
+renderHBars('emotionBars', EMOTIONS, EMOTIONS[0].count, 'onEmotionClick', item => item.color)
+renderHBars('typeBars',    TYPES,    TYPES[0].count,    'onTypeClick',    () => '#4f46e5')
+</script>
+</body>
+</html>

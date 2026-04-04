@@ -7,7 +7,7 @@
 import { useState, useEffect, type FormEvent } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { JournalEntry, JournalTag, CreateJournalEntryInput, UpdateJournalEntryInput } from '../../types'
-import { tagLabel, EMOTION_COLORS, EMOTION_EMOJIS, ENTRY_TYPE_EMOJIS, CONDITION_COLORS, CONDITION_EMOJIS } from './journalColors'
+import { tagLabel, TAG_META, ENTRY_TYPE_EMOJIS } from './journalColors'
 import { createJournalEntry, updateJournalEntry } from '../../api'
 
 // Ordered lists for consistent chip display order in the UI.
@@ -225,8 +225,8 @@ export default function AddEntrySheet({ open, onClose, onSaved, date, editEntry,
               <div className="flex flex-wrap gap-1.5">
                 {EMOTION_TAG_LIST.map(tag => {
                   const selected = tags.includes(tag)
-                  const color = EMOTION_COLORS[tag]
-                  const emoji = EMOTION_EMOJIS[tag]
+                  const color = TAG_META[tag]?.color
+                  const emoji = TAG_META[tag]?.emoji
                   return (
                     <button
                       key={tag}
@@ -253,8 +253,8 @@ export default function AddEntrySheet({ open, onClose, onSaved, date, editEntry,
               <div className="flex flex-wrap gap-1.5">
                 {CONDITION_TAG_LIST.map(tag => {
                   const selected = tags.includes(tag)
-                  const color = CONDITION_COLORS[tag]
-                  const emoji = CONDITION_EMOJIS[tag]
+                  const color = TAG_META[tag]?.color
+                  const emoji = TAG_META[tag]?.emoji
                   return (
                     <button
                       key={tag}

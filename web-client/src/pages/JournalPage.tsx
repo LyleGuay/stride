@@ -3,14 +3,17 @@
 // FAB (+) opens AddEntrySheet to create a new entry.
 // Entries are loaded via useJournalEntries; reload() is called after create/
 // update/delete to refresh the list.
+// useJournalCalendar is owned here so its cache can be shared between the date
+// header (which renders dots) and the mutations (which invalidate the cache).
 
 import { useState } from 'react'
 import { useSidebar } from '../components/SidebarContext'
 import { todayString } from '../utils/dates'
 import { useJournalEntries } from '../hooks/useJournalEntries'
+import { useJournalCalendar } from '../hooks/useJournalCalendar'
 import { deleteJournalEntry } from '../api'
 import type { JournalEntry } from '../types'
-import DateHeader from '../components/calorie-log/DateHeader'
+import JournalDateHeader from '../components/journal/JournalDateHeader'
 import DailyTimeline from '../components/journal/DailyTimeline'
 import AddEntrySheet from '../components/journal/AddEntrySheet'
 import SummaryTab from '../components/journal/SummaryTab'
@@ -28,6 +31,14 @@ export default function JournalPage() {
 
   const { entries, loading, error, reload } = useJournalEntries(date)
 
+  // Calendar cache shared between JournalDateHeader (dots) and mutation handlers
+  // (cache invalidation). Owned at the page level so it persists across navigations.
+  const { loadMonth, getMonthData, isLoading: isLoadingMonth, invalidate } = useJournalCalendar()
+
+  // Invalidates the current month's calendar cache after a mutation so the dot
+  // for the active date is updated when the user next opens the picker.
+  const invalidateCurrentMonth = () => invalidate(date.slice(0, 7))
+
   const handleEdit = (entry: JournalEntry) => {
     setEditEntry(entry)
     setSheetOpen(true)
@@ -36,6 +47,7 @@ export default function JournalPage() {
   const handleDelete = async (id: number) => {
     await deleteJournalEntry(id)
     reload()
+    invalidateCurrentMonth()
   }
 
   const openCreate = () => {
@@ -46,6 +58,11 @@ export default function JournalPage() {
   const handleSheetClose = () => {
     setSheetOpen(false)
     setEditEntry(null)
+  }
+
+  const handleSaved = () => {
+    reload()
+    invalidateCurrentMonth()
   }
 
   return (
@@ -108,14 +125,20 @@ export default function JournalPage() {
         {/* Sub-header — date navigator on Daily tab; empty on Summary (range lives in SummaryTab) */}
         {tab === 'daily' && (
           <div className="border-b border-gray-200">
-            <DateHeader date={date} onDateChange={setDate} />
+            <JournalDateHeader
+              date={date}
+              onDateChange={setDate}
+              loadMonth={loadMonth}
+              getMonthData={getMonthData}
+              isLoadingMonth={isLoadingMonth}
+            />
           </div>
         )}
       </div>
 
       {/* ── Tab content ──────────────────────────────────────────────────── */}
       {tab === 'summary' ? (
-        <SummaryTab />
+        <SummaryTab onNavigateToDay={(d) => { setTab('daily'); setDate(d) }} />
       ) : (
         <div className="px-4 sm:px-6 pt-4">
           {loading && (
@@ -150,7 +173,7 @@ export default function JournalPage() {
       <AddEntrySheet
         open={sheetOpen}
         onClose={handleSheetClose}
-        onSaved={reload}
+        onSaved={handleSaved}
         date={date}
         editEntry={editEntry}
       />

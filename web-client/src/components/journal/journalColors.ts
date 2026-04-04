@@ -19,38 +19,50 @@ export function tagLabel(tag: JournalTag): string {
   return tag.charAt(0).toUpperCase() + tag.slice(1)
 }
 
-/* ─── Emotion colors ─────────────────────────────────────────────────── */
+/* ─── TAG_META — single source of truth for emoji + color per tag ────── */
 
-// EMOTION_COLORS maps emotion tags to their hex accent colors.
-// Entry-type and condition tags have no color entry here.
-export const EMOTION_COLORS: Partial<Record<JournalTag, string>> = {
-  excited:     '#fbbf24',  // amber-400
-  happy:       '#4ade80',  // green-400
-  motivated:   '#4ade80',  // green-400
-  energized:   '#2dd4bf',  // teal-400
-  calm:        '#67e8f9',  // cyan-300
-  content:     '#86efac',  // green-300
-  grateful:    '#a7f3d0',  // emerald-200
-  well_rested: '#86efac',  // green-300
-  hopeful:     '#6ee7b7',  // emerald-300
-  proud:       '#fde68a',  // amber-200
-  neutral:     '#94a3b8',  // slate-400
-  confused:    '#fcd34d',  // amber-300
-  bored:       '#93c5fd',  // blue-300
-  unmotivated: '#cbd5e1',  // slate-300
-  stressed:    '#f97316',  // orange-500
-  annoyed:     '#fb923c',  // orange-400
-  lonely:      '#93c5fd',  // blue-300
-  anxious:     '#a78bfa',  // violet-400
-  overwhelmed: '#c084fc',  // purple-400
-  low:         '#a78bfa',  // violet-400
-  sad:         '#fb7185',  // rose-400
-  angry:       '#f87171',  // red-400
-  frustrated:  '#fb923c',  // orange-400
-  depressed:   '#818cf8',  // indigo-400
+// TAG_META is the single source of truth for emoji and color for every emotion
+// and condition tag. Used everywhere a tag needs visual representation: chips,
+// bar charts, tooltips, calendar dots.
+// Entry-type tags are not included here — they have no color, only an emoji
+// (see ENTRY_TYPE_EMOJIS below).
+export const TAG_META: Partial<Record<JournalTag, { emoji: string; color: string }>> = {
+  // ── Emotions ──────────────────────────────────────────────────────────
+  excited:     { emoji: '🤩', color: '#fbbf24' },  // amber-400
+  happy:       { emoji: '😊', color: '#4ade80' },  // green-400
+  motivated:   { emoji: '💪', color: '#4ade80' },  // green-400
+  energized:   { emoji: '⚡', color: '#2dd4bf' },  // teal-400
+  calm:        { emoji: '😌', color: '#67e8f9' },  // cyan-300
+  content:     { emoji: '🙂', color: '#86efac' },  // green-300
+  grateful:    { emoji: '🙏', color: '#a7f3d0' },  // emerald-200
+  well_rested: { emoji: '😴', color: '#86efac' },  // green-300
+  hopeful:     { emoji: '🌱', color: '#6ee7b7' },  // emerald-300
+  proud:       { emoji: '🏆', color: '#fde68a' },  // amber-200
+  neutral:     { emoji: '😐', color: '#94a3b8' },  // slate-400
+  confused:    { emoji: '😕', color: '#fcd34d' },  // amber-300
+  bored:       { emoji: '😑', color: '#93c5fd' },  // blue-300
+  unmotivated: { emoji: '😕', color: '#cbd5e1' },  // slate-300
+  stressed:    { emoji: '😤', color: '#f97316' },  // orange-500
+  annoyed:     { emoji: '😒', color: '#fb923c' },  // orange-400
+  lonely:      { emoji: '🌧️', color: '#93c5fd' },  // blue-300
+  anxious:     { emoji: '😰', color: '#a78bfa' },  // violet-400
+  overwhelmed: { emoji: '😩', color: '#c084fc' },  // purple-400
+  low:         { emoji: '😞', color: '#a78bfa' },  // violet-400
+  sad:         { emoji: '😢', color: '#fb7185' },  // rose-400
+  angry:       { emoji: '😠', color: '#f87171' },  // red-400
+  frustrated:  { emoji: '😤', color: '#fb923c' },  // orange-400
+  depressed:   { emoji: '😔', color: '#818cf8' },  // indigo-400
+  // ── Conditions ────────────────────────────────────────────────────────
+  stomach_ache: { emoji: '🤢', color: '#f97316' },  // orange-500
+  nausea:       { emoji: '🤮', color: '#fb923c' },  // orange-400
+  brain_fog:    { emoji: '🌫️', color: '#d1d5db' },  // gray-300
+  fatigue:      { emoji: '🥱', color: '#94a3b8' },  // slate-400
+  tired:        { emoji: '😴', color: '#94a3b8' },  // slate-400
+  sick:         { emoji: '🤒', color: '#86efac' },  // green-300
 }
 
 // ENTRY_TYPE_EMOJIS maps each entry-type tag to a representative emoji.
+// Entry types have no color, so they are not included in TAG_META.
 export const ENTRY_TYPE_EMOJIS: Partial<Record<JournalTag, string>> = {
   thoughts:    '💭',
   idea:        '💡',
@@ -59,54 +71,6 @@ export const ENTRY_TYPE_EMOJIS: Partial<Record<JournalTag, string>> = {
   reminder:    '🔔',
   life_update: '📰',
   feelings:    '❤️',
-}
-
-// EMOTION_EMOJIS maps each emotion tag to a representative emoji for use in chip labels.
-export const EMOTION_EMOJIS: Partial<Record<JournalTag, string>> = {
-  excited:     '🤩',
-  happy:       '😊',
-  motivated:   '💪',
-  energized:   '⚡',
-  calm:        '😌',
-  content:     '🙂',
-  grateful:    '🙏',
-  well_rested: '😴',
-  hopeful:     '🌱',
-  proud:       '🏆',
-  neutral:     '😐',
-  confused:    '😕',
-  bored:       '😑',
-  unmotivated: '😕',
-  stressed:    '😤',
-  annoyed:     '😒',
-  lonely:      '🌧️',
-  anxious:     '😰',
-  overwhelmed: '😩',
-  low:         '😞',
-  sad:         '😢',
-  angry:       '😠',
-  frustrated:  '😤',
-  depressed:   '😔',
-}
-
-// CONDITION_COLORS maps physical condition tags to their amber/orange accent colors.
-export const CONDITION_COLORS: Partial<Record<JournalTag, string>> = {
-  stomach_ache: '#f97316',  // orange-500
-  nausea:       '#fb923c',  // orange-400
-  brain_fog:    '#d1d5db',  // gray-300
-  fatigue:      '#94a3b8',  // slate-400
-  tired:        '#94a3b8',  // slate-400
-  sick:         '#86efac',  // green-300 (muted/desaturated feel)
-}
-
-// CONDITION_EMOJIS maps each condition tag to a representative emoji.
-export const CONDITION_EMOJIS: Partial<Record<JournalTag, string>> = {
-  stomach_ache: '🤢',
-  nausea:       '🤮',
-  brain_fog:    '🌫️',
-  fatigue:      '🥱',
-  tired:        '😴',
-  sick:         '🤒',
 }
 
 const FALLBACK_COLOR = '#e2e8f0' // slate-200 — used when no emotion tags are present
@@ -119,7 +83,7 @@ const FALLBACK_COLOR = '#e2e8f0' // slate-200 — used when no emotion tags are 
 export function emotionGradient(tags: JournalTag[]): string {
   const emotionColors = tags
     .filter(t => EMOTION_TAGS.has(t))
-    .map(t => EMOTION_COLORS[t])
+    .map(t => TAG_META[t]?.color)
     .filter((c): c is string => !!c)
 
   if (emotionColors.length === 0) return FALLBACK_COLOR

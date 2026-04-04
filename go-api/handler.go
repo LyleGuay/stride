@@ -111,12 +111,15 @@ func (h *Handler) registerRoutes(router *gin.Engine) {
 	api.POST("/recipes/:id/ai-modify", h.aiModifyRecipe)
 	api.POST("/recipes/:id/ai-copy", h.aiCopyRecipe)
 	api.POST("/recipes/:id/ai-nutrition", h.aiNutrition)
-	// Journal routes — /summary must be registered before /:id to avoid param capture
+	// Journal routes — static paths (/calendar, /summary, /tag-days) must be registered
+	// before /:id to avoid Gin treating them as ID params.
 	api.GET("/journal", h.getJournalEntries)
 	api.POST("/journal", h.createJournalEntry)
 	api.PUT("/journal/:id", h.updateJournalEntry)
 	api.DELETE("/journal/:id", h.deleteJournalEntry)
+	api.GET("/journal/calendar", h.getJournalCalendar)
 	api.GET("/journal/summary", h.getJournalSummary)
+	api.GET("/journal/tag-days", h.getJournalTagDays)
 	// Task routes — overdue-count must be registered before /:id to avoid param capture
 	api.GET("/tasks/overdue-count", h.getOverdueCount)
 	api.GET("/tasks", h.listTasks)

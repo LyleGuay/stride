@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { EMOTION_COLORS, emotionGradient, tagLabel } from './journalColors'
-import { EMOTION_TAGS } from '../../types'
+import { TAG_META, emotionGradient, tagLabel } from './journalColors'
+import { EMOTION_TAGS, CONDITION_TAGS } from '../../types'
 import type { JournalTag } from '../../types'
 
 describe('emotionGradient', () => {
@@ -33,13 +33,28 @@ describe('emotionGradient', () => {
   })
 })
 
-describe('EMOTION_COLORS', () => {
-  it('every emotion tag has a defined non-empty color', () => {
+describe('TAG_META', () => {
+  it('every emotion tag has a non-empty color and emoji', () => {
     for (const tag of EMOTION_TAGS) {
-      const color = EMOTION_COLORS[tag]
-      expect(color, `EMOTION_COLORS["${tag}"] should be defined`).toBeTruthy()
-      expect(color!.length, `EMOTION_COLORS["${tag}"] should be non-empty`).toBeGreaterThan(0)
+      const meta = TAG_META[tag]
+      expect(meta, `TAG_META["${tag}"] should be defined`).toBeTruthy()
+      expect(meta!.color.length, `TAG_META["${tag}"].color should be non-empty`).toBeGreaterThan(0)
+      expect(meta!.emoji.length, `TAG_META["${tag}"].emoji should be non-empty`).toBeGreaterThan(0)
     }
+  })
+
+  it('every condition tag has a non-empty color and emoji', () => {
+    for (const tag of CONDITION_TAGS) {
+      const meta = TAG_META[tag]
+      expect(meta, `TAG_META["${tag}"] should be defined`).toBeTruthy()
+      expect(meta!.color.length, `TAG_META["${tag}"].color should be non-empty`).toBeGreaterThan(0)
+      expect(meta!.emoji.length, `TAG_META["${tag}"].emoji should be non-empty`).toBeGreaterThan(0)
+    }
+  })
+
+  it('emotionGradient still uses TAG_META colors via a single emotion', () => {
+    // Validates that emotionGradient was updated to read from TAG_META
+    expect(emotionGradient(['happy'])).toBe('#4ade80')
   })
 })
 

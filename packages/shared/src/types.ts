@@ -372,11 +372,41 @@ export interface JournalEntry {
   created_at: string
 }
 
+// JournalSummaryRange is the set of valid range values for GET /api/journal/summary.
+export type JournalSummaryRange = 'week' | 'month' | '6m' | '1yr'
+
+// JournalCalendarDay is one entry in the GET /api/journal/calendar response.
+// avg_score is null when the day has entries but none have emotion/condition tags.
+export interface JournalCalendarDay {
+  date: string           // YYYY-MM-DD
+  entry_count: number
+  avg_score: number | null
+}
+
+// JournalMentalStateBar is one bar in the mental-state-over-time chart.
+// Bars with no entries have entry_count=0 and score=null.
+export interface JournalMentalStateBar {
+  label: string          // "Mon", "1", "W12", etc.
+  date: string           // YYYY-MM-DD (calendar day or ISO week-start Monday)
+  score: number | null   // null when no scoring tags present
+  entry_count: number
+  emotions: JournalTag[] // distinct emotion/condition tags for the tooltip
+}
+
+// JournalTagDay is one item in the GET /api/journal/tag-days drill-down response.
+export interface JournalTagDay {
+  date: string           // YYYY-MM-DD — used directly for date navigation
+  entry_count: number
+  preview: string        // first 80 chars of the earliest entry body that day
+}
+
 // JournalSummaryResponse is returned by GET /api/journal/summary.
 export interface JournalSummaryResponse {
-  mental_state_points: { date: string; score: number }[]
+  mental_state_bars: JournalMentalStateBar[]
   top_emotions: { tag: JournalTag; count: number }[]
   entry_type_counts: { tag: JournalTag; count: number }[]
+  total_entries: number
+  days_logged: number
 }
 
 // CreateJournalEntryInput is the body for POST /api/journal.

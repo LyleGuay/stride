@@ -9,7 +9,7 @@ import { useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import type { JournalEntry, JournalTag } from '../../types'
 import { EMOTION_TAGS, CONDITION_TAGS, ENTRY_TYPE_TAGS } from '../../types'
-import { emotionGradient, tagLabel, EMOTION_COLORS, EMOTION_EMOJIS, ENTRY_TYPE_EMOJIS, CONDITION_COLORS, CONDITION_EMOJIS } from './journalColors'
+import { emotionGradient, tagLabel, TAG_META, ENTRY_TYPE_EMOJIS } from './journalColors'
 
 interface Props {
   entry: JournalEntry
@@ -137,8 +137,8 @@ function EntryTypeChip({ tag }: { tag: JournalTag }) {
 
 // EmotionChip — chip colored to match the emotion's accent color
 function EmotionChip({ tag }: { tag: JournalTag }) {
-  const color = EMOTION_COLORS[tag]
-  const emoji = EMOTION_EMOJIS[tag]
+  const color = TAG_META[tag]?.color
+  const emoji = TAG_META[tag]?.emoji
   return (
     <span
       className="inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full border"
@@ -152,8 +152,8 @@ function EmotionChip({ tag }: { tag: JournalTag }) {
 
 // ConditionChip — chip for physical condition tags, styled with amber/gray tones
 function ConditionChip({ tag }: { tag: JournalTag }) {
-  const color = CONDITION_COLORS[tag]
-  const emoji = CONDITION_EMOJIS[tag]
+  const color = TAG_META[tag]?.color
+  const emoji = TAG_META[tag]?.emoji
   return (
     <span
       className="inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full border"

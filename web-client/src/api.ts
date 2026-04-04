@@ -1,10 +1,10 @@
 // API service layer — all backend calls go through request() which handles
 // auth headers, 401 redirects, and consistent error extraction.
 
-import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, CreateJournalEntryInput, UpdateJournalEntryInput, Task, TaskListResponse, CreateTaskInput, UpdateTaskInput } from './types'
+import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, JournalSummaryRange, JournalCalendarDay, JournalTagDay, CreateJournalEntryInput, UpdateJournalEntryInput, Task, TaskListResponse, CreateTaskInput, UpdateTaskInput } from './types'
 
 // Re-export types so existing imports from api.ts keep working.
-export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, CreateJournalEntryInput, UpdateJournalEntryInput, Task, TaskListResponse, CreateTaskInput, UpdateTaskInput }
+export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, JournalSummaryRange, JournalCalendarDay, JournalTagDay, CreateJournalEntryInput, UpdateJournalEntryInput, Task, TaskListResponse, CreateTaskInput, UpdateTaskInput }
 
 function getToken(): string | null {
   return localStorage.getItem('token')
@@ -334,10 +334,26 @@ export function deleteJournalEntry(id: number) {
   return request<void>(`/api/journal/${id}`, { method: 'DELETE' })
 }
 
-// fetchJournalSummary returns mental-state trend data and tag frequency counts
-// for the given date range.
-export function fetchJournalSummary(range: '1m' | '6m' | 'ytd' | 'all') {
-  return request<JournalSummaryResponse>(`/api/journal/summary?range=${range}`)
+// fetchJournalCalendar returns per-day entry counts and avg mental-state scores
+// for the given month (YYYY-MM). Only days with at least one entry are returned.
+export function fetchJournalCalendar(month: string) {
+  return request<JournalCalendarDay[]>(`/api/journal/calendar?month=${month}`)
+}
+
+// fetchJournalSummary returns mental-state bar chart data and tag frequency counts
+// for the given date range. ref_date anchors week/month ranges (defaults to today).
+export function fetchJournalSummary(range: JournalSummaryRange, refDate?: string) {
+  const params = new URLSearchParams({ range })
+  if (refDate) params.set('ref_date', refDate)
+  return request<JournalSummaryResponse>(`/api/journal/summary?${params}`)
+}
+
+// fetchJournalTagDays returns days within a range that contain the given tag,
+// ordered newest first. Fetched lazily when the user taps an emotion/type bar.
+export function fetchJournalTagDays(tag: string, range: JournalSummaryRange, refDate?: string) {
+  const params = new URLSearchParams({ tag, range })
+  if (refDate) params.set('ref_date', refDate)
+  return request<JournalTagDay[]>(`/api/journal/tag-days?${params}`)
 }
 
 /* ─── AI calorie suggestion ───────────────────────────────────────── */

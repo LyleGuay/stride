@@ -1,8 +1,8 @@
 // useJournalSummary fetches the journal summary for the given date range.
-// Re-fetches automatically when range changes.
+// Re-fetches automatically when range or refDate changes.
 
 import { useState, useEffect, useCallback } from 'react'
-import type { JournalSummaryResponse } from '../types'
+import type { JournalSummaryResponse, JournalSummaryRange } from '../types'
 import { fetchJournalSummary } from '../api'
 
 export interface UseJournalSummaryResult {
@@ -11,7 +11,8 @@ export interface UseJournalSummaryResult {
   error: string | null
 }
 
-export function useJournalSummary(range: '1m' | '6m' | 'ytd' | 'all'): UseJournalSummaryResult {
+// refDate anchors week/month ranges (YYYY-MM-DD). Omit to use today server-side.
+export function useJournalSummary(range: JournalSummaryRange, refDate?: string): UseJournalSummaryResult {
   const [summary, setSummary] = useState<JournalSummaryResponse | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -20,14 +21,14 @@ export function useJournalSummary(range: '1m' | '6m' | 'ytd' | 'all'): UseJourna
     setLoading(true)
     setError(null)
     try {
-      const data = await fetchJournalSummary(range)
+      const data = await fetchJournalSummary(range, refDate)
       setSummary(data)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Failed to load summary')
     } finally {
       setLoading(false)
     }
-  }, [range])
+  }, [range, refDate])
 
   useEffect(() => { load() }, [load])
 

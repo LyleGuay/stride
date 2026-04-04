@@ -56,23 +56,46 @@ type journalSummaryRow struct {
 	Tags      []string `db:"tags"`
 }
 
-// mentalStatePoint is one data point in the mental-state trend chart (score 1–5 per day).
-type mentalStatePoint struct {
-	Date  string  `json:"date"`
-	Score float64 `json:"score"`
-}
-
 // tagCount is one bar in the top-emotions or entry-type-counts chart.
 type tagCount struct {
 	Tag   string `json:"tag"`
 	Count int    `json:"count"`
 }
 
+// mentalStateBar is one bar in the mental-state-over-time chart.
+// Bars with no entries have EntryCount=0 and Score=nil.
+// Emotions lists the distinct emotion/condition tags present in entries for this slot,
+// sorted alphabetically — used to populate the tooltip emoji row.
+type mentalStateBar struct {
+	Label      string   `json:"label"`       // "Mon", "1", "W12", etc.
+	Date       string   `json:"date"`         // YYYY-MM-DD (calendar day or ISO week-start Monday)
+	Score      *float64 `json:"score"`        // nil when no scoring tags
+	EntryCount int      `json:"entry_count"`
+	Emotions   []string `json:"emotions"`     // distinct emotion/condition tags for tooltip
+}
+
 // journalSummaryResponse is the response for GET /api/journal/summary.
 type journalSummaryResponse struct {
-	MentalStatePoints []mentalStatePoint `json:"mental_state_points"`
-	TopEmotions       []tagCount         `json:"top_emotions"`
-	EntryTypeCounts   []tagCount         `json:"entry_type_counts"`
+	MentalStateBars []mentalStateBar `json:"mental_state_bars"`
+	TopEmotions     []tagCount       `json:"top_emotions"`
+	EntryTypeCounts []tagCount       `json:"entry_type_counts"`
+	TotalEntries    int              `json:"total_entries"`
+	DaysLogged      int              `json:"days_logged"`
+}
+
+// journalTagDay is one item in the GET /api/journal/tag-days response.
+type journalTagDay struct {
+	Date       string `json:"date"`        // YYYY-MM-DD — used by the frontend for date navigation
+	EntryCount int    `json:"entry_count"`
+	Preview    string `json:"preview"`     // first 80 chars of the earliest entry body that day
+}
+
+// journalCalendarDay is one entry in the GET /api/journal/calendar response.
+// AvgScore is nil when entries exist for the day but none have emotion/condition tags.
+type journalCalendarDay struct {
+	Date       string   `json:"date"`
+	EntryCount int      `json:"entry_count"`
+	AvgScore   *float64 `json:"avg_score"`
 }
 
 /* ─── Tag classification ──────────────────────────────────────────────── */
@@ -331,63 +354,275 @@ func (h *Handler) deleteJournalEntry(c *gin.Context) {
 	c.Status(http.StatusNoContent)
 }
 
+/* ─── Date helpers ───────────────────────────────────────────────────── */
+
+// resolveDateRange maps a range param + optional ref_date string to a start/end date pair.
+// ref_date defaults to now when empty. Used by both getJournalSummary and getJournalTagDays.
+func resolveDateRange(rangeParam, refDateStr string, now time.Time) (time.Time, time.Time, error) {
+	refDate := now
+	if refDateStr != "" {
+		parsed, err := time.Parse("2006-01-02", refDateStr)
+		if err != nil {
+			return time.Time{}, time.Time{}, fmt.Errorf("invalid ref_date, expected YYYY-MM-DD")
+		}
+		refDate = parsed
+	}
+
+	switch rangeParam {
+	case "week":
+		start := mondayOf(refDate)
+		return start, start.AddDate(0, 0, 6), nil
+	case "month":
+		start := time.Date(refDate.Year(), refDate.Month(), 1, 0, 0, 0, 0, time.UTC)
+		return start, start.AddDate(0, 1, -1), nil
+	case "6m":
+		// Trailing 26 ISO weeks ending on the Sunday of the current week.
+		start := mondayOf(now).AddDate(0, 0, -25*7)
+		return start, mondayOf(now).AddDate(0, 0, 6), nil
+	case "1yr":
+		// Trailing 52 ISO weeks.
+		start := mondayOf(now).AddDate(0, 0, -51*7)
+		return start, mondayOf(now).AddDate(0, 0, 6), nil
+	default:
+		return time.Time{}, time.Time{}, fmt.Errorf("invalid range, expected week|month|6m|1yr")
+	}
+}
+
+// buildMentalStateBars constructs the full ordered bar slice for the summary chart.
+// A bar is generated for every slot in the range — calendar day for week/month,
+// ISO week for 6m/1yr — even when there are no entries (EntryCount=0, Score=nil).
+func buildMentalStateBars(rangeParam string, startDate time.Time, rows []journalSummaryRow) []mentalStateBar {
+	type barAccum struct {
+		count    int
+		scoreSum int
+		scoreN   int
+		emotions map[string]bool // distinct emotion/condition tags seen
+	}
+
+	// Group rows by their bar key: YYYY-MM-DD for day ranges, Monday for week ranges.
+	accums := make(map[string]*barAccum)
+	for _, row := range rows {
+		var barKey string
+		if rangeParam == "6m" || rangeParam == "1yr" {
+			barKey = mondayOf(row.EntryDate.Time).Format("2006-01-02")
+		} else {
+			barKey = row.EntryDate.Time.Format("2006-01-02")
+		}
+		if accums[barKey] == nil {
+			accums[barKey] = &barAccum{emotions: make(map[string]bool)}
+		}
+		acc := accums[barKey]
+		acc.count++
+		for _, tag := range row.Tags {
+			if s := mentalStateScore(tag); s > 0 {
+				acc.scoreSum += s
+				acc.scoreN++
+			}
+			if emotionTags[tag] || conditionTags[tag] {
+				acc.emotions[tag] = true
+			}
+		}
+	}
+
+	// fillBar populates score, entry count, and emotion list from the accumulator.
+	fillBar := func(bar *mentalStateBar) {
+		acc := accums[bar.Date]
+		if acc == nil {
+			return
+		}
+		bar.EntryCount = acc.count
+		if acc.scoreN > 0 {
+			score := float64(acc.scoreSum) / float64(acc.scoreN)
+			score = float64(int(score*10+0.5)) / 10 // one-decimal rounding
+			bar.Score = &score
+		}
+		for tag := range acc.emotions {
+			bar.Emotions = append(bar.Emotions, tag)
+		}
+		sort.Strings(bar.Emotions) // deterministic order
+	}
+
+	var bars []mentalStateBar
+	dayNames := [7]string{"Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"}
+
+	switch rangeParam {
+	case "week":
+		for i := 0; i < 7; i++ {
+			day := startDate.AddDate(0, 0, i)
+			bar := mentalStateBar{Label: dayNames[i], Date: day.Format("2006-01-02"), Emotions: []string{}}
+			fillBar(&bar)
+			bars = append(bars, bar)
+		}
+
+	case "month":
+		endDate := startDate.AddDate(0, 1, -1)
+		for d := startDate; !d.After(endDate); d = d.AddDate(0, 0, 1) {
+			bar := mentalStateBar{
+				Label:    fmt.Sprintf("%d", d.Day()),
+				Date:     d.Format("2006-01-02"),
+				Emotions: []string{},
+			}
+			fillBar(&bar)
+			bars = append(bars, bar)
+		}
+
+	case "6m", "1yr":
+		nWeeks := 26
+		if rangeParam == "1yr" {
+			nWeeks = 52
+		}
+		for i := 0; i < nWeeks; i++ {
+			weekStart := startDate.AddDate(0, 0, i*7)
+			bar := mentalStateBar{
+				Label:    fmt.Sprintf("W%d", i+1),
+				Date:     weekStart.Format("2006-01-02"),
+				Emotions: []string{},
+			}
+			fillBar(&bar)
+			bars = append(bars, bar)
+		}
+	}
+
+	return bars
+}
+
+// journalTagDayRow is the raw DB row scanned by getJournalTagDays before date formatting.
+type journalTagDayRow struct {
+	EntryDate  DateOnly `db:"entry_date"`
+	EntryCount int      `db:"entry_count"`
+	Preview    string   `db:"preview"`
+}
+
+/* ─── Calendar ───────────────────────────────────────────────────────── */
+
+// getJournalCalendar returns per-day entry counts and average mental-state scores
+// for a calendar month. Only days that have at least one entry are included;
+// days with entries but no emotion/condition tags have avg_score=null.
+// Query param: month=YYYY-MM (required).
+func (h *Handler) getJournalCalendar(c *gin.Context) {
+	userID := c.GetInt("user_id")
+
+	monthParam := c.Query("month")
+	if _, err := time.Parse("2006-01", monthParam); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid month, expected YYYY-MM"})
+		return
+	}
+
+	// Fetch all entries for the month. Reuse journalSummaryRow — only entry_date
+	// and tags are needed for aggregation.
+	rows, err := queryMany[journalSummaryRow](h.db, c,
+		`SELECT entry_date, tags::text[] AS tags
+		 FROM journal_entries
+		 WHERE user_id = @userID
+		   AND date_trunc('month', entry_date) = date_trunc('month', @monthDate::date)
+		 ORDER BY entry_date, id`,
+		pgx.NamedArgs{"userID": userID, "monthDate": monthParam + "-01"})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load journal calendar"})
+		return
+	}
+
+	c.JSON(http.StatusOK, computeCalendarDays(rows))
+}
+
+// computeCalendarDays aggregates a slice of journal rows (pre-sorted by entry_date)
+// into per-day calendar summaries used by the calendar date picker.
+// Kept as a standalone function so it can be unit-tested without a database.
+func computeCalendarDays(rows []journalSummaryRow) []journalCalendarDay {
+	type dayAccum struct {
+		count    int
+		scoreSum int
+		scoreN   int
+	}
+	// Use a slice to preserve date order (rows arrive sorted by entry_date).
+	var dateOrder []string
+	accums := make(map[string]*dayAccum)
+
+	for _, row := range rows {
+		dateKey := row.EntryDate.Time.Format("2006-01-02")
+		if accums[dateKey] == nil {
+			accums[dateKey] = &dayAccum{}
+			dateOrder = append(dateOrder, dateKey)
+		}
+		acc := accums[dateKey]
+		acc.count++
+		for _, tag := range row.Tags {
+			if s := mentalStateScore(tag); s > 0 {
+				acc.scoreSum += s
+				acc.scoreN++
+			}
+		}
+	}
+
+	result := make([]journalCalendarDay, 0, len(dateOrder))
+	for _, dateKey := range dateOrder {
+		acc := accums[dateKey]
+		var avgScore *float64
+		if acc.scoreN > 0 {
+			// One-decimal rounding — matches getJournalSummary behaviour.
+			score := float64(acc.scoreSum) / float64(acc.scoreN)
+			score = float64(int(score*10+0.5)) / 10
+			avgScore = &score
+		}
+		result = append(result, journalCalendarDay{
+			Date:       dateKey,
+			EntryCount: acc.count,
+			AvgScore:   avgScore,
+		})
+	}
+	return result
+}
+
 /* ─── Summary ─────────────────────────────────────────────────────────── */
 
-// getJournalSummary returns mental-state trend data and tag frequency counts
-// for a given date range. Query param: range=1m|6m|ytd|all (required).
+// getJournalSummary returns mental-state bar chart data and tag frequency counts
+// for a given date range.
+// Query params:
+//   - range=week|month|6m|1yr (required)
+//   - ref_date=YYYY-MM-DD (optional; defaults to today — anchors week/month ranges)
 func (h *Handler) getJournalSummary(c *gin.Context) {
 	userID := c.GetInt("user_id")
 
-	// Resolve the start date from the range param.
 	rangeParam := c.Query("range")
+	refDateStr := c.Query("ref_date")
 	now := time.Now().UTC()
-	var startDate string
-	switch rangeParam {
-	case "1m":
-		startDate = now.AddDate(0, -1, 0).Format("2006-01-02")
-	case "6m":
-		startDate = now.AddDate(0, -6, 0).Format("2006-01-02")
-	case "ytd":
-		startDate = fmt.Sprintf("%d-01-01", now.Year())
-	case "all":
-		startDate = "2000-01-01"
-	default:
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid range"})
+
+	startDate, endDate, err := resolveDateRange(rangeParam, refDateStr, now)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
 	rows, err := queryMany[journalSummaryRow](h.db, c,
 		`SELECT entry_date, tags::text[] AS tags
 		 FROM journal_entries
-		 WHERE user_id = @userID AND entry_date >= @startDate
+		 WHERE user_id = @userID
+		   AND entry_date >= @startDate
+		   AND entry_date <= @endDate
 		 ORDER BY entry_date`,
-		pgx.NamedArgs{"userID": userID, "startDate": startDate})
+		pgx.NamedArgs{
+			"userID":    userID,
+			"startDate": startDate.Format("2006-01-02"),
+			"endDate":   endDate.Format("2006-01-02"),
+		})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load journal summary"})
 		return
 	}
 
-	// Compute per-date average mental-state scores and tag frequency counts.
-	type dateAccum struct {
-		scoreSum int
-		scoreN   int
-	}
-	dateScores := make(map[string]*dateAccum)
+	// Build mental-state bar chart — one slot per calendar day (week/month) or ISO week (6m/1yr).
+	bars := buildMentalStateBars(rangeParam, startDate, rows)
+
+	// Count emotion/condition and entry-type tag frequencies across all rows.
 	emotionCounts := make(map[string]int)
 	entryTypeCounts := make(map[string]int)
+	seenDates := make(map[string]bool)
+	totalEntries := len(rows)
 
 	for _, row := range rows {
 		dateKey := row.EntryDate.Time.Format("2006-01-02")
-		if dateScores[dateKey] == nil {
-			dateScores[dateKey] = &dateAccum{}
-		}
-
+		seenDates[dateKey] = true
 		for _, tag := range row.Tags {
-			if s := mentalStateScore(tag); s > 0 {
-				dateScores[dateKey].scoreSum += s
-				dateScores[dateKey].scoreN++
-			}
-			// Condition tags count toward the same frequency bucket as emotions
 			if emotionTags[tag] || conditionTags[tag] {
 				emotionCounts[tag]++
 			} else if entryTypeTags[tag] {
@@ -396,31 +631,16 @@ func (h *Handler) getJournalSummary(c *gin.Context) {
 		}
 	}
 
-	// Build mental-state points sorted by date; skip dates with no emotion tags.
-	var dateKeys []string
-	for k := range dateScores {
-		if dateScores[k].scoreN > 0 {
-			dateKeys = append(dateKeys, k)
-		}
-	}
-	sort.Strings(dateKeys)
-
-	mentalStatePoints := make([]mentalStatePoint, 0, len(dateKeys))
-	for _, d := range dateKeys {
-		acc := dateScores[d]
-		score := float64(acc.scoreSum) / float64(acc.scoreN)
-		// Round to one decimal place.
-		score = float64(int(score*10+0.5)) / 10
-		mentalStatePoints = append(mentalStatePoints, mentalStatePoint{Date: d, Score: score})
-	}
-
 	// Build top-emotions list sorted by count desc.
 	topEmotions := make([]tagCount, 0, len(emotionCounts))
 	for tag, count := range emotionCounts {
 		topEmotions = append(topEmotions, tagCount{Tag: tag, Count: count})
 	}
 	sort.Slice(topEmotions, func(i, j int) bool {
-		return topEmotions[i].Count > topEmotions[j].Count
+		if topEmotions[i].Count != topEmotions[j].Count {
+			return topEmotions[i].Count > topEmotions[j].Count
+		}
+		return topEmotions[i].Tag < topEmotions[j].Tag
 	})
 
 	// Build entry-type counts sorted by count desc.
@@ -429,12 +649,88 @@ func (h *Handler) getJournalSummary(c *gin.Context) {
 		entryTypeList = append(entryTypeList, tagCount{Tag: tag, Count: count})
 	}
 	sort.Slice(entryTypeList, func(i, j int) bool {
-		return entryTypeList[i].Count > entryTypeList[j].Count
+		if entryTypeList[i].Count != entryTypeList[j].Count {
+			return entryTypeList[i].Count > entryTypeList[j].Count
+		}
+		return entryTypeList[i].Tag < entryTypeList[j].Tag
 	})
 
 	c.JSON(http.StatusOK, journalSummaryResponse{
-		MentalStatePoints: mentalStatePoints,
-		TopEmotions:       topEmotions,
-		EntryTypeCounts:   entryTypeList,
+		MentalStateBars: bars,
+		TopEmotions:     topEmotions,
+		EntryTypeCounts: entryTypeList,
+		TotalEntries:    totalEntries,
+		DaysLogged:      len(seenDates),
 	})
+}
+
+/* ─── Tag days (drill-down) ───────────────────────────────────────────── */
+
+// getJournalTagDays returns days within a range that contain a specific tag,
+// ordered newest first. Used to populate the drill-down panel when a user taps
+// an emotion or entry-type bar in the Summary tab.
+// Query params:
+//   - tag=<journal_tag>   (required)
+//   - range=week|month|6m|1yr (required)
+//   - ref_date=YYYY-MM-DD (optional; defaults to today)
+func (h *Handler) getJournalTagDays(c *gin.Context) {
+	userID := c.GetInt("user_id")
+
+	tag := c.Query("tag")
+	if tag == "" {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "tag is required"})
+		return
+	}
+
+	rangeParam := c.Query("range")
+	refDateStr := c.Query("ref_date")
+	now := time.Now().UTC()
+
+	startDate, endDate, err := resolveDateRange(rangeParam, refDateStr, now)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// For each day in the range that has the tag, return the entry count and
+	// a preview from the earliest entry of that day (across all entries, not just
+	// those with the tag — gives the best overall context).
+	rows, err := queryMany[journalTagDayRow](h.db, c,
+		`SELECT
+		   je.entry_date,
+		   COUNT(*) AS entry_count,
+		   (SELECT LEFT(j2.body, 80)
+		    FROM journal_entries j2
+		    WHERE j2.user_id = @userID AND j2.entry_date = je.entry_date
+		    ORDER BY j2.entry_time, j2.id
+		    LIMIT 1) AS preview
+		 FROM journal_entries je
+		 WHERE je.user_id = @userID
+		   AND je.entry_date >= @startDate
+		   AND je.entry_date <= @endDate
+		   AND @tag = ANY(je.tags::text[])
+		 GROUP BY je.entry_date
+		 ORDER BY je.entry_date DESC`,
+		pgx.NamedArgs{
+			"userID":    userID,
+			"startDate": startDate.Format("2006-01-02"),
+			"endDate":   endDate.Format("2006-01-02"),
+			"tag":       tag,
+		})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to load tag days"})
+		return
+	}
+
+	// Format dates as human-readable labels (e.g. "Apr 3") and build response.
+	result := make([]journalTagDay, len(rows))
+	for i, row := range rows {
+		result[i] = journalTagDay{
+			Date:       row.EntryDate.Time.Format("2006-01-02"),
+			EntryCount: row.EntryCount,
+			Preview:    row.Preview,
+		}
+	}
+
+	c.JSON(http.StatusOK, result)
 }

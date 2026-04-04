@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Journal — Daily + Calendar Picker</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: { 50:'#eef2ff', 100:'#e0e7ff', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f9fafb; }
+    .sheet-enter { animation: slideUp .22s cubic-bezier(.32,.72,0,1); }
+    @keyframes slideUp { from { transform:translateY(100%); } to { transform:translateY(0); } }
+    .cal-popover { animation: popIn .15s cubic-bezier(.32,.72,0,1); transform-origin: top center; }
+    @keyframes popIn { from { opacity:0; transform:scale(.95); } to { opacity:1; transform:scale(1); } }
+  </style>
+</head>
+<body>
+<div class="flex min-h-screen">
+
+  <!-- ── Sidebar (desktop) ──────────────────────────────────────────── -->
+  <aside class="hidden lg:flex flex-col fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-30">
+    <div class="flex items-center h-14 px-5 border-b border-gray-200 shrink-0">
+      <span class="text-xl font-bold text-indigo-600">Stride</span>
+    </div>
+    <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto text-sm text-gray-600">
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50">📋 Calorie Log</a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50">✅ Habits</a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-indigo-50 text-indigo-700 font-medium">📔 Journal</a>
+      <a href="#" class="flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-gray-50">☑️ Tasks</a>
+    </nav>
+  </aside>
+
+  <!-- ── Main content ───────────────────────────────────────────────── -->
+  <div class="flex-1 lg:ml-64 flex flex-col min-h-screen">
+
+    <!-- Sticky header -->
+    <div class="sticky top-0 z-20 bg-white" id="stickyHeader">
+
+      <!-- Tab row -->
+      <div class="flex items-end px-4 sm:px-6 border-b border-gray-200" style="height:56px">
+        <button onclick="showTab('daily')" id="tab-daily"
+          class="px-4 h-full flex items-center gap-1.5 text-sm font-semibold text-gray-900 border-b-[3px] border-gray-900 -mb-px transition-colors">
+          ✏️ Daily
+        </button>
+        <button onclick="showTab('summary')" id="tab-summary"
+          class="px-4 h-full flex items-center gap-1.5 text-sm font-medium text-gray-400 border-b-[3px] border-transparent -mb-px hover:text-gray-600 transition-colors">
+          📊 Summary
+        </button>
+      </div>
+
+      <!-- Date navigator sub-header -->
+      <div class="border-b border-gray-200 relative">
+        <div class="flex items-center justify-center py-2.5">
+          <div class="flex items-center bg-gray-100 rounded-full px-1 py-1">
+            <button onclick="shiftDate(-1)" class="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/>
+              </svg>
+            </button>
+
+            <!-- Tappable date label — NEW: opens calendar -->
+            <button onclick="toggleCalendar()" id="dateLabel"
+              class="flex items-center justify-center gap-1.5 px-2 min-w-[220px] hover:bg-gray-200 rounded-full py-0.5 transition-colors group">
+              <span class="text-sm font-semibold text-blue-600" id="datePrimary">Today</span>
+              <span class="text-xs text-gray-500" id="dateSub">Thu, Apr 3, 2026</span>
+              <!-- Calendar icon — subtle hint that it's clickable -->
+              <svg class="w-3.5 h-3.5 text-gray-400 group-hover:text-gray-600 shrink-0 transition-colors" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5"/>
+              </svg>
+            </button>
+
+            <button onclick="shiftDate(1)" class="p-1.5 rounded-full hover:bg-gray-200 text-gray-500 transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- ── Calendar Popover ─────────────────────────────────── -->
+        <div id="calendarPopover" class="hidden absolute left-1/2 -translate-x-1/2 top-full mt-1 z-50 w-80 bg-white rounded-2xl shadow-xl border border-gray-200 p-4 cal-popover">
+
+          <!-- Month nav -->
+          <div class="flex items-center justify-between mb-3">
+            <button onclick="shiftCalMonth(-1)" class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/>
+              </svg>
+            </button>
+            <span class="text-sm font-semibold text-gray-800" id="calMonthLabel">April 2026</span>
+            <button onclick="shiftCalMonth(1)" class="p-1.5 rounded-lg hover:bg-gray-100 text-gray-500 transition-colors">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
+              </svg>
+            </button>
+          </div>
+
+          <!-- Weekday headers -->
+          <div class="grid grid-cols-7 mb-1">
+            <script>
+              ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(d => {
+                document.write(`<div class="text-center text-xs font-medium text-gray-400 py-1">${d}</div>`)
+              })
+            </script>
+          </div>
+
+          <!-- Day grid -->
+          <div class="grid grid-cols-7 gap-y-0.5" id="calGrid"></div>
+
+          <!-- Legend -->
+          <div class="flex items-center gap-4 mt-3 pt-3 border-t border-gray-100 justify-center">
+            <div class="flex items-center gap-1 text-xs text-gray-500">
+              <div class="w-2 h-2 rounded-full bg-green-400"></div> Good
+            </div>
+            <div class="flex items-center gap-1 text-xs text-gray-500">
+              <div class="w-2 h-2 rounded-full bg-violet-400"></div> Neutral
+            </div>
+            <div class="flex items-center gap-1 text-xs text-gray-500">
+              <div class="w-2 h-2 rounded-full bg-red-400"></div> Low
+            </div>
+            <div class="flex items-center gap-1 text-xs text-gray-500">
+              <div class="w-2 h-2 rounded-full bg-gray-300"></div> No tags
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── Timeline entries ─────────────────────────────────────────── -->
+    <div class="px-4 sm:px-6 pt-4 pb-28 space-y-3 max-w-2xl mx-auto w-full" id="timelineArea">
+      <!-- Entry count -->
+      <p class="text-xs text-gray-400 font-medium">3 entries</p>
+
+      <!-- Entry 1 — Happy -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm flex overflow-hidden">
+        <div class="w-1 shrink-0 bg-green-400"></div>
+        <div class="flex-1 p-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-gray-400 font-medium">8:14 AM</span>
+            <button class="text-gray-300 hover:text-gray-500 px-1">···</button>
+          </div>
+          <div class="flex gap-1.5 mb-2 flex-wrap">
+            <span class="inline-flex items-center gap-1 text-xs font-medium bg-green-50 text-green-700 rounded-full px-2.5 py-0.5">😊 Happy</span>
+            <span class="inline-flex items-center text-xs font-medium bg-gray-100 text-gray-600 rounded-full px-2.5 py-0.5">Thoughts</span>
+          </div>
+          <p class="text-sm text-gray-700 leading-relaxed">Finally got a good night of sleep. Woke up feeling energized and ready to tackle the day. Morning routine went smoothly.</p>
+        </div>
+      </div>
+
+      <!-- Entry 2 — Neutral -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm flex overflow-hidden">
+        <div class="w-1 shrink-0 bg-violet-400"></div>
+        <div class="flex-1 p-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-gray-400 font-medium">12:31 PM</span>
+            <button class="text-gray-300 hover:text-gray-500 px-1">···</button>
+          </div>
+          <div class="flex gap-1.5 mb-2 flex-wrap">
+            <span class="inline-flex items-center gap-1 text-xs font-medium bg-violet-50 text-violet-700 rounded-full px-2.5 py-0.5">😐 Neutral</span>
+            <span class="inline-flex items-center text-xs font-medium bg-gray-100 text-gray-600 rounded-full px-2.5 py-0.5">Open Loop</span>
+          </div>
+          <p class="text-sm text-gray-700 leading-relaxed">Need to figure out what I want for dinner this week and whether I'm going grocery shopping tonight or tomorrow.</p>
+        </div>
+      </div>
+
+      <!-- Entry 3 — Motivated -->
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm flex overflow-hidden">
+        <div class="w-1 shrink-0 bg-teal-400"></div>
+        <div class="flex-1 p-3">
+          <div class="flex items-center justify-between mb-1">
+            <span class="text-xs text-gray-400 font-medium">4:52 PM</span>
+            <button class="text-gray-300 hover:text-gray-500 px-1">···</button>
+          </div>
+          <div class="flex gap-1.5 mb-2 flex-wrap">
+            <span class="inline-flex items-center gap-1 text-xs font-medium bg-teal-50 text-teal-700 rounded-full px-2.5 py-0.5">💪 Motivated</span>
+            <span class="inline-flex items-center text-xs font-medium bg-gray-100 text-gray-600 rounded-full px-2.5 py-0.5">Idea</span>
+          </div>
+          <p class="text-sm text-gray-700 leading-relaxed">Just finished the Journal calendar picker design. This is really going to speed things up — no more tapping the arrow 20 times to get to last week.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- FAB -->
+    <button class="fixed bottom-6 right-6 w-14 h-14 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg flex items-center justify-center text-2xl transition-colors z-30">+</button>
+  </div>
+</div>
+
+<!-- Click-outside overlay to close calendar -->
+<div id="calOverlay" class="hidden fixed inset-0 z-40" onclick="closeCalendar()"></div>
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let currentDate = new Date(2026, 3, 3) // April 3, 2026
+let calViewYear = 2026
+let calViewMonth = 3 // April (0-indexed)
+let calOpen = false
+
+// Mock data: dates with journal entries and their avg score
+// score: 4-5=green, 2-3=violet, 1=red, 0=gray (no emotion tags), null=no entries
+const entryData = {
+  '2026-04-03': { count: 3, score: 4.0 },
+  '2026-04-02': { count: 1, score: 2.0 },
+  '2026-04-01': { count: 5, score: 4.5 },
+  '2026-03-31': { count: 2, score: 3.0 },
+  '2026-03-30': { count: 1, score: 1.0 },
+  '2026-03-29': { count: 3, score: 4.0 },
+  '2026-03-28': { count: 0, score: null },
+  '2026-03-27': { count: 2, score: 0 },
+  '2026-03-26': { count: 4, score: 4.5 },
+  '2026-03-25': { count: 1, score: 2.0 },
+  '2026-03-24': { count: 3, score: 3.5 },
+  '2026-03-23': { count: 2, score: 4.0 },
+  '2026-03-21': { count: 1, score: 1.0 },
+  '2026-03-20': { count: 2, score: 3.0 },
+  '2026-03-18': { count: 3, score: 4.5 },
+  '2026-03-15': { count: 1, score: 2.0 },
+  '2026-03-12': { count: 4, score: 4.0 },
+  '2026-03-10': { count: 2, score: 3.5 },
+  '2026-03-08': { count: 1, score: 1.0 },
+  '2026-03-05': { count: 3, score: 4.0 },
+}
+
+function toKey(y, m, d) {
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`
+}
+
+function scoreColor(score) {
+  if (score === null) return null
+  if (score === 0) return 'bg-gray-300'
+  if (score >= 4) return 'bg-green-400'
+  if (score >= 2) return 'bg-violet-400'
+  return 'bg-red-400'
+}
+
+// ── Date header ───────────────────────────────────────────────────────────
+function updateDateHeader() {
+  const today = new Date(2026, 3, 3)
+  const diff = Math.round((today - currentDate) / 86400000)
+  const sub = currentDate.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' })
+  const primaryEl = document.getElementById('datePrimary')
+  const subEl = document.getElementById('dateSub')
+
+  if (diff === 0) {
+    primaryEl.textContent = 'Today'
+    primaryEl.className = 'text-sm font-semibold text-blue-600'
+    subEl.textContent = sub
+  } else if (diff === 1) {
+    primaryEl.textContent = 'Yesterday'
+    primaryEl.className = 'text-sm font-semibold text-blue-600'
+    subEl.textContent = sub
+  } else {
+    primaryEl.textContent = ''
+    primaryEl.className = ''
+    subEl.textContent = sub
+  }
+}
+
+function shiftDate(delta) {
+  currentDate.setDate(currentDate.getDate() + delta)
+  updateDateHeader()
+}
+
+// ── Calendar ──────────────────────────────────────────────────────────────
+function toggleCalendar() {
+  calOpen ? closeCalendar() : openCalendar()
+}
+
+function openCalendar() {
+  calViewYear = currentDate.getFullYear()
+  calViewMonth = currentDate.getMonth()
+  renderCalendar()
+  document.getElementById('calendarPopover').classList.remove('hidden')
+  document.getElementById('calOverlay').classList.remove('hidden')
+  calOpen = true
+}
+
+function closeCalendar() {
+  document.getElementById('calendarPopover').classList.add('hidden')
+  document.getElementById('calOverlay').classList.add('hidden')
+  calOpen = false
+}
+
+function shiftCalMonth(delta) {
+  calViewMonth += delta
+  if (calViewMonth > 11) { calViewMonth = 0; calViewYear++ }
+  if (calViewMonth < 0)  { calViewMonth = 11; calViewYear-- }
+  renderCalendar()
+}
+
+function selectDay(y, m, d) {
+  currentDate = new Date(y, m, d)
+  updateDateHeader()
+  closeCalendar()
+}
+
+function renderCalendar() {
+  const today = new Date(2026, 3, 3) // mock today
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December']
+  document.getElementById('calMonthLabel').textContent = `${monthNames[calViewMonth]} ${calViewYear}`
+
+  const grid = document.getElementById('calGrid')
+  grid.innerHTML = ''
+
+  // First day of month (0=Sun..6=Sat), convert to Mon-based (0=Mon..6=Sun)
+  const firstDay = new Date(calViewYear, calViewMonth, 1).getDay()
+  const startOffset = (firstDay === 0) ? 6 : firstDay - 1
+  const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate()
+
+  // Leading empty cells
+  for (let i = 0; i < startOffset; i++) {
+    grid.insertAdjacentHTML('beforeend', '<div></div>')
+  }
+
+  // Day cells
+  for (let d = 1; d <= daysInMonth; d++) {
+    const key = toKey(calViewYear, calViewMonth, d)
+    const data = entryData[key]
+    const isToday = (calViewYear === today.getFullYear() && calViewMonth === today.getMonth() && d === today.getDate())
+    const isSelected = (calViewYear === currentDate.getFullYear() && calViewMonth === currentDate.getMonth() && d === currentDate.getDate())
+    const isFuture = new Date(calViewYear, calViewMonth, d) > today
+
+    let cellClass = 'relative flex flex-col items-center justify-center h-9 rounded-lg text-sm cursor-pointer transition-colors hover:bg-gray-50'
+    let numClass = 'text-sm font-medium'
+
+    if (isSelected) {
+      cellClass += ' bg-indigo-600 hover:bg-indigo-600'
+      numClass = 'text-sm font-semibold text-white'
+    } else if (isToday) {
+      cellClass += ' ring-1 ring-gray-300'
+      numClass = 'text-sm font-semibold text-gray-900'
+    } else if (isFuture) {
+      numClass = 'text-sm font-medium text-gray-300'
+    } else {
+      numClass = 'text-sm font-medium text-gray-700'
+    }
+
+    let dotHtml = ''
+    if (data && data.count > 0) {
+      const dotColorClass = scoreColor(data.score)
+      const dotSelectedClass = isSelected ? 'bg-white/70' : (dotColorClass || 'bg-gray-300')
+      dotHtml = `<div class="absolute bottom-1 left-1/2 -translate-x-1/2 w-1.5 h-1.5 rounded-full ${dotSelectedClass}"></div>`
+    }
+
+    const onclick = isFuture ? '' : `onclick="selectDay(${calViewYear},${calViewMonth},${d})"`
+
+    grid.insertAdjacentHTML('beforeend', `
+      <div class="${cellClass}" ${onclick}>
+        <span class="${numClass}">${d}</span>
+        ${dotHtml}
+      </div>
+    `)
+  }
+}
+
+// Init
+updateDateHeader()
+</script>
+</body>
+</html>
