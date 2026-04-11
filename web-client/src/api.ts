@@ -1,10 +1,10 @@
 // API service layer — all backend calls go through request() which handles
 // auth headers, 401 redirects, and consistent error extraction.
 
-import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, JournalSummaryRange, JournalCalendarDay, JournalTagDay, CreateJournalEntryInput, UpdateJournalEntryInput, Task, TaskListResponse, CreateTaskInput, UpdateTaskInput } from './types'
+import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, JournalSummaryRange, JournalCalendarDay, JournalTagDay, CreateJournalEntryInput, UpdateJournalEntryInput, Task, TaskListResponse, CreateTaskInput, UpdateTaskInput, CompleteTaskResponse } from './types'
 
 // Re-export types so existing imports from api.ts keep working.
-export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, JournalSummaryRange, JournalCalendarDay, JournalTagDay, CreateJournalEntryInput, UpdateJournalEntryInput, Task, TaskListResponse, CreateTaskInput, UpdateTaskInput }
+export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, JournalSummaryRange, JournalCalendarDay, JournalTagDay, CreateJournalEntryInput, UpdateJournalEntryInput, Task, TaskListResponse, CreateTaskInput, UpdateTaskInput, CompleteTaskResponse }
 
 function getToken(): string | null {
   return localStorage.getItem('token')
@@ -425,4 +425,24 @@ export function updateTask(id: number, input: UpdateTaskInput): Promise<Task> {
 
 export function deleteTask(id: number): Promise<void> {
   return request<void>(`/api/tasks/${id}`, { method: 'DELETE' })
+}
+
+// completeTask calls PATCH /api/tasks/:id/complete. For recurring tasks the
+// response includes next_scheduled_date — the caller should show a rescheduled
+// toast. For non-recurring tasks the task is marked completed normally.
+export function completeTask(id: number): Promise<CompleteTaskResponse> {
+  return request<CompleteTaskResponse>(`/api/tasks/${id}/complete`, { method: 'PATCH' })
+}
+
+// completeTaskForever calls PATCH /api/tasks/:id/complete-forever, which ignores
+// the recurrence rule and marks the task completed permanently.
+export function completeTaskForever(id: number): Promise<Task> {
+  return request<Task>(`/api/tasks/${id}/complete-forever`, { method: 'PATCH' })
+}
+
+// undoCompletion calls DELETE /api/tasks/:id/completions/latest, which reverts
+// the last completion: restores scheduled_date for recurring tasks, or status
+// back to todo for non-recurring tasks.
+export function undoCompletion(id: number): Promise<Task> {
+  return request<Task>(`/api/tasks/${id}/completions/latest`, { method: 'DELETE' })
 }

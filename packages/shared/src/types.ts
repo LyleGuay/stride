@@ -427,19 +427,22 @@ export type UpdateJournalEntryInput = Partial<CreateJournalEntryInput>
 /* ─── Task types ────────────────────────────────────────────────────── */
 
 // Task mirrors the Go task struct from go-api/models.go.
-// due_time is "HH:MM" (formatted server-side) or null when no time is set.
+// scheduled_time is "HH:MM" (formatted server-side) or null when no time is set.
 // tags is always an array (never null); empty when the task has no tags.
 export interface Task {
   id: number
   user_id: number
   name: string
   description: string | null
-  due_date: string | null   // YYYY-MM-DD
-  due_time: string | null   // HH:MM
+  scheduled_date: string | null   // YYYY-MM-DD; drives Today/Upcoming routing
+  scheduled_time: string | null   // HH:MM
+  deadline: string | null         // YYYY-MM-DD; hard must-be-done-by date
   priority: 'urgent' | 'high' | 'medium' | 'low'
   status: 'todo' | 'in_progress' | 'completed' | 'canceled'
+  started_at: string | null       // set on first transition to in_progress; never reset
   completed_at: string | null
   canceled_at: string | null
+  recurrence_rule: object | null  // null = non-recurring
   created_at: string
   updated_at: string
   tags: string[]
@@ -452,25 +455,37 @@ export interface TaskListResponse {
   has_more: boolean
 }
 
+// CompleteTaskResponse is returned by PATCH /api/tasks/:id/complete.
+// next_scheduled_date is present only for recurring tasks and holds the date
+// the task has been advanced to.
+export interface CompleteTaskResponse {
+  task: Task
+  next_scheduled_date?: string
+}
+
 // CreateTaskInput is the body for POST /api/tasks.
 export interface CreateTaskInput {
   name: string
   description?: string
-  due_date?: string   // YYYY-MM-DD; omit to route to Backlog
-  due_time?: string   // HH:MM
+  scheduled_date?: string   // YYYY-MM-DD; omit to route to Backlog
+  scheduled_time?: string   // HH:MM
+  deadline?: string         // YYYY-MM-DD
   priority?: 'urgent' | 'high' | 'medium' | 'low'
+  recurrence_rule?: object
   tags?: string[]
 }
 
 // UpdateTaskInput is the body for PATCH /api/tasks/:id.
 // All fields are optional — only provided fields are written.
-// Send due_date: "" or due_time: "" to clear those fields.
+// Send scheduled_date: "" or scheduled_time: "" to clear those fields.
 export interface UpdateTaskInput {
   name?: string
   description?: string
-  due_date?: string
-  due_time?: string
+  scheduled_date?: string
+  scheduled_time?: string
+  deadline?: string
   priority?: 'urgent' | 'high' | 'medium' | 'low'
   status?: 'todo' | 'in_progress' | 'completed' | 'canceled'
+  recurrence_rule?: object | null
   tags?: string[]
 }

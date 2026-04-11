@@ -52,7 +52,7 @@ export default function TasksPage() {
   const [tab, setTab] = useState<Tab>('today')
   const [editTask, setEditTask] = useState<Task | null>(null)
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [initialFocusDueDate, setInitialFocusDueDate] = useState(false)
+  const [initialFocusScheduledDate, setInitialFocusScheduledDate] = useState(false)
   // Incremented after every successful save so the active view re-fetches.
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -61,20 +61,20 @@ export default function TasksPage() {
 
   const handleEdit = (task: Task) => {
     setEditTask(task)
-    setInitialFocusDueDate(false)
+    setInitialFocusScheduledDate(false)
     setSheetOpen(true)
   }
 
   // Schedule button (backlog) — opens edit sheet focused on the date field.
   const handleSchedule = (task: Task) => {
     setEditTask(task)
-    setInitialFocusDueDate(true)
+    setInitialFocusScheduledDate(true)
     setSheetOpen(true)
   }
 
   const handleAdd = () => {
     setEditTask(null)
-    setInitialFocusDueDate(false)
+    setInitialFocusScheduledDate(false)
     setSheetOpen(true)
   }
 
@@ -83,8 +83,13 @@ export default function TasksPage() {
     setEditTask(null)
   }
 
+  // In edit mode the sheet auto-saves without closing; in create mode the sheet
+  // calls onSave once after the task is created, so we close + refresh then.
   const handleSave = () => {
-    handleClose()
+    if (!editTask) {
+      // Create mode: close the sheet after the new task is saved.
+      handleClose()
+    }
     setRefreshKey(k => k + 1)
   }
 
@@ -149,7 +154,7 @@ export default function TasksPage() {
         onClose={handleClose}
         onSave={handleSave}
         today={today}
-        initialFocusDueDate={initialFocusDueDate}
+        initialFocusScheduledDate={initialFocusScheduledDate}
       />
     </div>
   )

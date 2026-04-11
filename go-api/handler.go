@@ -120,13 +120,18 @@ func (h *Handler) registerRoutes(router *gin.Engine) {
 	api.GET("/journal/calendar", h.getJournalCalendar)
 	api.GET("/journal/summary", h.getJournalSummary)
 	api.GET("/journal/tag-days", h.getJournalTagDays)
-	// Task routes — overdue-count must be registered before /:id to avoid param capture
+	// Task routes — static sub-paths (/overdue-count) must be registered before /:id
+	// to avoid Gin treating them as ID params. Same applies to /:id/complete etc.,
+	// which Gin handles correctly as they have additional path segments after /:id.
 	api.GET("/tasks/overdue-count", h.getOverdueCount)
 	api.GET("/tasks", h.listTasks)
 	api.POST("/tasks", h.createTask)
 	api.GET("/tasks/:id", h.getTask)
 	api.PATCH("/tasks/:id", h.updateTask)
 	api.DELETE("/tasks/:id", h.deleteTask)
+	api.PATCH("/tasks/:id/complete", h.completeTask)
+	api.PATCH("/tasks/:id/complete-forever", h.completeTaskForever)
+	api.DELETE("/tasks/:id/completions/latest", h.undoCompletion)
 	// Habit routes — /week must be registered before /:id to avoid param capture
 	api.GET("/habits/week", h.listHabitsWeek)
 	api.GET("/habits", h.listHabits)

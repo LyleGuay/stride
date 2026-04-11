@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Marching-ants animation for the in_progress status circle */
+@keyframes march {
+  to { stroke-dashoffset: -28; }
+}
+
 /* All buttons should show a pointer cursor — browsers default to 'default' for buttons */
 @layer base {
   button { cursor: pointer; }

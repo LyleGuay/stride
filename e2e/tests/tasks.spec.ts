@@ -28,15 +28,46 @@ async function createTask(page: Page, name: string, priority: 'Urgent' | 'High' 
   // Open the date picker and pick Today via calendar shortcut.
   // Scope to the form to avoid the "Today" nav tab button.
   await page.locator('form').getByRole('button', { name: 'No date' }).click()
-  await page.locator('form').getByRole('button', { name: 'Today', exact: true }).click()
+  // The calendar shortcuts render in a portal (outside <form>), so scope to the panel.
+  await page.getByTestId('calendar-panel').getByRole('button', { name: 'Today', exact: true }).click()
 
-  // Set priority (scoped to form to avoid ambiguity)
-  await page.locator('form').getByRole('button', { name: priority, exact: true }).click()
+  // Open the priority dropdown (trigger is in the form, always shows "Medium" for a new task).
+  // The options render in a portal outside <form>, so we don't scope the option click to form.
+  await page.locator('form').getByRole('button', { name: 'Medium', exact: true }).click()
+  if (priority !== 'Medium') {
+    await page.getByRole('button', { name: priority, exact: true }).click()
+  }
 
   // Click Save and wait for the API response to confirm creation succeeded.
   const [response] = await Promise.all([
     page.waitForResponse(r => r.url().includes('/api/tasks') && r.request().method() === 'POST'),
-    page.getByRole('button', { name: 'Create' }).click(),
+    page.getByRole('button', { name: 'Create', exact: true }).click(),
+  ])
+  expect(response.status()).toBe(201)
+}
+
+// Creates a daily recurring task scheduled for today.
+async function createDailyRecurringTask(page: Page, name: string) {
+  await page.getByRole('button', { name: 'Add task' }).click()
+  await expect(page.getByRole('heading', { name: 'New Task' })).toBeVisible()
+
+  await page.getByPlaceholder('Task name').fill(name)
+
+  // Set scheduled date to today.
+  await page.locator('form').getByRole('button', { name: 'No date' }).click()
+  // The calendar shortcuts render in a portal (outside <form>), so scope to the panel.
+  await page.getByTestId('calendar-panel').getByRole('button', { name: 'Today', exact: true }).click()
+
+  // Open the recurrence panel (button shows "None" when no recurrence set).
+  await page.locator('form').getByRole('button', { name: 'None' }).click()
+  // Select the Daily preset chip.
+  await page.getByText('Daily').click()
+  // Close the recurrence panel by clicking the button again (now shows "Every day").
+  await page.locator('form').getByRole('button', { name: /Every day/ }).click()
+
+  const [response] = await Promise.all([
+    page.waitForResponse(r => r.url().includes('/api/tasks') && r.request().method() === 'POST'),
+    page.getByRole('button', { name: 'Create', exact: true }).click(),
   ])
   expect(response.status()).toBe(201)
 }
@@ -126,6 +157,128 @@ test.describe('Tasks — All tab', () => {
     await page.getByRole('button', { name: 'All' }).first().click()
 
     // Task should appear in All
+    await expect(page.getByTestId('task-row').filter({ hasText: taskName })).toBeVisible()
+  })
+})
+
+test.describe('Tasks — Recurring tasks', () => {
+  test('complete a daily recurring task → stays in list with next scheduled date → Rescheduled toast', async ({ page }) => {
+    const taskName = `E2E Recurring ${Date.now()}`
+    await createDailyRecurringTask(page, taskName)
+
+    const row = page.getByTestId('task-row').filter({ hasText: taskName })
+    await expect(row).toBeVisible()
+
+    // The recurring indicator (↻) should be visible on the row.
+    await expect(row.getByTestId('recurring-indicator')).toBeVisible()
+
+    // Complete the task — calls PATCH /api/tasks/:id/complete.
+    const [completeResponse] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/complete') && r.request().method() === 'PATCH'),
+      row.getByRole('button', { name: 'Mark complete' }).click(),
+    ])
+    expect(completeResponse.status()).toBe(200)
+
+    // After completion the scheduled_date advances to tomorrow, so the task leaves
+    // the Today view. Verify via the "↻ Rescheduled" toast instead of row visibility.
+    await expect(page.getByText(/Rescheduled/)).toBeVisible()
+    await expect(page.getByText('Task completed')).not.toBeVisible()
+  })
+
+  test('complete recurring task → Undo → scheduled_date reverts to today', async ({ page }) => {
+    const taskName = `E2E Recurring Undo ${Date.now()}`
+    await createDailyRecurringTask(page, taskName)
+
+    const row = page.getByTestId('task-row').filter({ hasText: taskName })
+    await expect(row).toBeVisible()
+
+    // Complete the task to advance its scheduled date.
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/complete') && r.request().method() === 'PATCH'),
+      row.getByRole('button', { name: 'Mark complete' }).click(),
+    ])
+
+    // Toast should offer Undo.
+    await expect(page.getByText(/Rescheduled/)).toBeVisible()
+    await page.getByRole('button', { name: 'Undo' }).click()
+
+    // After undo, the task should be back in Today (scheduled for today).
+    await expect(row).toBeVisible()
+    await expect(row.getByTestId('scheduled-chip')).toHaveText('Today')
+
+    // Toast should dismiss after undo.
+    await expect(page.getByText(/Rescheduled/)).not.toBeVisible()
+  })
+
+  test('Complete forever via ··· menu → task leaves active list', async ({ page }) => {
+    const taskName = `E2E Forever ${Date.now()}`
+    await createDailyRecurringTask(page, taskName)
+
+    const row = page.getByTestId('task-row').filter({ hasText: taskName })
+    await expect(row).toBeVisible()
+
+    // Open the ··· context menu.
+    await row.getByRole('button', { name: 'Task actions' }).click()
+    await expect(page.getByRole('button', { name: 'Complete forever' })).toBeVisible()
+
+    // Click "Complete forever" — calls PATCH /api/tasks/:id/complete-forever.
+    const [foreverResponse] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/complete-forever') && r.request().method() === 'PATCH'),
+      page.getByRole('button', { name: 'Complete forever' }).click(),
+    ])
+    expect(foreverResponse.status()).toBe(200)
+
+    // Task should disappear from the active list.
+    await expect(row).not.toBeVisible()
+  })
+})
+
+test.describe('Tasks — Deadline chip', () => {
+  test('task with deadline = tomorrow shows deadline chip', async ({ page }) => {
+    const taskName = `E2E Deadline ${Date.now()}`
+
+    await page.getByRole('button', { name: 'Add task' }).click()
+    await expect(page.getByRole('heading', { name: 'New Task' })).toBeVisible()
+    await page.getByPlaceholder('Task name').fill(taskName)
+
+    // Set scheduled date to today.
+    await page.locator('form').getByRole('button', { name: 'No date' }).click()
+    await page.getByTestId('calendar-panel').getByRole('button', { name: 'Today', exact: true }).click()
+
+    // Set deadline to tomorrow via the deadline picker shortcut.
+    await page.locator('form').getByRole('button', { name: 'No deadline' }).click()
+    await page.getByTestId('calendar-panel').getByRole('button', { name: 'Tomorrow', exact: true }).click()
+
+    const [response] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/tasks') && r.request().method() === 'POST'),
+      page.getByRole('button', { name: 'Create', exact: true }).click(),
+    ])
+    expect(response.status()).toBe(201)
+
+    // The deadline chip (⚑ icon + date) should be visible on the task row.
+    const row = page.getByTestId('task-row').filter({ hasText: taskName })
+    await expect(row).toBeVisible()
+    await expect(row.getByTestId('deadline-chip')).toBeVisible()
+  })
+
+  test('task with only deadline set (no scheduled date) → appears in Today on deadline date', async ({ page }) => {
+    const taskName = `E2E Deadline Only ${Date.now()}`
+
+    await page.getByRole('button', { name: 'Add task' }).click()
+    await expect(page.getByRole('heading', { name: 'New Task' })).toBeVisible()
+    await page.getByPlaceholder('Task name').fill(taskName)
+
+    // Set deadline to today (no scheduled date — leave it as "No date").
+    await page.locator('form').getByRole('button', { name: 'No deadline' }).click()
+    await page.getByTestId('calendar-panel').getByRole('button', { name: 'Today', exact: true }).click()
+
+    const [response] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/tasks') && r.request().method() === 'POST'),
+      page.getByRole('button', { name: 'Create', exact: true }).click(),
+    ])
+    expect(response.status()).toBe(201)
+
+    // The task should appear in Today view (backend routes on deadline when no scheduled_date).
     await expect(page.getByTestId('task-row').filter({ hasText: taskName })).toBeVisible()
   })
 })

@@ -3,12 +3,13 @@
 // Fetches overdue + today + next 7 days active tasks (server view=upcoming).
 // Renders three sections: Overdue (red badge), Today, then future dates grouped
 // by date with "Tomorrow" / "Wednesday, Mar 25" labels.
-// Within each group: sorted by due_time ASC NULLS LAST, then created_at ASC.
+// Within each group: sorted by scheduled_time ASC NULLS LAST, then created_at ASC.
+// Routing date = COALESCE(scheduled_date, deadline) — matches server logic.
 // Empty state: "Nothing due in the next 7 days."
 
 import { useState, useEffect, useCallback } from 'react'
 import { useTasks } from '../../hooks/useTasks'
-import { updateTask, deleteTask } from '../../api'
+import { updateTask, deleteTask, completeTask, completeTaskForever, undoCompletion } from '../../api'
 import type { Task, UpdateTaskInput } from '../../types'
 import TaskRow from './TaskRow'
 import { Toast } from '../Toast'
@@ -35,19 +36,24 @@ function offsetDate(dateStr: string, days: number): string {
   return d.toISOString().slice(0, 10)
 }
 
-// Sorts by due_time ASC (nulls last), then created_at ASC.
+// Sorts by scheduled_time ASC (nulls last), then created_at ASC.
 function sortWithinDay(a: Task, b: Task): number {
-  if (a.due_time && b.due_time) return a.due_time.localeCompare(b.due_time)
-  if (a.due_time)  return -1 // a has time, b doesn't → a first
-  if (b.due_time)  return 1
+  if (a.scheduled_time && b.scheduled_time) return a.scheduled_time.localeCompare(b.scheduled_time)
+  if (a.scheduled_time)  return -1 // a has time, b doesn't → a first
+  if (b.scheduled_time)  return 1
   return a.created_at.localeCompare(b.created_at)
 }
 
-// Groups a flat sorted task list by due_date, preserving date order.
+// routingDate returns the date used for grouping, matching server COALESCE logic.
+function routingDate(t: Task): string | null {
+  return t.scheduled_date ?? t.deadline ?? null
+}
+
+// Groups a flat sorted task list by routing date, preserving date order.
 function groupByDate(tasks: Task[]): { date: string; tasks: Task[] }[] {
   const map = new Map<string, Task[]>()
   for (const task of tasks) {
-    const key = task.due_date ?? 'none'
+    const key = routingDate(task) ?? 'none'
     if (!map.has(key)) map.set(key, [])
     map.get(key)!.push(task)
   }
@@ -96,6 +102,35 @@ export default function UpcomingView({ today, onEdit, refreshKey }: Props) {
     } catch { /* TODO: error toast */ }
   }, [tasks, handleReload])
 
+  const handleComplete = useCallback(async (id: number) => {
+    try {
+      const res = await completeTask(id)
+      handleReload()
+      if (res.next_scheduled_date) {
+        setToast({
+          message: `↻ Rescheduled to ${res.next_scheduled_date}`,
+          undoFn: async () => { await undoCompletion(id); handleReload(); setToast(null) },
+        })
+      } else {
+        setToast({
+          message: 'Task completed',
+          undoFn: async () => { await undoCompletion(id); handleReload(); setToast(null) },
+        })
+      }
+    } catch { /* TODO: error toast */ }
+  }, [handleReload])
+
+  const handleCompleteForever = useCallback(async (id: number) => {
+    try {
+      await completeTaskForever(id)
+      handleReload()
+      setToast({
+        message: 'Task completed (recurring ended)',
+        undoFn: async () => { await undoCompletion(id); handleReload(); setToast(null) },
+      })
+    } catch { /* TODO: error toast */ }
+  }, [handleReload])
+
   const handleDelete = useCallback(async (id: number) => {
     if (!window.confirm('Delete this task?')) return
     try {
@@ -107,16 +142,16 @@ export default function UpcomingView({ today, onEdit, refreshKey }: Props) {
   if (loading) return <div className="py-8 text-center text-sm text-gray-400">Loading…</div>
   if (error)   return <p className="py-4 text-sm text-red-600">{error}</p>
 
-  // Split tasks into overdue, today, and future groups.
+  // Split tasks into overdue, today, and future groups using routing date.
   const overdue = tasks
-    .filter(t => t.due_date && t.due_date < today)
+    .filter(t => { const d = routingDate(t); return d && d < today })
     .sort(sortWithinDay)
 
   const todayTasks = tasks
-    .filter(t => t.due_date === today)
+    .filter(t => routingDate(t) === today)
     .sort(sortWithinDay)
 
-  const futureTasks = tasks.filter(t => t.due_date && t.due_date > today)
+  const futureTasks = tasks.filter(t => { const d = routingDate(t); return d && d > today })
   const futureGroups = groupByDate(futureTasks)
 
   if (overdue.length === 0 && todayTasks.length === 0 && futureTasks.length === 0) {
@@ -152,6 +187,8 @@ export default function UpcomingView({ today, onEdit, refreshKey }: Props) {
                 onStatusChange={handleStatusChange}
                 onEdit={onEdit}
                 onDelete={handleDelete}
+                onComplete={handleComplete}
+                onCompleteForever={handleCompleteForever}
               />
             ))}
           </div>
@@ -171,6 +208,8 @@ export default function UpcomingView({ today, onEdit, refreshKey }: Props) {
                 onStatusChange={handleStatusChange}
                 onEdit={onEdit}
                 onDelete={handleDelete}
+                onComplete={handleComplete}
+                onCompleteForever={handleCompleteForever}
               />
             ))}
           </div>
@@ -192,6 +231,8 @@ export default function UpcomingView({ today, onEdit, refreshKey }: Props) {
                 onStatusChange={handleStatusChange}
                 onEdit={onEdit}
                 onDelete={handleDelete}
+                onComplete={handleComplete}
+                onCompleteForever={handleCompleteForever}
               />
             ))}
           </div>

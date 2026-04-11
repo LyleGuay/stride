@@ -11,7 +11,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useTasks } from '../../hooks/useTasks'
-import { updateTask, deleteTask } from '../../api'
+import { updateTask, deleteTask, completeTask, completeTaskForever, undoCompletion } from '../../api'
 import type { Task, UpdateTaskInput } from '../../types'
 import TaskRow from './TaskRow'
 import { Toast } from '../Toast'
@@ -120,6 +120,35 @@ export default function AllView({ today, onEdit, onSchedule, refreshKey }: Props
     } catch { /* TODO: error toast */ }
   }, [tasks, handleReload])
 
+  const handleComplete = useCallback(async (id: number) => {
+    try {
+      const res = await completeTask(id)
+      handleReload()
+      if (res.next_scheduled_date) {
+        setToast({
+          message: `↻ Rescheduled to ${res.next_scheduled_date}`,
+          undoFn: async () => { await undoCompletion(id); handleReload(); setToast(null) },
+        })
+      } else {
+        setToast({
+          message: 'Task completed',
+          undoFn: async () => { await undoCompletion(id); handleReload(); setToast(null) },
+        })
+      }
+    } catch { /* TODO: error toast */ }
+  }, [handleReload])
+
+  const handleCompleteForever = useCallback(async (id: number) => {
+    try {
+      await completeTaskForever(id)
+      handleReload()
+      setToast({
+        message: 'Task completed (recurring ended)',
+        undoFn: async () => { await undoCompletion(id); handleReload(); setToast(null) },
+      })
+    } catch { /* TODO: error toast */ }
+  }, [handleReload])
+
   const handleDelete = useCallback(async (id: number) => {
     if (!window.confirm('Delete this task?')) return
     try {
@@ -160,6 +189,8 @@ export default function AllView({ today, onEdit, onSchedule, refreshKey }: Props
                   onEdit={onEdit}
                   onDelete={handleDelete}
                   onSchedule={showSchedule ? handleSchedule : undefined}
+                  onComplete={handleComplete}
+                  onCompleteForever={handleCompleteForever}
                 />
               ))}
             </div>
@@ -183,6 +214,8 @@ export default function AllView({ today, onEdit, onSchedule, refreshKey }: Props
             onStatusChange={handleStatusChange}
             onEdit={onEdit}
             onDelete={handleDelete}
+            onComplete={handleComplete}
+            onCompleteForever={handleCompleteForever}
           />
         ))}
       </div>

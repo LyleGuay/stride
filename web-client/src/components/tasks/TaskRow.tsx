@@ -1,12 +1,15 @@
 /* TaskRow — the core visual unit rendered in all three task views.
  *
  * Layout (left → right):
- *   [4px priority bar] [20px status circle] [task name + due date] [··· menu]
+ *   [4px priority bar] [20px status circle] [task name + date chips] [··· menu]
  *                                           [tags + description preview]
  *
  * Priority bar colors:  urgent=red, high=orange, medium=indigo, low=gray
- * Status circle:        todo=white+border, in_progress=half-indigo, completed=green✓, canceled=gray×
- * Due date chip:        overdue=red "N days overdue", today=amber "Today", future=gray "Mar 25"
+ * Status circle:        todo=white+border, in_progress=marching-ants in priority color,
+ *                       completed=green✓, canceled=gray×
+ * Scheduled date chip:  overdue=red, today=amber, future=gray
+ * Deadline chip:        past/today=red, ≤2 days=orange, >2 days=gray (⚑ icon)
+ * Recurring indicator:  ↻ icon with hover tooltip showing recurrence pattern
  * ··· menu:             always visible on mobile, hover-only on desktop (group pattern)
  */
 
@@ -33,41 +36,84 @@ function formatTime(time: string): string {
   return `${hour}:${mStr} ${ampm}`
 }
 
-interface DueChip {
+interface DateChip {
   text: string
   color: string
 }
 
-// Returns the due date chip label and color, or null if no due date.
-// `today` and `dueDate` are both YYYY-MM-DD strings.
-function getDueChip(dueDate: string | null, dueTime: string | null, today: string): DueChip | null {
-  if (!dueDate) return null
+// Returns the scheduled date chip label and color, or null if no scheduled date.
+// `today` and `scheduledDate` are both YYYY-MM-DD strings.
+function getScheduledChip(scheduledDate: string | null, scheduledTime: string | null, today: string): DateChip | null {
+  if (!scheduledDate) return null
 
-  // Compare calendar dates as strings — no timezone conversion needed
-  // because both values are local calendar dates, never timestamps.
-  const timeStr = dueTime ? ` · ${formatTime(dueTime)}` : ''
+  const timeStr = scheduledTime ? ` · ${formatTime(scheduledTime)}` : ''
 
-  if (dueDate < today) {
-    // Overdue — compute number of days using UTC timestamps to avoid DST drift
+  if (scheduledDate < today) {
     const todayMs = new Date(today + 'T00:00:00').getTime()
-    const dueDateMs = new Date(dueDate + 'T00:00:00').getTime()
-    const days = Math.floor((todayMs - dueDateMs) / 86400000)
+    const dateMs = new Date(scheduledDate + 'T00:00:00').getTime()
+    const days = Math.floor((todayMs - dateMs) / 86400000)
     return {
       text: days === 1 ? '1 day overdue' : `${days} days overdue`,
       color: 'text-red-500',
     }
   }
 
-  if (dueDate === today) {
+  if (scheduledDate === today) {
     return { text: `Today${timeStr}`, color: 'text-amber-500' }
   }
 
-  // Future date
-  const formatted = new Date(dueDate + 'T00:00:00').toLocaleDateString('en-US', {
+  const formatted = new Date(scheduledDate + 'T00:00:00').toLocaleDateString('en-US', {
     month: 'short',
     day: 'numeric',
   })
   return { text: `${formatted}${timeStr}`, color: 'text-gray-400' }
+}
+
+// Returns the deadline chip label and color, or null if no deadline or deadline === scheduledDate.
+// Color logic: past/today = red, ≤2 days away = orange, >2 days = gray.
+function getDeadlineChip(deadline: string | null, scheduledDate: string | null, today: string): DateChip | null {
+  if (!deadline) return null
+  // Don't show a separate deadline chip when it's the same as the scheduled date.
+  if (deadline === scheduledDate) return null
+
+  const formatted = new Date(deadline + 'T00:00:00').toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+  })
+
+  if (deadline <= today) {
+    return { text: formatted, color: 'text-red-500' }
+  }
+
+  const todayMs = new Date(today + 'T00:00:00').getTime()
+  const deadlineMs = new Date(deadline + 'T00:00:00').getTime()
+  const daysAway = Math.floor((deadlineMs - todayMs) / 86400000)
+
+  if (daysAway <= 2) {
+    return { text: formatted, color: 'text-orange-400' }
+  }
+
+  return { text: formatted, color: 'text-gray-400' }
+}
+
+// Returns a human-readable summary of a recurrence rule for the tooltip.
+// Falls back to "Recurring" if the rule can't be parsed.
+function recurrenceLabel(rule: object | null): string {
+  if (!rule) return ''
+  const r = rule as Record<string, unknown>
+  switch (r.frequency) {
+    case 'daily':    return 'Every day'
+    case 'weekdays': return 'Every weekday'
+    case 'weekly':   return 'Every week'
+    case 'monthly':  return 'Every month'
+    case 'yearly':   return 'Every year'
+    case 'custom': {
+      const n = r.interval ?? 1
+      const unit = r.unit ?? 'days'
+      return `Every ${n} ${unit}`
+    }
+    default: return 'Recurring'
+  }
 }
 
 /* ─── Status popover config ──────────────────────────────────────────── */
@@ -97,7 +143,6 @@ function StatusCircle({ status, priority, onClick, onHoverStart, onHoverEnd, onT
 
   const baseClass = 'shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors'
 
-  // Hover (mouse) starts a 400ms timer; touch starts a 500ms long-press timer.
   const interactionProps = {
     onMouseEnter: onHoverStart,
     onMouseLeave: onHoverEnd,
@@ -127,14 +172,25 @@ function StatusCircle({ status, priority, onClick, onHoverStart, onHoverEnd, onT
   }
 
   if (status === 'in_progress') {
+    // Marching-ants dashed circle in the task's priority color.
+    // The animation is defined in index.css as @keyframes march.
     return (
       <button
         {...interactionProps}
         onClick={onClick}
-        className={baseClass}
-        style={{ background: 'conic-gradient(#6366f1 180deg, transparent 180deg)', borderColor: '#6366f1' }}
+        className="shrink-0 w-5 h-5 flex items-center justify-center bg-transparent border-none p-0"
         aria-label="Mark complete"
-      />
+      >
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+          <circle
+            cx="10" cy="10" r="8"
+            stroke={priorityHex}
+            strokeWidth="2"
+            strokeDasharray="5 3.5"
+            style={{ animation: 'march 0.6s linear infinite' }}
+          />
+        </svg>
+      </button>
     )
   }
 
@@ -158,11 +214,17 @@ interface Props {
   onStatusChange: (id: number, status: string) => void
   onEdit: (task: Task) => void
   onDelete: (id: number) => void
+  // Called on single-tap of the status circle (instead of onStatusChange for 'completed').
+  // The parent handles showing the appropriate toast (rescheduled vs completed).
+  // If not provided, falls back to onStatusChange(id, 'completed').
+  onComplete?: (id: number) => void
+  // Called from the ··· menu "Complete forever" option (recurring tasks only).
+  onCompleteForever?: (id: number) => void
   // When provided (backlog view), shows a calendar icon button to quickly schedule the task.
   onSchedule?: (task: Task) => void
 }
 
-export default function TaskRow({ task, today, onStatusChange, onEdit, onDelete, onSchedule }: Props) {
+export default function TaskRow({ task, today, onStatusChange, onEdit, onDelete, onComplete, onCompleteForever, onSchedule }: Props) {
   const [menuOpen, setMenuOpen] = useState(false)
   const [popoverOpen, setPopoverOpen] = useState(false)
 
@@ -196,14 +258,22 @@ export default function TaskRow({ task, today, onStatusChange, onEdit, onDelete,
 
   const priorityColors = PRIORITY[task.priority] ?? PRIORITY.medium
   const isInactive = task.status === 'completed' || task.status === 'canceled'
-  const chip = getDueChip(task.due_date, task.due_time, today)
+  const scheduledChip = getScheduledChip(task.scheduled_date, task.scheduled_time, today)
+  const deadlineChip = getDeadlineChip(task.deadline, task.scheduled_date, today)
+  const isRecurring = task.recurrence_rule != null
 
   const handleCircleClick = () => {
     // If a long-press just fired, swallow the synthetic click that follows.
     if (longPressActive.current) { longPressActive.current = false; return }
-    // Single tap completes the task; undo is handled by the parent via toast.
     if (task.status === 'todo' || task.status === 'in_progress') {
-      onStatusChange(task.id, 'completed')
+      if (onComplete) {
+        onComplete(task.id)
+      } else {
+        onStatusChange(task.id, 'completed')
+      }
+    } else if (task.status === 'completed' || task.status === 'canceled') {
+      // Click again to reopen the task.
+      onStatusChange(task.id, 'todo')
     }
   }
 
@@ -264,20 +334,50 @@ export default function TaskRow({ task, today, onStatusChange, onEdit, onDelete,
         {/* Text content */}
         <div className="flex-1 min-w-0">
 
-          {/* Name + due date */}
+          {/* Name + date chips */}
           <div className="flex items-start justify-between gap-2">
-            <span
-              className={`text-sm font-medium leading-snug ${
+            {/* Clicking the name opens the edit sheet */}
+            <button
+              type="button"
+              onClick={() => onEdit(task)}
+              className={`text-sm font-medium leading-snug text-left hover:underline ${
                 isInactive ? 'line-through text-gray-400' : 'text-gray-900'
               }`}
             >
               {task.name}
-            </span>
-            {chip && (
-              <span className={`text-xs shrink-0 mt-0.5 ${chip.color}`}>
-                {chip.text}
-              </span>
-            )}
+            </button>
+
+            {/* Date chips: recurring indicator + scheduled date + deadline */}
+            <div className="flex items-center gap-1.5 shrink-0 mt-0.5">
+
+              {/* Recurring indicator — ↻ icon with hover tooltip */}
+              {isRecurring && (
+                <span className="relative group/recur" data-testid="recurring-indicator">
+                  <span className="text-xs text-gray-400 cursor-default select-none">↻</span>
+                  {/* Tooltip shown on hover */}
+                  <span className="pointer-events-none absolute bottom-[calc(100%+4px)] right-0 whitespace-nowrap rounded bg-gray-800 px-2 py-1 text-[11px] text-white opacity-0 transition-opacity group-hover/recur:opacity-100 z-30">
+                    {recurrenceLabel(task.recurrence_rule)}
+                  </span>
+                </span>
+              )}
+
+              {scheduledChip && (
+                <span className={`text-xs ${scheduledChip.color}`} data-testid="scheduled-chip">
+                  {scheduledChip.text}
+                </span>
+              )}
+
+              {/* Deadline chip — only shown when deadline differs from scheduled_date */}
+              {deadlineChip && (
+                <span className={`text-xs flex items-center gap-0.5 ${deadlineChip.color}`} data-testid="deadline-chip">
+                  {/* Flag icon (⚑) */}
+                  <svg className="w-3 h-3" viewBox="0 0 12 12" fill="currentColor">
+                    <path d="M2 1.5a.5.5 0 011 0V2h5.5a.5.5 0 01.354.854L7.207 4.5l1.647 1.646A.5.5 0 018.5 7H3v3.5a.5.5 0 01-1 0V1.5z" />
+                  </svg>
+                  {deadlineChip.text}
+                </span>
+              )}
+            </div>
           </div>
 
           {/* Second line: tags + description preview */}
@@ -300,7 +400,7 @@ export default function TaskRow({ task, today, onStatusChange, onEdit, onDelete,
           )}
         </div>
 
-        {/* Schedule button — shown in backlog view to quickly set a due date */}
+        {/* Schedule button — shown in backlog view to quickly set a scheduled date */}
         {onSchedule && (
           <button
             onClick={() => onSchedule(task)}
@@ -332,7 +432,7 @@ export default function TaskRow({ task, today, onStatusChange, onEdit, onDelete,
             <>
               {/* Click-away backdrop */}
               <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
-              <div className="absolute right-0 top-[calc(100%+4px)] z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-28">
+              <div className="absolute right-0 top-[calc(100%+4px)] z-20 bg-white border border-gray-200 rounded-xl shadow-lg py-1 min-w-36">
                 <button
                   onClick={() => { setMenuOpen(false); onEdit(task) }}
                   className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -342,6 +442,20 @@ export default function TaskRow({ task, today, onStatusChange, onEdit, onDelete,
                   </svg>
                   Edit
                 </button>
+
+                {/* "Complete forever" only shown for recurring tasks when callback is provided */}
+                {isRecurring && onCompleteForever && (
+                  <button
+                    onClick={() => { setMenuOpen(false); onCompleteForever(task.id) }}
+                    className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                  >
+                    <svg className="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Complete forever
+                  </button>
+                )}
+
                 <button
                   onClick={() => { setMenuOpen(false); onDelete(task.id) }}
                   className="w-full text-left flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50"

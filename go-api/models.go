@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgtype"
@@ -492,22 +493,25 @@ type patchUserSettingsRequest struct {
 
 // task maps to the tasks table. Tags is populated by the handler via a separate
 // task_tags query and is not a real column — it must be aliased in every SELECT
-// (e.g. via ARRAY subquery or batch join). DueTime is formatted as "HH:MM" by
-// TO_CHAR in SQL so it scans cleanly into *string; same pattern as journal entry_time.
+// (e.g. via ARRAY subquery or batch join). ScheduledTime is formatted as "HH:MM"
+// by TO_CHAR in SQL so it scans cleanly into *string; same pattern as journal entry_time.
 type task struct {
-	ID          int        `json:"id"           db:"id"`
-	UserID      int        `json:"user_id"      db:"user_id"`
-	Name        string     `json:"name"         db:"name"`
-	Description *string    `json:"description"  db:"description"`
-	DueDate     *DateOnly  `json:"due_date"     db:"due_date"`
-	DueTime     *string    `json:"due_time"     db:"due_time"`     // "HH:MM", formatted by TO_CHAR in SQL
-	Priority    string     `json:"priority"     db:"priority"`     // task_priority enum: urgent|high|medium|low
-	Status      string     `json:"status"       db:"status"`       // task_status enum: todo|in_progress|completed|canceled
-	CompletedAt *time.Time `json:"completed_at" db:"completed_at"` // set when status → completed
-	CanceledAt  *time.Time `json:"canceled_at"  db:"canceled_at"`  // set when status → canceled
-	CreatedAt   time.Time  `json:"created_at"   db:"created_at"`
-	UpdatedAt   time.Time  `json:"updated_at"   db:"updated_at"`
-	Tags        []string   `json:"tags"         db:"tags"` // populated from task_tags; not a real column
+	ID             int              `json:"id"              db:"id"`
+	UserID         int              `json:"user_id"         db:"user_id"`
+	Name           string           `json:"name"            db:"name"`
+	Description    *string          `json:"description"     db:"description"`
+	ScheduledDate  *DateOnly        `json:"scheduled_date"  db:"scheduled_date"`
+	ScheduledTime  *string          `json:"scheduled_time"  db:"scheduled_time"`  // "HH:MM", formatted by TO_CHAR in SQL
+	Deadline       *DateOnly        `json:"deadline"        db:"deadline"`
+	Priority       string           `json:"priority"        db:"priority"`        // task_priority enum: urgent|high|medium|low
+	Status         string           `json:"status"          db:"status"`          // task_status enum: todo|in_progress|completed|canceled
+	StartedAt      *time.Time       `json:"started_at"      db:"started_at"`      // set on first transition to in_progress; never reset
+	CompletedAt    *time.Time       `json:"completed_at"    db:"completed_at"`    // set when status → completed
+	CanceledAt     *time.Time       `json:"canceled_at"     db:"canceled_at"`     // set when status → canceled
+	RecurrenceRule *json.RawMessage `json:"recurrence_rule" db:"recurrence_rule"` // null = non-recurring
+	CreatedAt      time.Time        `json:"created_at"      db:"created_at"`
+	UpdatedAt      time.Time        `json:"updated_at"      db:"updated_at"`
+	Tags           []string         `json:"tags"            db:"tags"` // populated from task_tags; not a real column
 }
 
 // taskListResponse is the paginated response shape for GET /api/tasks.
@@ -518,26 +522,52 @@ type taskListResponse struct {
 	HasMore bool   `json:"has_more"`
 }
 
+// RecurrenceRule is the parsed shape of the recurrence_rule JSONB column.
+// Frequency drives the basic cadence; interval+unit apply for "custom" only.
+// DaysOfWeek is a slice of weekday numbers (0=Sunday … 6=Saturday) used when
+// frequency is "weekly" and specific days are configured.
+// Anchor controls whether the next occurrence is counted from the scheduled date
+// ("schedule") or from the moment the task was completed ("completion").
+type RecurrenceRule struct {
+	Frequency  string `json:"frequency"`    // daily|weekdays|weekly|monthly|yearly|custom
+	Interval   int    `json:"interval"`     // number of units between occurrences (custom only)
+	Unit       string `json:"unit"`         // days|weeks|months (custom only)
+	DaysOfWeek []int  `json:"days_of_week"` // weekday numbers for weekly frequency
+	Anchor     string `json:"anchor"`       // schedule|completion
+}
+
+// completeTaskResponse is returned by PATCH /api/tasks/:id/complete.
+// NextScheduledDate is non-nil only for recurring tasks and holds the date the
+// task has been advanced to.
+type completeTaskResponse struct {
+	Task              task    `json:"task"`
+	NextScheduledDate *string `json:"next_scheduled_date,omitempty"`
+}
+
 // createTaskRequest is the request body for POST /api/tasks.
 // Tags are sent inline and written to task_tags by the handler.
 type createTaskRequest struct {
-	Name        string   `json:"name"        binding:"required"`
-	Description *string  `json:"description"`
-	DueDate     *string  `json:"due_date"`  // YYYY-MM-DD; nil routes task to Backlog
-	DueTime     *string  `json:"due_time"`  // HH:MM local time; nil = no time set
-	Priority    string   `json:"priority"`  // defaults to 'medium' if empty
-	Tags        []string `json:"tags"`
+	Name           string           `json:"name"            binding:"required"`
+	Description    *string          `json:"description"`
+	ScheduledDate  *string          `json:"scheduled_date"`  // YYYY-MM-DD; nil routes task to Backlog
+	ScheduledTime  *string          `json:"scheduled_time"`  // HH:MM local time; nil = no time set
+	Deadline       *string          `json:"deadline"`        // YYYY-MM-DD; optional hard deadline
+	Priority       string           `json:"priority"`        // defaults to 'medium' if empty
+	RecurrenceRule *json.RawMessage `json:"recurrence_rule"` // null = non-recurring
+	Tags           []string         `json:"tags"`
 }
 
 // updateTaskRequest is the request body for PATCH /api/tasks/:id.
 // All fields are pointers — only non-nil values are written to the DB.
 // Tags, when non-nil, fully replace the existing tag set for the task.
 type updateTaskRequest struct {
-	Name        *string   `json:"name"`
-	Description *string   `json:"description"`
-	DueDate     *string   `json:"due_date"`  // YYYY-MM-DD; empty string clears the date
-	DueTime     *string   `json:"due_time"`  // HH:MM; empty string clears the time
-	Priority    *string   `json:"priority"`
-	Status      *string   `json:"status"`
-	Tags        *[]string `json:"tags"`
+	Name           *string          `json:"name"`
+	Description    *string          `json:"description"`
+	ScheduledDate  *string          `json:"scheduled_date"`  // YYYY-MM-DD; empty string clears the date
+	ScheduledTime  *string          `json:"scheduled_time"`  // HH:MM; empty string clears the time
+	Deadline       *string          `json:"deadline"`        // YYYY-MM-DD; empty string clears the deadline
+	Priority       *string          `json:"priority"`
+	Status         *string          `json:"status"`
+	RecurrenceRule *json.RawMessage `json:"recurrence_rule"` // null clears recurrence
+	Tags           *[]string        `json:"tags"`
 }

@@ -1,0 +1,1014 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Date Enhancements — Stride</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: { 50:'#eef2ff', 100:'#e0e7ff', 200:'#c7d2fe', 500:'#6366f1', 600:'#4f46e5', 700:'#4338ca' }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif; background:#f9fafb; }
+    input:focus,textarea:focus,select:focus { outline:none; }
+    textarea { resize:none; }
+
+    /* ── Animations ── */
+    .modal-in   { animation:modalIn .18s cubic-bezier(.32,.72,0,1); }
+    @keyframes modalIn { from{opacity:0;transform:scale(.97) translateY(6px)} to{opacity:1;transform:scale(1) translateY(0)} }
+    .sheet-in   { animation:sheetIn .22s cubic-bezier(.32,.72,0,1); }
+    @keyframes sheetIn { from{transform:translateY(100%)} to{transform:translateY(0)} }
+    .fade-in    { animation:fadeIn .15s ease; }
+    @keyframes fadeIn  { from{opacity:0;transform:translateY(-3px)} to{opacity:1;transform:translateY(0)} }
+    .backdrop-in { animation:backdropIn .15s ease; }
+    @keyframes backdropIn { from{opacity:0} to{opacity:1} }
+
+    /* ── Calendar ── */
+    .cal-day { width:30px;height:30px;display:flex;align-items:center;justify-content:center;
+               border-radius:50%;font-size:12px;cursor:pointer;transition:background .1s; }
+    .cal-day:hover:not(.other-month) { background:#f3f4f6; }
+    .cal-day.is-today    { font-weight:700;color:#4f46e5; }
+    .cal-day.sel-sched   { background:#4f46e5;color:white; }
+    .cal-day.sel-dead    { background:#ef4444;color:white; }
+    .cal-day.other-month { color:#e5e7eb;pointer-events:none; }
+
+    /* ── Priority dropdown ── */
+    .pri-btn { display:flex;align-items:center;gap:6px;padding:5px 10px;border-radius:8px;
+               border:1.5px solid #e5e7eb;background:white;cursor:pointer;font-size:13px;
+               font-weight:500;color:#374151;transition:border-color .12s;width:100%; }
+    .pri-btn:hover { border-color:#d1d5db; }
+    .pri-dot { width:10px;height:10px;border-radius:50%;flex-shrink:0; }
+    .pri-menu { position:absolute;left:0;right:0;top:calc(100% + 4px);background:white;
+                border-radius:10px;border:1px solid #e5e7eb;
+                box-shadow:0 8px 24px rgba(0,0,0,.12);z-index:60;overflow:hidden; }
+    .pri-opt { display:flex;align-items:center;gap:9px;padding:8px 12px;font-size:13px;
+               font-weight:500;cursor:pointer;color:#374151; }
+    .pri-opt:hover { background:#f9fafb; }
+    .pri-opt.active { background:#f3f4f6; }
+
+    /* ── Recurrence chips ── */
+    .rec-chip { font-size:12px;padding:3px 10px;border-radius:9999px;border:1.5px solid #e5e7eb;
+                color:#6b7280;cursor:pointer;transition:all .12s;white-space:nowrap; }
+    .rec-chip.selected { background:#4f46e5;color:white;border-color:#4f46e5; }
+
+    /* ── Day-of-week buttons ── */
+    .dow { width:26px;height:26px;border-radius:50%;font-size:10px;font-weight:700;display:flex;
+           align-items:center;justify-content:center;border:1.5px solid #e5e7eb;
+           cursor:pointer;transition:all .12s;color:#9ca3af; }
+    .dow.on { background:#4f46e5;color:white;border-color:#4f46e5; }
+
+    /* ── Anchor toggle ── */
+    .anch { flex:1;padding:5px;font-size:11px;border-radius:5px;text-align:center;
+            cursor:pointer;transition:all .12s;color:#6b7280; }
+    .anch.on { background:#4f46e5;color:white; }
+
+    /* ── Sidebar property rows ── */
+    .s-row { padding:8px 0;border-bottom:1px solid #f3f4f6; }
+    .s-row:last-child { border:none; }
+    .s-label { font-size:11px;font-weight:600;color:#9ca3af;text-transform:uppercase;letter-spacing:.04em;
+               margin-bottom:6px; }
+
+    /* ── Tag chips ── */
+    .tag { font-size:11px;background:#f3f4f6;color:#6b7280;padding:2px 7px;border-radius:9999px;
+           display:inline-flex;align-items:center;gap:3px; }
+
+    /* ── Toast ── */
+    #toast { position:fixed;bottom:28px;left:50%;transform:translateX(-50%);
+             background:#1f2937;color:white;padding:10px 16px;border-radius:12px;
+             font-size:13px;display:flex;align-items:center;gap:12px;
+             box-shadow:0 4px 20px rgba(0,0,0,.28);z-index:300;white-space:nowrap;
+             animation:fadeIn .2s ease; }
+    #toast .undo { color:#818cf8;font-weight:600;cursor:pointer; }
+
+    /* ── Status circle ── */
+    .sc { width:20px;height:20px;border-radius:50%;border:2px solid;flex-shrink:0;
+          display:flex;align-items:center;justify-content:center;cursor:pointer;
+          transition:all .15s; }
+    .sc-todo     { border-color:#f97316; }
+    .sc-progress { background:transparent;border:none!important; }
+    @keyframes march { to { stroke-dashoffset:-28; } }
+    .march { animation:march .6s linear infinite; }
+    .sc-done     { background:#10b981;border-color:#10b981; }
+    .sc-canceled { background:#d1d5db;border-color:#d1d5db; }
+
+    /* ── Task rows ── */
+    .t-row { background:white;border:1px solid #e5e7eb;border-radius:8px;overflow:hidden;
+             display:flex;cursor:pointer;transition:box-shadow .12s; }
+    .t-row:hover { box-shadow:0 2px 8px rgba(0,0,0,.07); }
+    .pbar { width:4px;flex-shrink:0; }
+
+    /* ── Context menu ── */
+    .ctx { position:absolute;right:8px;background:white;border-radius:10px;
+           box-shadow:0 8px 28px rgba(0,0,0,.14),0 2px 8px rgba(0,0,0,.08);
+           z-index:80;min-width:168px;overflow:hidden; }
+    .ctx-item { padding:9px 14px;font-size:13px;display:flex;align-items:center;gap:9px;cursor:pointer; }
+    .ctx-item:hover { background:#f9fafb; }
+    .ctx-item:not(:last-child) { border-bottom:1px solid #f3f4f6; }
+
+    /* ── Recurrence tooltip on row icon ── */
+    .recur-wrap { position:relative;display:inline-flex;align-items:center; }
+    .recur-wrap .recur-tip { position:absolute;bottom:calc(100% + 5px);left:50%;transform:translateX(-50%);
+      background:#1f2937;color:white;font-size:11px;white-space:nowrap;padding:3px 8px;
+      border-radius:6px;pointer-events:none;opacity:0;transition:opacity .15s;z-index:50; }
+    .recur-wrap .recur-tip::after { content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);
+      border:4px solid transparent;border-top-color:#1f2937; }
+    .recur-wrap:hover .recur-tip { opacity:1; }
+
+    /* ── Deadline chip on row ── */
+    .dl-chip { display:inline-flex;align-items:center;gap:2px;font-size:11px;
+               font-weight:600;padding:1px 6px;border-radius:4px;border:1px solid; }
+    .dl-ok   { color:#9ca3af;border-color:#e5e7eb;background:#f9fafb; }
+    .dl-soon { color:#f97316;border-color:#fed7aa;background:#fff7ed; }
+    .dl-past { color:#ef4444;border-color:#fecaca;background:#fef2f2; }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════
+     LAYOUT SHELL
+═══════════════════════════════════════════════════ -->
+<div class="flex min-h-screen">
+
+  <!-- Sidebar (desktop) -->
+  <aside class="hidden lg:flex flex-col fixed inset-y-0 left-0 w-64 bg-white border-r border-gray-200 z-10">
+    <div class="flex items-center h-14 px-5 border-b border-gray-200">
+      <span class="text-xl font-bold text-stride-600">Stride</span>
+    </div>
+    <nav class="flex-1 p-3 space-y-0.5 overflow-y-auto">
+      <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:bg-gray-50 cursor-pointer">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>Calorie Log</a>
+      <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:bg-gray-50 cursor-pointer">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Habits</a>
+      <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-gray-500 hover:bg-gray-50 cursor-pointer">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>Journal</a>
+      <a class="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm bg-stride-50 text-stride-700 font-medium cursor-pointer">
+        <svg class="w-5 h-5 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 6.75h12M8.25 12h12m-12 5.25h12M3.75 6.75h.007v.008H3.75V6.75zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zM3.75 12h.007v.008H3.75V12zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0zm-.375 5.25h.007v.008H3.75v-.008zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z"/></svg>
+        Tasks
+        <span class="ml-auto bg-red-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full">2</span>
+      </a>
+    </nav>
+    <div class="border-t border-gray-200 p-3 shrink-0">
+      <div class="flex items-center gap-3 px-2 py-2 rounded-lg hover:bg-gray-50 cursor-pointer">
+        <div class="w-8 h-8 rounded-full bg-stride-100 flex items-center justify-center text-stride-700 text-sm font-semibold shrink-0">L</div>
+        <div><div class="text-sm font-medium text-gray-800">Lyle</div><div class="text-xs text-gray-400">lyle@stride.app</div></div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main content -->
+  <div class="flex-1 lg:ml-64 min-h-screen flex flex-col">
+
+    <!-- Mobile header -->
+    <div class="lg:hidden sticky top-0 z-20 bg-white border-b border-gray-200 flex items-center px-4 h-12">
+      <button class="p-1.5 rounded-full hover:bg-gray-100 mr-2">
+        <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5"/></svg>
+      </button>
+      <span class="text-base font-semibold text-gray-900">Tasks</span>
+      <div class="ml-auto flex items-center gap-1 bg-gray-100 rounded-full px-3 py-1.5 text-xs font-semibold text-gray-700 cursor-pointer">
+        Today <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+      </div>
+    </div>
+
+    <!-- Desktop tabs -->
+    <div class="hidden lg:block sticky top-0 z-20 bg-white border-b border-gray-200">
+      <div class="max-w-2xl mx-auto px-6 flex gap-6">
+        <button class="py-3.5 text-sm font-semibold border-b-2 border-stride-600 text-stride-600">Today</button>
+        <button class="py-3.5 text-sm text-gray-500 border-b-2 border-transparent hover:text-gray-700">Upcoming</button>
+        <button class="py-3.5 text-sm text-gray-500 border-b-2 border-transparent hover:text-gray-700">All</button>
+      </div>
+    </div>
+
+    <!-- ── TASK LIST ─────────────────────────────────────── -->
+    <div class="max-w-2xl mx-auto w-full px-4 py-4 pb-28 space-y-5">
+
+      <!-- Overdue group -->
+      <div>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold text-red-500 uppercase tracking-wider">Overdue</span>
+          <span class="bg-red-100 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">2</span>
+        </div>
+        <div class="space-y-2">
+
+          <!-- Task 1: has BOTH scheduled date (past) + deadline (past) -->
+          <div class="t-row relative" id="row-t1" onclick="openModal('t1')">
+            <div class="pbar bg-red-500"></div>
+            <div class="flex-1 px-3 py-3">
+              <div class="flex items-start gap-2.5">
+                <div class="sc sc-todo mt-0.5" onclick="event.stopPropagation();completeTap('t1',false)"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-start justify-between gap-2">
+                    <span class="text-sm font-medium text-gray-900 leading-snug">Book dentist appointment</span>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      <span class="text-xs text-red-500 font-medium whitespace-nowrap">Mar 17</span>
+                      <!-- Deadline chip — past, red -->
+                      <span class="dl-chip dl-past">
+                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                        Mar 20
+                      </span>
+                      <button onclick="event.stopPropagation();showCtx('ctx-t1',this)" class="text-gray-300 hover:text-gray-500 p-0.5">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <span class="text-[10px] bg-red-50 text-red-600 border border-red-200 px-1.5 py-0.5 rounded-full font-semibold">Emergency</span>
+                    <span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">health</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <!-- Context menu -->
+            <div id="ctx-t1" class="ctx hidden" style="top:36px;" onclick="event.stopPropagation()">
+              <div class="ctx-item text-gray-700" onclick="openModal('t1');closeCtx()"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>Edit</div>
+              <div class="ctx-item text-gray-500" onclick="closeCtx()"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Cancel task</div>
+              <div class="ctx-item text-red-500" onclick="closeCtx()"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>Delete</div>
+            </div>
+          </div>
+
+          <!-- Task 2: recurring, overdue -->
+          <div class="t-row relative" id="row-t2" onclick="openModal('t2')">
+            <div class="pbar bg-orange-400"></div>
+            <div class="flex-1 px-3 py-3">
+              <div class="flex items-start gap-2.5">
+                <div class="sc sc-progress mt-0.5" onclick="event.stopPropagation();completeTap('t2',true)">
+                  <svg width="20" height="20" viewBox="0 0 20 20" style="flex-shrink:0;">
+                    <circle cx="10" cy="10" r="8" fill="none" stroke="#f97316" stroke-width="2" stroke-dasharray="5 3.5" class="march"/>
+                  </svg>
+                </div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-start justify-between gap-2">
+                    <span class="text-sm font-medium text-gray-900 leading-snug">Review and pay Visa bill</span>
+                    <div class="flex items-center gap-1 shrink-0">
+                      <span class="recur-wrap">
+                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+                        <span class="recur-tip">Every month</span>
+                      </span>
+                      <span class="text-xs text-red-500 font-medium" id="date-t2">Mar 19</span>
+                      <button onclick="event.stopPropagation();showCtx('ctx-t2',this)" class="text-gray-300 hover:text-gray-500 p-0.5">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                    <span class="text-[10px] bg-orange-50 text-orange-600 border border-orange-200 px-1.5 py-0.5 rounded-full font-semibold">High</span>
+                    <span class="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-200 px-1.5 py-0.5 rounded-full font-semibold">In Progress</span>
+                    <span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">finances</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="ctx-t2" class="ctx hidden" style="top:36px;" onclick="event.stopPropagation()">
+              <div class="ctx-item text-gray-700" onclick="openModal('t2');closeCtx()"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>Edit</div>
+              <div class="ctx-item font-medium" onclick="completeForever('t2')" style="color:#059669">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:#059669"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                Complete forever
+              </div>
+              <div class="ctx-item text-gray-500" onclick="closeCtx()"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Cancel task</div>
+              <div class="ctx-item text-red-500" onclick="closeCtx()"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>Delete</div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /overdue -->
+
+      <!-- Today group -->
+      <div>
+        <div class="flex items-center gap-2 mb-2">
+          <span class="text-xs font-semibold text-gray-500 uppercase tracking-wider">Today</span>
+          <span class="bg-gray-100 text-gray-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">3</span>
+        </div>
+        <div class="space-y-2">
+
+          <!-- Task 3: scheduled today + deadline approaching (orange) -->
+          <div class="t-row relative" id="row-t3" onclick="openModal('t3')">
+            <div class="pbar bg-orange-400"></div>
+            <div class="flex-1 px-3 py-3">
+              <div class="flex items-start gap-2.5">
+                <div class="sc sc-todo mt-0.5" onclick="event.stopPropagation();completeTap('t3',false)"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-start justify-between gap-2">
+                    <span class="text-sm font-medium text-gray-900 leading-snug">Call insurance about claim #4821</span>
+                    <div class="flex items-center gap-1.5 shrink-0 flex-wrap justify-end">
+                      <span class="text-xs text-amber-500 font-medium whitespace-nowrap">Today · 2:00 PM</span>
+                      <!-- Deadline in 2 days — orange -->
+                      <span class="dl-chip dl-soon">
+                        <svg class="w-2.5 h-2.5" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+                        Apr 7
+                      </span>
+                      <button onclick="event.stopPropagation();showCtx('ctx-t3',this)" class="text-gray-300 hover:text-gray-500 p-0.5">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1.5 mt-1.5">
+                    <span class="text-[10px] bg-orange-50 text-orange-600 border border-orange-200 px-1.5 py-0.5 rounded-full font-semibold">High</span>
+                    <span class="text-xs text-gray-400 truncate">Reference the letter sent Mar 10 re: appeal window</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="ctx-t3" class="ctx hidden" style="top:36px;" onclick="event.stopPropagation()">
+              <div class="ctx-item text-gray-700" onclick="openModal('t3');closeCtx()"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>Edit</div>
+              <div class="ctx-item text-gray-500" onclick="closeCtx()"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Cancel task</div>
+              <div class="ctx-item text-red-500" onclick="closeCtx()"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>Delete</div>
+            </div>
+          </div>
+
+          <!-- Task 4: recurring daily, no deadline -->
+          <div class="t-row relative" id="row-t4" onclick="openModal('t4')">
+            <div class="pbar bg-indigo-400"></div>
+            <div class="flex-1 px-3 py-3">
+              <div class="flex items-start gap-2.5">
+                <div class="sc sc-todo mt-0.5" onclick="event.stopPropagation();completeTap('t4',true)"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-start justify-between gap-2">
+                    <span class="text-sm font-medium text-gray-900 leading-snug">Take vitamins</span>
+                    <div class="flex items-center gap-1 shrink-0">
+                      <span class="recur-wrap">
+                        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+                        <span class="recur-tip">Daily</span>
+                      </span>
+                      <span class="text-xs text-amber-500 font-medium" id="date-t4">Today</span>
+                      <button onclick="event.stopPropagation();showCtx('ctx-t4',this)" class="text-gray-300 hover:text-gray-500 p-0.5">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1.5 mt-1.5">
+                    <span class="text-[10px] bg-indigo-50 text-indigo-600 border border-indigo-200 px-1.5 py-0.5 rounded-full font-semibold">Medium</span>
+                    <span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">health</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="ctx-t4" class="ctx hidden" style="top:36px;" onclick="event.stopPropagation()">
+              <div class="ctx-item text-gray-700" onclick="openModal('t4');closeCtx()"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>Edit</div>
+              <div class="ctx-item font-medium" onclick="completeForever('t4')" style="color:#059669">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="color:#059669"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>Complete forever
+              </div>
+              <div class="ctx-item text-gray-500" onclick="closeCtx()"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Cancel task</div>
+              <div class="ctx-item text-red-500" onclick="closeCtx()"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>Delete</div>
+            </div>
+          </div>
+
+          <!-- Task 5: no deadline, no recurrence -->
+          <div class="t-row relative" id="row-t5" onclick="openModal('t5')">
+            <div class="pbar bg-gray-300"></div>
+            <div class="flex-1 px-3 py-3">
+              <div class="flex items-start gap-2.5">
+                <div class="sc sc-todo mt-0.5" onclick="event.stopPropagation();completeTap('t5',false)"></div>
+                <div class="flex-1 min-w-0">
+                  <div class="flex items-start justify-between gap-2">
+                    <span class="text-sm font-medium text-gray-900 leading-snug">Grocery run — protein & vegetables</span>
+                    <div class="flex items-center gap-1.5 shrink-0">
+                      <span class="text-xs text-amber-500 font-medium">Today</span>
+                      <button onclick="event.stopPropagation();showCtx('ctx-t5',this)" class="text-gray-300 hover:text-gray-500 p-0.5">
+                        <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>
+                      </button>
+                    </div>
+                  </div>
+                  <div class="flex items-center gap-1.5 mt-1.5">
+                    <span class="text-[10px] bg-gray-100 text-gray-500 border border-gray-200 px-1.5 py-0.5 rounded-full font-semibold">Low</span>
+                    <span class="text-[10px] bg-gray-100 text-gray-500 px-1.5 py-0.5 rounded-full">errands</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div id="ctx-t5" class="ctx hidden" style="top:36px;" onclick="event.stopPropagation()">
+              <div class="ctx-item text-gray-700" onclick="openModal('t5');closeCtx()"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z"/></svg>Edit</div>
+              <div class="ctx-item text-gray-500" onclick="closeCtx()"><svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>Cancel task</div>
+              <div class="ctx-item text-red-500" onclick="closeCtx()"><svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0"/></svg>Delete</div>
+            </div>
+          </div>
+
+        </div>
+      </div><!-- /today -->
+
+    </div><!-- /task list -->
+
+    <!-- FAB -->
+    <button onclick="openModal('new')"
+      class="fixed bottom-6 right-4 lg:right-8 w-[52px] h-[52px] bg-stride-600 text-white rounded-full shadow-lg flex items-center justify-center hover:bg-stride-700 transition-colors z-10">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4.5v15m7.5-7.5h-15"/></svg>
+    </button>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+
+<!-- ═══════════════════════════════════════════════════
+     MODAL OVERLAY
+═══════════════════════════════════════════════════ -->
+<div id="overlay" class="hidden fixed inset-0 z-50">
+
+  <!-- Backdrop -->
+  <div class="backdrop-in absolute inset-0 bg-black/40" onclick="closeModal()"></div>
+
+  <!-- ── DESKTOP modal (≥640px) ─────────────────────── -->
+  <div class="hidden sm:flex absolute inset-0 items-center justify-center pointer-events-none p-4">
+    <div class="modal-in pointer-events-auto w-full bg-white rounded-2xl shadow-2xl flex flex-col overflow-hidden"
+         style="max-width:680px;max-height:88vh;">
+
+      <!-- Modal header -->
+      <div class="flex items-center justify-between px-5 py-3 border-b border-gray-100 shrink-0">
+        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider" id="modal-heading">Edit Task</span>
+        <button onclick="closeModal()" class="w-7 h-7 rounded-full text-gray-400 hover:bg-gray-100 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+
+      <!-- Two-column body -->
+      <div class="flex flex-1 overflow-hidden min-h-0">
+
+        <!-- Left: title + description -->
+        <div class="flex-1 overflow-y-auto px-5 pt-4 pb-4 border-r border-gray-100 min-w-0">
+          <div class="flex items-start gap-3 mb-4">
+            <div class="sc sc-todo shrink-0 mt-1" id="d-status" onclick="cycleStatus('d-status')"></div>
+            <input id="d-title" type="text" class="flex-1 text-base font-medium text-gray-900 placeholder-gray-400"
+              value="Call insurance about claim #4821" placeholder="Task name…">
+          </div>
+          <textarea id="d-desc" rows="7"
+            class="w-full text-sm text-gray-500 placeholder-gray-400 leading-relaxed"
+            placeholder="Add notes…">Reference the letter they sent Mar 10 re: appeal window. Policy #4821-B. Call between 9am–5pm EST. Ask specifically about the 30-day appeal deadline.</textarea>
+        </div>
+
+        <!-- Right: properties -->
+        <div class="overflow-y-auto px-4 py-3 shrink-0" style="width:232px;">
+
+          <!-- Priority — dropdown -->
+          <div class="s-row">
+            <div class="s-label">Priority</div>
+            <div class="relative" id="d-pri-wrap">
+              <button onclick="togglePriMenu()" class="pri-btn" id="d-pri-btn">
+                <span class="pri-dot bg-orange-500" id="d-pri-dot"></span>
+                <span class="flex-1 text-left" id="d-pri-label">High</span>
+                <svg class="w-3.5 h-3.5 text-gray-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+              </button>
+              <div id="d-pri-menu" class="pri-menu hidden">
+                <div onclick="selectPri('urgent','bg-red-500','Urgent')"   class="pri-opt"><span class="pri-dot bg-red-500"></span>Urgent</div>
+                <div onclick="selectPri('high','bg-orange-500','High')"    class="pri-opt active"><span class="pri-dot bg-orange-500"></span>High</div>
+                <div onclick="selectPri('medium','bg-indigo-500','Medium')" class="pri-opt"><span class="pri-dot bg-indigo-500"></span>Medium</div>
+                <div onclick="selectPri('low','bg-gray-300','Low')"        class="pri-opt"><span class="pri-dot bg-gray-300"></span>Low</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Scheduled date + Repeat (grouped) -->
+          <div class="s-row">
+            <div class="s-label">Scheduled Date</div>
+            <button onclick="toggleCal('sched')" class="flex items-center gap-1.5 text-sm font-medium text-stride-600 hover:text-stride-700" id="d-sched-btn">
+              <svg class="w-4 h-4 text-stride-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5"/></svg>
+              Today, Apr 5
+            </button>
+            <div id="cal-sched" class="hidden mt-2 fade-in">
+              <div id="cal-sched-html"></div>
+              <div class="flex flex-wrap gap-1 mt-2">
+                <button onclick="setSchedShortcut('Today')"     class="text-[11px] px-2 py-0.5 rounded-full border border-stride-300 bg-stride-50 text-stride-600 font-medium">Today</button>
+                <button onclick="setSchedShortcut('Tomorrow')"  class="text-[11px] px-2 py-0.5 rounded-full border border-gray-200 text-gray-600 hover:border-gray-300">Tomorrow</button>
+                <button onclick="setSchedShortcut('Next week')" class="text-[11px] px-2 py-0.5 rounded-full border border-gray-200 text-gray-600 hover:border-gray-300">Next week</button>
+                <button onclick="setSchedShortcut('No date')"   class="text-[11px] px-2 py-0.5 rounded-full border border-gray-200 text-red-400 hover:border-red-300">Clear</button>
+              </div>
+            </div>
+            <!-- Repeat sits directly under scheduled date -->
+            <div class="mt-2 pt-2 border-t border-gray-100">
+              <button onclick="toggleRecur()" class="flex items-center gap-1.5 text-sm hover:opacity-80 w-full">
+                <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+                <span class="text-gray-400 font-medium text-sm" id="d-recur-label">No repeat</span>
+              </button>
+              <div id="recur-panel" class="hidden mt-2 fade-in">
+                <div class="flex flex-wrap gap-1 mb-2" id="recur-chips">
+                  <button onclick="setRecur(this,'none')"     class="rec-chip selected">None</button>
+                  <button onclick="setRecur(this,'daily')"    class="rec-chip">Daily</button>
+                  <button onclick="setRecur(this,'weekdays')" class="rec-chip">Weekdays</button>
+                  <button onclick="setRecur(this,'weekly')"   class="rec-chip">Weekly</button>
+                  <button onclick="setRecur(this,'monthly')"  class="rec-chip">Monthly</button>
+                  <button onclick="setRecur(this,'yearly')"   class="rec-chip">Yearly</button>
+                  <button onclick="setRecur(this,'custom')"   class="rec-chip">Custom…</button>
+                </div>
+                <div id="custom-cfg" class="hidden mb-2">
+                  <div class="flex items-center gap-1.5 mb-2">
+                    <span class="text-xs text-gray-600">Every</span>
+                    <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+                      <button onclick="adjInt(-1)" class="w-6 h-6 text-gray-500 hover:bg-gray-100 text-sm leading-none">−</button>
+                      <span id="int-val" class="w-6 text-center text-xs font-semibold text-gray-800">2</span>
+                      <button onclick="adjInt(1)"  class="w-6 h-6 text-gray-500 hover:bg-gray-100 text-sm leading-none">+</button>
+                    </div>
+                    <select id="unit-sel" onchange="onUnit()" class="text-xs border border-gray-200 rounded-md py-1 px-1.5 text-gray-700 bg-white">
+                      <option>days</option><option selected>weeks</option><option>months</option>
+                    </select>
+                  </div>
+                  <div id="dow-row" class="flex gap-1 mb-1.5">
+                    <button onclick="togDow(this)" class="dow">M</button>
+                    <button onclick="togDow(this)" class="dow on">T</button>
+                    <button onclick="togDow(this)" class="dow">W</button>
+                    <button onclick="togDow(this)" class="dow">T</button>
+                    <button onclick="togDow(this)" class="dow">F</button>
+                    <button onclick="togDow(this)" class="dow">S</button>
+                    <button onclick="togDow(this)" class="dow">S</button>
+                  </div>
+                </div>
+                <div id="anchor-row" class="hidden">
+                  <div class="flex gap-0.5 p-0.5 bg-gray-100 rounded-lg mb-1">
+                    <button onclick="setAnch('schedule')"   id="anch-s" class="anch on">On schedule</button>
+                    <button onclick="setAnch('completion')" id="anch-c" class="anch">After completion</button>
+                  </div>
+                  <p id="anch-desc" class="text-[10px] text-gray-400 leading-relaxed">Advances from the scheduled date — fixed cadence regardless of when you complete it.</p>
+                </div>
+                <p id="recur-summary" class="hidden text-[11px] text-stride-600 font-medium mt-1.5"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Deadline -->
+          <div class="s-row">
+            <div class="s-label">Deadline</div>
+            <button onclick="toggleCal('dead')" class="flex items-center gap-1.5 text-sm font-medium hover:opacity-80" id="d-dead-btn" style="color:#f97316;">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+              Apr 7, 2026
+            </button>
+            <div id="cal-dead" class="hidden mt-2 fade-in">
+              <div id="cal-dead-html"></div>
+              <div class="flex flex-wrap gap-1 mt-2">
+                <button onclick="setDeadShortcut('Tomorrow')"    class="text-[11px] px-2 py-0.5 rounded-full border border-gray-200 text-gray-600 hover:border-gray-300">Tomorrow</button>
+                <button onclick="setDeadShortcut('Next week')"   class="text-[11px] px-2 py-0.5 rounded-full border border-gray-200 text-gray-600 hover:border-gray-300">Next week</button>
+                <button onclick="setDeadShortcut('No deadline')" class="text-[11px] px-2 py-0.5 rounded-full border border-gray-200 text-red-400 hover:border-red-300">No deadline</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tags -->
+          <div class="s-row">
+            <div class="s-label">Tags</div>
+            <div class="flex flex-wrap gap-1" id="tag-list">
+              <span class="tag">finances <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-gray-600 text-xs">×</button></span>
+            </div>
+            <input type="text" placeholder="+ Add tag" id="tag-input" onkeydown="addTag(event)"
+              class="text-xs text-gray-600 placeholder-gray-400 mt-1.5 w-full">
+          </div>
+
+        </div><!-- /sidebar -->
+      </div><!-- /body -->
+
+      <!-- Footer -->
+      <div class="flex justify-end gap-3 px-5 py-3 border-t border-gray-100 shrink-0">
+        <button onclick="closeModal()" class="px-4 py-2 text-sm font-medium text-gray-600 border border-gray-200 rounded-xl hover:bg-gray-50">Cancel</button>
+        <button onclick="closeModal()" class="px-5 py-2 text-sm font-medium text-white bg-stride-600 rounded-xl hover:bg-stride-700">Save</button>
+      </div>
+
+    </div>
+  </div><!-- /desktop -->
+
+
+  <!-- ── MOBILE bottom sheet (<640px) ───────────────── -->
+  <div class="sm:hidden sheet-in fixed inset-x-0 bottom-0 bg-white rounded-t-2xl" style="max-height:93vh;overflow-y:auto;">
+
+    <!-- Handle -->
+    <div class="sticky top-0 bg-white z-10 pt-3 px-4 pb-0">
+      <div class="flex justify-center mb-2"><div class="w-9 h-1 bg-gray-300 rounded-full"></div></div>
+      <div class="flex items-center justify-between pb-3 border-b border-gray-100">
+        <span class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Edit Task</span>
+        <button onclick="closeModal()" class="w-7 h-7 rounded-full text-gray-400 hover:bg-gray-100 flex items-center justify-center">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <div class="px-4 pb-2">
+      <!-- Title -->
+      <div class="flex items-start gap-3 py-3 border-b border-gray-100">
+        <div class="sc sc-todo shrink-0 mt-0.5" id="m-status" onclick="cycleStatus('m-status')"></div>
+        <input type="text" value="Call insurance about claim #4821"
+          class="flex-1 text-base font-medium text-gray-900 placeholder-gray-400 leading-snug">
+      </div>
+      <!-- Description -->
+      <div class="py-3 border-b border-gray-100">
+        <textarea rows="3" class="w-full text-sm text-gray-500 placeholder-gray-400 leading-relaxed"
+          placeholder="Add notes…">Reference the letter they sent Mar 10 re: appeal window.</textarea>
+      </div>
+
+      <!-- Priority — dropdown (mobile) -->
+      <div class="py-3 border-b border-gray-100">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z"/></svg>
+            <span class="text-xs font-semibold text-gray-500">Priority</span>
+          </div>
+          <div class="relative" id="m-pri-wrap">
+            <button onclick="toggleMPriMenu()" class="flex items-center gap-2 text-sm font-medium text-gray-700">
+              <span class="pri-dot bg-orange-500" id="m-pri-dot"></span>
+              <span id="m-pri-label">High</span>
+              <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 8.25l-7.5 7.5-7.5-7.5"/></svg>
+            </button>
+            <div id="m-pri-menu" class="pri-menu hidden" style="right:0;left:auto;min-width:140px;">
+              <div onclick="selectMPri('urgent','bg-red-500','Urgent')"    class="pri-opt"><span class="pri-dot bg-red-500"></span>Urgent</div>
+              <div onclick="selectMPri('high','bg-orange-500','High')"     class="pri-opt active"><span class="pri-dot bg-orange-500"></span>High</div>
+              <div onclick="selectMPri('medium','bg-indigo-500','Medium')" class="pri-opt"><span class="pri-dot bg-indigo-500"></span>Medium</div>
+              <div onclick="selectMPri('low','bg-gray-300','Low')"         class="pri-opt"><span class="pri-dot bg-gray-300"></span>Low</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Scheduled date + Repeat (mobile) -->
+      <div class="py-3 border-b border-gray-100">
+        <div class="flex items-center justify-between cursor-pointer" onclick="toggleMCal('m-sched')">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5"/></svg>
+            <span class="text-xs font-semibold text-gray-500">Scheduled Date</span>
+          </div>
+          <span class="text-sm font-medium text-stride-600">Today, Apr 5</span>
+        </div>
+        <div id="m-sched" class="hidden mt-3 fade-in" onclick="event.stopPropagation()">
+          <div id="m-sched-html"></div>
+          <div class="flex gap-1.5 mt-2 flex-wrap">
+            <button class="text-[11px] px-2.5 py-1 rounded-full border border-stride-300 bg-stride-50 text-stride-600 font-medium">Today</button>
+            <button class="text-[11px] px-2.5 py-1 rounded-full border border-gray-200 text-gray-600">Tomorrow</button>
+            <button class="text-[11px] px-2.5 py-1 rounded-full border border-gray-200 text-gray-600">Next week</button>
+            <button class="text-[11px] px-2.5 py-1 rounded-full border border-gray-200 text-red-400">Clear</button>
+          </div>
+        </div>
+        <!-- Repeat sits under scheduled date -->
+        <div class="mt-2.5 pt-2.5 border-t border-gray-100">
+          <div class="flex items-center justify-between cursor-pointer" onclick="toggleMRecur()">
+            <div class="flex items-center gap-2">
+              <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"/></svg>
+              <span class="text-xs font-semibold text-gray-500">Repeat</span>
+            </div>
+            <span class="text-sm font-medium text-gray-400" id="m-recur-label">No repeat</span>
+          </div>
+          <div id="m-recur" class="hidden mt-3 fade-in">
+            <div class="flex flex-wrap gap-1.5 mb-3" id="m-recur-chips">
+              <button onclick="setMRecur(this,'none')"     class="rec-chip selected">None</button>
+              <button onclick="setMRecur(this,'daily')"    class="rec-chip">Daily</button>
+              <button onclick="setMRecur(this,'weekdays')" class="rec-chip">Weekdays</button>
+              <button onclick="setMRecur(this,'weekly')"   class="rec-chip">Weekly</button>
+              <button onclick="setMRecur(this,'monthly')"  class="rec-chip">Monthly</button>
+              <button onclick="setMRecur(this,'yearly')"   class="rec-chip">Yearly</button>
+              <button onclick="setMRecur(this,'custom')"   class="rec-chip">Custom…</button>
+            </div>
+            <div id="m-custom" class="hidden mb-3">
+              <div class="flex items-center gap-2 mb-2">
+                <span class="text-sm text-gray-600">Every</span>
+                <div class="flex items-center border border-gray-200 rounded-lg overflow-hidden">
+                  <button class="w-8 h-8 text-gray-500 hover:bg-gray-100 text-lg">−</button>
+                  <span class="w-8 text-center text-sm font-semibold">2</span>
+                  <button class="w-8 h-8 text-gray-500 hover:bg-gray-100 text-lg">+</button>
+                </div>
+                <select class="text-sm border border-gray-200 rounded-lg py-1.5 px-2 text-gray-700 bg-white">
+                  <option>days</option><option selected>weeks</option><option>months</option>
+                </select>
+              </div>
+              <div class="flex gap-1.5 mb-2">
+                <button class="dow">M</button><button class="dow on">T</button><button class="dow">W</button>
+                <button class="dow">T</button><button class="dow">F</button><button class="dow">S</button><button class="dow">S</button>
+              </div>
+            </div>
+            <div id="m-anchor" class="hidden">
+              <div class="flex gap-0.5 p-0.5 bg-gray-100 rounded-lg mb-1">
+                <button class="anch on text-sm">On schedule</button>
+                <button class="anch text-sm">After completion</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Deadline (mobile) -->
+      <div class="py-3 border-b border-gray-100">
+        <div class="flex items-center justify-between cursor-pointer" onclick="toggleMCal('m-dead')">
+          <div class="flex items-center gap-2">
+            <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>
+            <span class="text-xs font-semibold text-gray-500">Deadline</span>
+          </div>
+          <span class="text-sm font-medium" style="color:#f97316;">Apr 7, 2026</span>
+        </div>
+        <div id="m-dead" class="hidden mt-3 fade-in" onclick="event.stopPropagation()">
+          <div id="m-dead-html"></div>
+          <div class="flex gap-1.5 mt-2 flex-wrap">
+            <button class="text-[11px] px-2.5 py-1 rounded-full border border-gray-200 text-gray-600">Tomorrow</button>
+            <button class="text-[11px] px-2.5 py-1 rounded-full border border-gray-200 text-gray-600">Next week</button>
+            <button class="text-[11px] px-2.5 py-1 rounded-full border border-gray-200 text-red-400">No deadline</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tags (mobile) -->
+      <div class="py-3">
+        <div class="flex items-center gap-2 mb-2">
+          <svg class="w-4 h-4 text-gray-400 shrink-0" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9.568 3H5.25A2.25 2.25 0 003 5.25v4.318c0 .597.237 1.17.659 1.591l9.581 9.581c.699.699 1.78.872 2.607.33a18.095 18.095 0 005.223-5.223c.542-.827.369-1.908-.33-2.607L11.16 3.66A2.25 2.25 0 009.568 3z"/><path stroke-linecap="round" stroke-linejoin="round" d="M6 6h.008v.008H6V6z"/></svg>
+          <span class="text-xs font-semibold text-gray-500">Tags</span>
+        </div>
+        <div class="flex flex-wrap gap-1.5 items-center">
+          <span class="tag">finances <button class="text-gray-400 text-xs">×</button></span>
+          <input type="text" placeholder="+ Add tag" class="text-sm text-gray-500 placeholder-gray-400">
+        </div>
+      </div>
+    </div>
+
+    <!-- Mobile footer -->
+    <div class="sticky bottom-0 bg-white border-t border-gray-100 flex gap-3 px-4 py-4">
+      <button onclick="closeModal()" class="flex-1 py-2.5 border border-gray-200 rounded-xl text-sm font-medium text-gray-600">Cancel</button>
+      <button onclick="closeModal()" class="flex-1 py-2.5 bg-stride-600 rounded-xl text-sm font-medium text-white">Save</button>
+    </div>
+  </div><!-- /mobile sheet -->
+
+</div><!-- /overlay -->
+
+
+<script>
+/* ──────────────────────────────────────────────────────
+   OPEN / CLOSE
+────────────────────────────────────────────────────── */
+let calBuilt = false;
+function openModal() {
+  document.getElementById('overlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  if (!calBuilt) {
+    document.getElementById('cal-sched-html').innerHTML  = buildCal(5, 'sched');
+    document.getElementById('cal-dead-html').innerHTML   = buildCal(7, 'dead');
+    document.getElementById('m-sched-html').innerHTML    = buildCal(5, 'msched');
+    document.getElementById('m-dead-html').innerHTML     = buildCal(7, 'mdead');
+    calBuilt = true;
+  }
+}
+function closeModal() {
+  document.getElementById('overlay').classList.add('hidden');
+  document.body.style.overflow = '';
+  ['cal-sched','cal-dead','recur-panel','m-sched','m-dead','m-recur'].forEach(id => {
+    document.getElementById(id)?.classList.add('hidden');
+  });
+}
+
+/* ──────────────────────────────────────────────────────
+   CALENDAR BUILDER
+────────────────────────────────────────────────────── */
+function buildCal(selDay, type) {
+  const days =  [29,30,31, 1,2,3,4, 5,6,7,8,9,10,11, 12,13,14,15,16,17,18, 19,20,21,22,23,24,25, 26,27,28,29,30,1,2];
+  const other = [ 1, 1, 1, 0,0,0,0, 0,0,0,0,0, 0, 0,  0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0,1,1];
+  const isDead = type.includes('dead');
+  let h = `<div class="flex items-center justify-between mb-1.5">
+    <button class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500">
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5L8.25 12l7.5-7.5"/></svg>
+    </button>
+    <span class="text-xs font-semibold text-gray-700">April 2026</span>
+    <button class="w-6 h-6 flex items-center justify-center rounded-full hover:bg-gray-100 text-gray-500">
+      <svg class="w-3 h-3" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/></svg>
+    </button>
+  </div>
+  <div class="grid grid-cols-7 mb-0.5">
+    ${['S','M','T','W','T','F','S'].map(d=>`<div class="cal-day text-[10px] font-semibold text-gray-400">${d}</div>`).join('')}
+  </div>
+  <div class="grid grid-cols-7">`;
+  days.forEach((d,i) => {
+    let cls = 'cal-day';
+    if (other[i]) cls += ' other-month';
+    else if (d === 5) cls += ' is-today';
+    if (!other[i] && d === selDay) cls += isDead ? ' sel-dead' : ' sel-sched';
+    h += `<div class="${cls}" style="font-size:12px">${d}</div>`;
+  });
+  h += `</div>`;
+  return h;
+}
+
+/* ──────────────────────────────────────────────────────
+   CALENDAR TOGGLES (desktop)
+────────────────────────────────────────────────────── */
+function toggleCal(which) {
+  const other = which === 'sched' ? 'dead' : 'sched';
+  document.getElementById('cal-' + other).classList.add('hidden');
+  document.getElementById('recur-panel').classList.add('hidden');
+  document.getElementById('d-pri-menu')?.classList.add('hidden');
+  document.getElementById('cal-' + which).classList.toggle('hidden');
+}
+function setSchedShortcut(val) {
+  const labels = {'Today':'Today, Apr 5','Tomorrow':'Tomorrow, Apr 6','Next week':'Apr 12','No date':'No date'};
+  const el = document.getElementById('d-sched-btn');
+  if (val === 'No date') { el.innerHTML = `<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5"/></svg><span class="text-gray-400">No date</span>`; }
+  else { el.innerHTML = `<svg class="w-4 h-4 text-stride-500" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 9v7.5"/></svg><span class="text-stride-600">${labels[val]}</span>`; }
+  document.getElementById('cal-sched').classList.add('hidden');
+}
+function setDeadShortcut(val) {
+  const el = document.getElementById('d-dead-btn');
+  if (val === 'No deadline') { el.innerHTML = `<svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg><span class="text-gray-400">No deadline</span>`; el.style.color=''; }
+  else { el.innerHTML = `<svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126zM12 15.75h.007v.008H12v-.008z"/></svg>${val === 'Tomorrow' ? 'Apr 6, 2026' : 'Apr 12, 2026'}`; el.style.color='#9ca3af'; }
+  document.getElementById('cal-dead').classList.add('hidden');
+}
+
+/* ──────────────────────────────────────────────────────
+   CALENDAR TOGGLES (mobile)
+────────────────────────────────────────────────────── */
+function toggleMCal(id) {
+  ['m-sched','m-dead'].forEach(i => { if (i!==id) document.getElementById(i).classList.add('hidden'); });
+  document.getElementById('m-recur').classList.add('hidden');
+  document.getElementById(id).classList.toggle('hidden');
+}
+function toggleMRecur() {
+  ['m-sched','m-dead'].forEach(i => document.getElementById(i).classList.add('hidden'));
+  document.getElementById('m-recur').classList.toggle('hidden');
+}
+
+/* ──────────────────────────────────────────────────────
+   RECURRENCE (desktop)
+────────────────────────────────────────────────────── */
+let curFreq='none', intVal=2, unit='weeks', anch='schedule';
+
+function toggleRecur() {
+  ['cal-sched','cal-dead','d-pri-menu'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+  document.getElementById('recur-panel').classList.toggle('hidden');
+}
+
+function setRecur(btn, freq) {
+  document.querySelectorAll('#recur-chips .rec-chip').forEach(c => c.classList.remove('selected'));
+  btn.classList.add('selected');
+  curFreq = freq;
+  document.getElementById('custom-cfg').classList.toggle('hidden', freq !== 'custom');
+  document.getElementById('anchor-row').classList.toggle('hidden', freq === 'none');
+  const label = document.getElementById('d-recur-label');
+  const summary = document.getElementById('recur-summary');
+  if (freq === 'none') {
+    label.textContent = 'No repeat'; label.className = 'text-gray-400 font-medium';
+    summary.classList.add('hidden');
+  } else {
+    label.textContent = shortLabel(freq); label.className = 'text-stride-600 font-medium';
+    summary.textContent = longLabel(freq); summary.classList.remove('hidden');
+  }
+}
+
+function adjInt(d) { intVal = Math.max(1, Math.min(99, intVal+d)); document.getElementById('int-val').textContent = intVal; updateRecurLabel(); }
+function onUnit() { unit = document.getElementById('unit-sel').value; document.getElementById('dow-row').classList.toggle('hidden', unit!=='weeks'); updateRecurLabel(); }
+function togDow(btn) {
+  const active = [...document.querySelectorAll('#dow-row .dow.on')];
+  if (active.length===1 && btn.classList.contains('on')) return;
+  btn.classList.toggle('on');
+  updateRecurLabel();
+}
+function setAnch(val) {
+  anch = val;
+  document.getElementById('anch-s').classList.toggle('on', val==='schedule');
+  document.getElementById('anch-c').classList.toggle('on', val==='completion');
+  document.getElementById('anch-desc').textContent = val==='schedule'
+    ? 'Advances from the due date — fixed cadence.'
+    : 'Advances from when you complete it — good for flexible habits.';
+  updateRecurLabel();
+}
+function updateRecurLabel() {
+  if (curFreq==='none') return;
+  document.getElementById('d-recur-label').textContent = shortLabel(curFreq);
+  document.getElementById('recur-summary').textContent = longLabel(curFreq);
+}
+function shortLabel(f) {
+  if (f==='daily') return 'Every day';
+  if (f==='weekdays') return 'Weekdays';
+  if (f==='weekly') return 'Every week';
+  if (f==='monthly') return 'Every month';
+  if (f==='yearly') return 'Every year';
+  if (f==='custom') { const u = intVal===1 ? unit.replace(/s$/,'') : unit; return `Every ${intVal===1?'':intVal+' '}${u}`; }
+  return 'No repeat';
+}
+function longLabel(f) { return shortLabel(f) + ' · ' + (anch==='schedule' ? 'On schedule' : 'After completion'); }
+
+/* ──────────────────────────────────────────────────────
+   RECURRENCE (mobile)
+────────────────────────────────────────────────────── */
+function setMRecur(btn, freq) {
+  document.querySelectorAll('#m-recur-chips .rec-chip').forEach(c => c.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('m-custom').classList.toggle('hidden', freq!=='custom');
+  document.getElementById('m-anchor').classList.toggle('hidden', freq==='none');
+  const label = document.getElementById('m-recur-label');
+  label.textContent = freq==='none' ? 'No repeat' : shortLabel(freq);
+  label.className = freq==='none' ? 'text-sm font-medium text-gray-400' : 'text-sm font-medium text-stride-600';
+}
+
+/* ──────────────────────────────────────────────────────
+   PRIORITY DROPDOWNS
+────────────────────────────────────────────────────── */
+function togglePriMenu() {
+  ['cal-sched','cal-dead','recur-panel'].forEach(id => document.getElementById(id)?.classList.add('hidden'));
+  document.getElementById('d-pri-menu').classList.toggle('hidden');
+}
+function selectPri(key, dotClass, label) {
+  // Update button
+  const dot = document.getElementById('d-pri-dot');
+  dot.className = 'pri-dot ' + dotClass;
+  document.getElementById('d-pri-label').textContent = label;
+  // Mark active option
+  document.querySelectorAll('#d-pri-menu .pri-opt').forEach(o => o.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.getElementById('d-pri-menu').classList.add('hidden');
+}
+function toggleMPriMenu() {
+  document.getElementById('m-pri-menu').classList.toggle('hidden');
+}
+function selectMPri(key, dotClass, label) {
+  document.getElementById('m-pri-dot').className = 'pri-dot ' + dotClass;
+  document.getElementById('m-pri-label').textContent = label;
+  document.querySelectorAll('#m-pri-menu .pri-opt').forEach(o => o.classList.remove('active'));
+  event.currentTarget.classList.add('active');
+  document.getElementById('m-pri-menu').classList.add('hidden');
+}
+
+/* ──────────────────────────────────────────────────────
+   STATUS CYCLE
+────────────────────────────────────────────────────── */
+const scStates = [
+  { cls:'sc-todo',     icon:'' },
+  { cls:'sc-progress', icon:'<svg width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="#f97316" stroke-width="2" stroke-dasharray="5 3.5" class="march"/></svg>' },
+  { cls:'sc-done',     icon:'<svg class="w-3 h-3 text-white" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>' },
+  { cls:'sc-canceled', icon:'<svg class="w-3 h-3 text-gray-500" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"/></svg>' },
+];
+const scIdx = {};
+function cycleStatus(id) {
+  scIdx[id] = ((scIdx[id]||0) + 1) % 4;
+  const s = scStates[scIdx[id]];
+  const el = document.getElementById(id);
+  el.className = 'sc ' + s.cls + (id.startsWith('m-') ? ' shrink-0 mt-0.5' : ' shrink-0 mt-1');
+  el.innerHTML = s.icon;
+}
+
+/* ──────────────────────────────────────────────────────
+   TAGS
+────────────────────────────────────────────────────── */
+function addTag(e) {
+  if (e.key !== 'Enter' && e.key !== ',') return;
+  e.preventDefault();
+  const v = e.target.value.replace(',','').trim();
+  if (!v) return;
+  const chip = document.createElement('span');
+  chip.className = 'tag';
+  chip.innerHTML = `${v} <button onclick="this.parentElement.remove()" class="text-gray-400 hover:text-gray-600 text-xs">×</button>`;
+  document.getElementById('tag-list').appendChild(chip);
+  e.target.value = '';
+}
+
+/* ──────────────────────────────────────────────────────
+   TASK LIST — COMPLETE + CONTEXT MENUS
+────────────────────────────────────────────────────── */
+let toastTimer;
+function completeTap(id, isRecurring) {
+  const sc = document.querySelector(`#row-${id} .sc`);
+  sc.className = 'sc sc-done mt-0.5';
+  sc.innerHTML = '<svg class="w-3 h-3 text-white" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>';
+
+  if (isRecurring) {
+    setTimeout(() => {
+      // Reset and update date
+      sc.className = 'sc sc-todo mt-0.5';
+      sc.innerHTML = '';
+      const dates = { 't2':'Apr 5', 't4':'Apr 6' };
+      const dateEl = document.getElementById('date-' + id);
+      if (dateEl) { dateEl.textContent = dates[id] || 'Apr 12'; dateEl.className = 'text-xs text-gray-400 font-medium'; }
+      showToast(`↻ Rescheduled to ${dates[id] || 'Apr 12'}`, true);
+    }, 450);
+  } else {
+    const row = document.getElementById('row-' + id);
+    setTimeout(() => { row.style.transition='opacity .3s'; row.style.opacity='0.4'; }, 300);
+    showToast('Task completed', false);
+  }
+}
+function completeForever(id) {
+  closeCtx();
+  const row = document.getElementById('row-' + id);
+  const sc = row.querySelector('.sc');
+  sc.className = 'sc sc-done mt-0.5';
+  sc.innerHTML = '<svg class="w-3 h-3 text-white" fill="none" stroke="white" stroke-width="3" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/></svg>';
+  setTimeout(() => { row.style.transition='opacity .3s,max-height .3s'; row.style.opacity='0'; setTimeout(()=>row.style.display='none',300); }, 350);
+  showToast('Task completed', false);
+}
+
+function showCtx(ctxId, btn) {
+  closeCtx();
+  document.getElementById(ctxId).classList.remove('hidden');
+  document._openCtx = ctxId;
+}
+function closeCtx() {
+  if (document._openCtx) document.getElementById(document._openCtx)?.classList.add('hidden');
+  document._openCtx = null;
+}
+document.addEventListener('click', closeCtx);
+
+function showToast(msg, withUndo) {
+  clearTimeout(toastTimer);
+  document.getElementById('toast')?.remove();
+  const t = document.createElement('div');
+  t.id = 'toast';
+  t.innerHTML = `<span>${msg}</span>${withUndo ? `<span class="undo" onclick="hideToast()">Undo</span>` : ''}`;
+  document.body.appendChild(t);
+  toastTimer = setTimeout(hideToast, 5000);
+}
+function hideToast() {
+  clearTimeout(toastTimer);
+  const t = document.getElementById('toast');
+  if (t) { t.style.transition='opacity .2s'; t.style.opacity='0'; setTimeout(()=>t.remove(),200); }
+}
+</script>
+</body>
+</html>

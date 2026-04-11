@@ -1,15 +1,15 @@
 // TodayView — renders the Today tab of the Tasks module.
 //
 // Groups:
-//   1. Overdue  — due_date < today, sorted due_date ASC (oldest first)
-//   2. Today    — due_date === today, sorted by priority then created_at
+//   1. Overdue  — routing date < today, sorted ASC (oldest first)
+//   2. Today    — routing date === today, sorted by priority then created_at
 //   3. Completed/Canceled — collapsed by default; lazy-fetched on first open
 //
-// Empty state: "You're all caught up." when both Overdue and Today are empty.
+// Routing date = COALESCE(scheduled_date, deadline) — matches server logic.
 
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useTasks } from '../../hooks/useTasks'
-import { fetchTasks, updateTask, deleteTask } from '../../api'
+import { fetchTasks, updateTask, deleteTask, completeTask, completeTaskForever, undoCompletion } from '../../api'
 import type { Task, UpdateTaskInput } from '../../types'
 import TaskRow from './TaskRow'
 import { Toast } from '../Toast'
@@ -141,6 +141,50 @@ export default function TodayView({ today, onEdit, refreshKey }: Props) {
     } catch { /* TODO: error toast */ }
   }, [tasks, handleReload])
 
+  // Calls the dedicated complete endpoint, which handles recurrence advancement.
+  // For recurring tasks the response includes next_scheduled_date — show a
+  // "Rescheduled" toast instead of the standard "Task completed" toast.
+  const handleComplete = useCallback(async (id: number) => {
+    try {
+      const res = await completeTask(id)
+      handleReload()
+      if (res.next_scheduled_date) {
+        setToast({
+          message: `↻ Rescheduled to ${res.next_scheduled_date}`,
+          undoFn: async () => {
+            await undoCompletion(id)
+            handleReload()
+            setToast(null)
+          },
+        })
+      } else {
+        setToast({
+          message: 'Task completed',
+          undoFn: async () => {
+            await undoCompletion(id)
+            handleReload()
+            setToast(null)
+          },
+        })
+      }
+    } catch { /* TODO: error toast */ }
+  }, [handleReload])
+
+  const handleCompleteForever = useCallback(async (id: number) => {
+    try {
+      await completeTaskForever(id)
+      handleReload()
+      setToast({
+        message: 'Task completed (recurring ended)',
+        undoFn: async () => {
+          await undoCompletion(id)
+          handleReload()
+          setToast(null)
+        },
+      })
+    } catch { /* TODO: error toast */ }
+  }, [handleReload])
+
   const handleDelete = useCallback(async (id: number) => {
     if (!window.confirm('Delete this task?')) return
     try {
@@ -161,20 +205,23 @@ export default function TodayView({ today, onEdit, refreshKey }: Props) {
   if (error)   return <p className="py-4 text-sm text-red-600">{error}</p>
 
   // Split tasks into overdue and today groups.
+  // routingDate = COALESCE(scheduled_date, deadline) — matches server routing logic.
+  const routingDate = (t: Task) => t.scheduled_date ?? t.deadline
+
   const overdue = tasks
-    .filter(t => t.due_date && t.due_date < today)
-    .sort((a, b) => (a.due_date ?? '').localeCompare(b.due_date ?? ''))
+    .filter(t => { const d = routingDate(t); return d && d < today })
+    .sort((a, b) => (routingDate(a) ?? '').localeCompare(routingDate(b) ?? ''))
 
   const todayTasks = tasks
-    .filter(t => t.due_date === today)
+    .filter(t => routingDate(t) === today)
     .sort((a, b) =>
       (PRIORITY_ORDER[a.priority] ?? 9) - (PRIORITY_ORDER[b.priority] ?? 9) ||
       a.created_at.localeCompare(b.created_at),
     )
 
-  // Tasks with no due date (due_date IS NULL) still appear in the today view
-  // because the server returns status=todo/in_progress with no date filter.
-  const noDue = tasks.filter(t => !t.due_date)
+  // Tasks with no scheduled_date and no deadline appear in the today view when
+  // the server returns them as status=todo/in_progress with no date filter.
+  const noDue = tasks.filter(t => !routingDate(t))
 
   const isEmpty = overdue.length === 0 && todayTasks.length === 0 && noDue.length === 0
 
@@ -205,7 +252,7 @@ export default function TodayView({ today, onEdit, refreshKey }: Props) {
           </div>
           <div className="space-y-2">
             {overdue.map(task => (
-              <TaskRow key={task.id} task={task} today={today} onStatusChange={handleStatusChange} onEdit={onEdit} onDelete={handleDelete} />
+              <TaskRow key={task.id} task={task} today={today} onStatusChange={handleStatusChange} onEdit={onEdit} onDelete={handleDelete} onComplete={handleComplete} onCompleteForever={handleCompleteForever} />
             ))}
           </div>
         </section>
@@ -217,19 +264,19 @@ export default function TodayView({ today, onEdit, refreshKey }: Props) {
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">Today</h3>
           <div className="space-y-2">
             {todayTasks.map(task => (
-              <TaskRow key={task.id} task={task} today={today} onStatusChange={handleStatusChange} onEdit={onEdit} onDelete={handleDelete} />
+              <TaskRow key={task.id} task={task} today={today} onStatusChange={handleStatusChange} onEdit={onEdit} onDelete={handleDelete} onComplete={handleComplete} onCompleteForever={handleCompleteForever} />
             ))}
           </div>
         </section>
       )}
 
-      {/* ── No-due-date tasks (active tasks without a due date) ──────── */}
+      {/* ── No-due-date tasks (active tasks without a scheduled date or deadline) */}
       {noDue.length > 0 && (
         <section>
           <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">No date</h3>
           <div className="space-y-2">
             {noDue.map(task => (
-              <TaskRow key={task.id} task={task} today={today} onStatusChange={handleStatusChange} onEdit={onEdit} onDelete={handleDelete} />
+              <TaskRow key={task.id} task={task} today={today} onStatusChange={handleStatusChange} onEdit={onEdit} onDelete={handleDelete} onComplete={handleComplete} onCompleteForever={handleCompleteForever} />
             ))}
           </div>
         </section>
