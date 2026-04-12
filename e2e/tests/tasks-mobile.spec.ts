@@ -122,8 +122,8 @@ test.describe('Tasks — mobile recurring', () => {
     // the Today view. Verify via the "↻ Rescheduled" toast instead of row visibility.
     await expect(page.getByText(/Rescheduled/)).toBeVisible()
 
-    // Tap Undo — scheduled date should revert to today.
-    await page.getByRole('button', { name: 'Undo' }).tap()
+    // Tap Undo — scoped to the toast to avoid matching any task row named "…Undo…".
+    await page.getByTestId('toast').getByRole('button', { name: 'Undo' }).tap()
     await expect(row.getByTestId('scheduled-chip')).toHaveText('Today')
   })
 })

@@ -107,8 +107,8 @@ test.describe('Tasks — Today view', () => {
     // Toast should appear
     await expect(page.getByText('Task completed')).toBeVisible()
 
-    // The Undo button is in the toast
-    await page.getByRole('button', { name: 'Undo' }).click()
+    // Scope to toast to avoid matching any task row named "…Undo…".
+    await page.getByTestId('toast').getByRole('button', { name: 'Undo' }).click()
 
     // Task should re-appear in Today after undo
     await expect(page.getByTestId('task-row').filter({ hasText: taskName })).toBeVisible()
@@ -200,7 +200,8 @@ test.describe('Tasks — Recurring tasks', () => {
 
     // Toast should offer Undo.
     await expect(page.getByText(/Rescheduled/)).toBeVisible()
-    await page.getByRole('button', { name: 'Undo' }).click()
+    // Scope to toast to avoid matching any task row named "…Undo…".
+    await page.getByTestId('toast').getByRole('button', { name: 'Undo' }).click()
 
     // After undo, the task should be back in Today (scheduled for today).
     await expect(row).toBeVisible()

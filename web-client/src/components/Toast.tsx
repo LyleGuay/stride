@@ -19,7 +19,7 @@ export function Toast({ message, action, duration = 4000, onClose }: ToastProps)
   }, [duration, onClose])
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-lg bg-gray-900 px-4 py-3 text-sm text-white shadow-lg">
+    <div data-testid="toast" className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 rounded-lg bg-gray-900 px-4 py-3 text-sm text-white shadow-lg">
       <span>{message}</span>
       {action && (
         <button
