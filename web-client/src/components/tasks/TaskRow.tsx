@@ -118,7 +118,7 @@ function recurrenceLabel(rule: object | null): string {
 
 /* ─── Status popover config ──────────────────────────────────────────── */
 
-// Options shown in the status popover (long-press / hover on the circle).
+// Options shown in the status popover (long-press on the circle).
 const STATUS_OPTIONS = [
   { value: 'todo',        label: 'Todo',        symbol: '○' },
   { value: 'in_progress', label: 'In Progress', symbol: '◑' },
@@ -132,23 +132,28 @@ interface CircleProps {
   status: Task['status']
   priority: Task['priority']
   onClick: () => void
-  onHoverStart: () => void   // mouse enter — starts 400ms timer
-  onHoverEnd: () => void     // mouse leave — cancels timer / closes
-  onTouchStart: () => void   // touch pointerdown — starts 500ms long-press timer
-  onTouchEnd: () => void     // touch pointerup / leave — cancels long-press timer
+  onPressStart: () => void   // pointerdown — starts 500ms long-press timer
+  onPressEnd: () => void     // pointerup/cancel — cancels long-press timer
 }
 
-function StatusCircle({ status, priority, onClick, onHoverStart, onHoverEnd, onTouchStart, onTouchEnd }: CircleProps) {
+function StatusCircle({ status, priority, onClick, onPressStart, onPressEnd }: CircleProps) {
   const priorityHex = PRIORITY[priority]?.hex ?? '#6366f1'
 
   const baseClass = 'shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center transition-colors'
 
+  // Pointer capture keeps pointerup/pointercancel routing to this element even
+  // if the pointer drifts slightly during the hold, so the long-press timer
+  // fires reliably on both mouse (desktop) and touch (mobile).
   const interactionProps = {
-    onMouseEnter: onHoverStart,
-    onMouseLeave: onHoverEnd,
-    onPointerDown: (e: React.PointerEvent) => { if (e.pointerType === 'touch') onTouchStart() },
-    onPointerUp: onTouchEnd,
-    onPointerLeave: onTouchEnd,
+    onPointerDown: (e: React.PointerEvent<HTMLButtonElement>) => {
+      e.currentTarget.setPointerCapture(e.pointerId)
+      onPressStart()
+    },
+    onPointerUp: (e: React.PointerEvent<HTMLButtonElement>) => {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+      onPressEnd()
+    },
+    onPointerCancel: onPressEnd,
   }
 
   if (status === 'completed') {
@@ -228,24 +233,11 @@ export default function TaskRow({ task, today, onStatusChange, onEdit, onDelete,
   const [menuOpen, setMenuOpen] = useState(false)
   const [popoverOpen, setPopoverOpen] = useState(false)
 
-  // Desktop: show popover after 400ms hover. Mobile: show after 500ms long-press.
-  const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  // Long-press (mobile only): 500ms hold on the status circle opens the popover.
   const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  // Prevents the single-tap onClick from firing when a long-press was detected.
+  // Prevents the single-tap onClick from firing after a long-press completes.
   const longPressActive = useRef(false)
 
-  const openPopover = () => {
-    hoverTimer.current = setTimeout(() => setPopoverOpen(true), 400)
-  }
-  const closePopover = () => {
-    if (hoverTimer.current) clearTimeout(hoverTimer.current)
-    if (longPressTimer.current) clearTimeout(longPressTimer.current)
-    // Don't close on mouse-leave if the popover was opened via long-press —
-    // touch devices fire a synthetic mouseleave when the finger lifts, which
-    // would immediately dismiss the popover before the user can select an option.
-    if (!longPressActive.current) setPopoverOpen(false)
-  }
-  // Long-press (mobile): separate timer with 500ms delay.
   const startLongPress = () => {
     longPressTimer.current = setTimeout(() => {
       longPressActive.current = true
@@ -303,10 +295,8 @@ export default function TaskRow({ task, today, onStatusChange, onEdit, onDelete,
             status={task.status}
             priority={task.priority}
             onClick={handleCircleClick}
-            onHoverStart={openPopover}
-            onHoverEnd={closePopover}
-            onTouchStart={startLongPress}
-            onTouchEnd={cancelLongPress}
+            onPressStart={startLongPress}
+            onPressEnd={cancelLongPress}
           />
           {popoverOpen && (
             <>

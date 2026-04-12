@@ -210,6 +210,35 @@ test.describe('Tasks — Recurring tasks', () => {
     await expect(page.getByText(/Rescheduled/)).not.toBeVisible()
   })
 
+  test('complete daily recurring task → response has next_scheduled_date → task in Upcoming', async ({ page }) => {
+    const taskName = `E2E Recurring Upcoming ${Date.now()}`
+    await createDailyRecurringTask(page, taskName)
+
+    const row = page.getByTestId('task-row').filter({ hasText: taskName })
+    await expect(row).toBeVisible()
+
+    // Complete the task — the API response must include next_scheduled_date (not null)
+    // to confirm the backend treated this as a recurring task rather than permanently completing it.
+    const [completeResponse] = await Promise.all([
+      page.waitForResponse(r => r.url().includes('/complete') && r.request().method() === 'PATCH'),
+      row.getByRole('button', { name: 'Mark complete' }).click(),
+    ])
+    expect(completeResponse.status()).toBe(200)
+
+    const body = await completeResponse.json()
+    // If next_scheduled_date is null/missing, the backend treated it as non-recurring.
+    expect(body.next_scheduled_date).toBeTruthy()
+
+    // Rescheduled toast — not "Task completed".
+    await expect(page.getByText(/Rescheduled/)).toBeVisible()
+    await expect(page.getByText('Task completed')).not.toBeVisible()
+
+    // Task should now appear in Upcoming (scheduled for tomorrow, status still active).
+    await page.getByRole('button', { name: 'Upcoming' }).first().click()
+    await expect(page.getByText('Loading…')).not.toBeVisible({ timeout: 5000 })
+    await expect(page.getByTestId('task-row').filter({ hasText: taskName })).toBeVisible()
+  })
+
   test('Complete forever via ··· menu → task leaves active list', async ({ page }) => {
     const taskName = `E2E Forever ${Date.now()}`
     await createDailyRecurringTask(page, taskName)

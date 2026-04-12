@@ -16,11 +16,11 @@
 
 import {
   useState, useEffect, useLayoutEffect, useRef, useCallback,
-  type FormEvent, type KeyboardEvent, type MouseEvent,
+  type FormEvent, type KeyboardEvent,
 } from 'react'
 import { createPortal } from 'react-dom'
 import ReactMarkdown from 'react-markdown'
-import { createTask, updateTask } from '../../api'
+import { createTask, updateTask, completeTask, undoCompletion } from '../../api'
 import type { Task, CreateTaskInput, UpdateTaskInput } from '../../types'
 
 /* ─── Calendar helpers ───────────────────────────────────────────────── */
@@ -104,10 +104,16 @@ function Popup({ anchorRef, open, onClose, children, align = 'left' }: PopupProp
     if (!anchorRef.current) return
     const r = anchorRef.current.getBoundingClientRect()
     const panelW = panelRef.current?.offsetWidth ?? 300
+    const panelH = panelRef.current?.offsetHeight ?? 400
     const left = align === 'right' ? r.right - panelW : r.left
+    // Flip above the anchor if the popup would overflow the bottom of the viewport.
+    const spaceBelow = window.innerHeight - r.bottom - 6
+    const top = spaceBelow >= panelH
+      ? r.bottom + 6
+      : Math.max(8, r.top - panelH - 6)
     setStyle({
       position: 'fixed',
-      top: r.bottom + 6,
+      top,
       left: Math.max(8, Math.min(left, window.innerWidth - panelW - 8)),
       zIndex: 9999,
       visibility: 'visible',
@@ -552,7 +558,7 @@ export default function TaskSheet({ task, open, onClose, onSave, today, initialF
   const priorityBtnRef   = useRef<HTMLButtonElement>(null)
   const statusBtnRef     = useRef<HTMLButtonElement>(null)
 
-  // Long-press timer for status circle
+  // Long-press timer ref for status circle
   const statusLongPressRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // ── Reset form on open ────────────────────────────────────────────────
@@ -641,26 +647,38 @@ export default function TaskSheet({ task, open, onClose, onSave, today, initialF
   }, [name, description, scheduledDate, scheduledTime, deadline, recurrenceRule, priority, status, tags]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // ── Status circle interactions ────────────────────────────────────────
+  // Uses pointer capture so the 500 ms timer fires even if the mouse drifts
+  // slightly off the small button before the hold completes.
 
-  const handleStatusMouseDown = (e: MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault()
+  const handleStatusPointerDown = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.currentTarget.setPointerCapture(e.pointerId)
     statusLongPressRef.current = setTimeout(() => {
       statusLongPressRef.current = null
       setActivePopup(p => p === 'status' ? null : 'status')
     }, 500)
   }
 
-  const handleStatusMouseUp = () => {
-    if (statusLongPressRef.current) {
+  const handleStatusPointerUp = (e: React.PointerEvent<HTMLButtonElement>) => {
+    e.currentTarget.releasePointerCapture(e.pointerId)
+    if (statusLongPressRef.current !== null) {
       clearTimeout(statusLongPressRef.current)
       statusLongPressRef.current = null
-      // Quick click: toggle todo ↔ completed
-      setStatus(prev => prev === 'completed' ? 'todo' : 'completed')
+      if (status !== 'completed' && recurrenceRule && task?.id) {
+        // Recurring task: must go through /complete so scheduled_date advances.
+        // Close the sheet after — the task leaves Today view on completion.
+        completeTask(task.id).then(res => { onSave(res.task); onClose() }).catch(() => {})
+      } else if (status === 'completed' && task?.id) {
+        // Undo completion.
+        undoCompletion(task.id).then(res => { onSave(res); setStatus('todo') }).catch(() => {})
+      } else {
+        // Non-recurring: toggle via local state, auto-save handles the PATCH.
+        setStatus(prev => prev === 'completed' ? 'todo' : 'completed')
+      }
     }
   }
 
-  const handleStatusMouseLeave = () => {
-    if (statusLongPressRef.current) {
+  const handleStatusPointerCancel = () => {
+    if (statusLongPressRef.current !== null) {
       clearTimeout(statusLongPressRef.current)
       statusLongPressRef.current = null
     }
@@ -819,11 +837,9 @@ export default function TaskSheet({ task, open, onClose, onSave, today, initialF
                     <button
                       ref={statusBtnRef}
                       type="button"
-                      onMouseDown={handleStatusMouseDown}
-                      onMouseUp={handleStatusMouseUp}
-                      onMouseLeave={handleStatusMouseLeave}
-                      onTouchStart={() => handleStatusMouseDown({ preventDefault: () => {} } as MouseEvent<HTMLButtonElement>)}
-                      onTouchEnd={handleStatusMouseUp}
+                      onPointerDown={handleStatusPointerDown}
+                      onPointerUp={handleStatusPointerUp}
+                      onPointerCancel={handleStatusPointerCancel}
                       className="flex items-center justify-center"
                       aria-label="Set status"
                     >
