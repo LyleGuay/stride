@@ -50,20 +50,22 @@ type user struct {
 // calorieLogItem maps to calorie_log_items. Nullable numeric fields use pointers
 // so pgx can scan NULLs and JSON omits them naturally.
 type calorieLogItem struct {
-	ID        int        `json:"id" db:"id"`
-	UserID    int        `json:"user_id" db:"user_id"`
-	Date      DateOnly   `json:"date" db:"date"`
-	ItemName  string     `json:"item_name" db:"item_name"`
-	Type      string     `json:"type" db:"type"`
-	Qty       *float64   `json:"qty" db:"qty"`
-	Uom       *string    `json:"uom" db:"uom"`
-	Calories  int        `json:"calories" db:"calories"`
-	ProteinG  *float64   `json:"protein_g" db:"protein_g"`
-	CarbsG    *float64   `json:"carbs_g" db:"carbs_g"`
-	FatG      *float64   `json:"fat_g" db:"fat_g"`
-	RecipeID  *int       `json:"recipe_id" db:"recipe_id"`
-	CreatedAt *time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt *time.Time `json:"updated_at" db:"updated_at"`
+	ID               int        `json:"id"                  db:"id"`
+	UserID           int        `json:"user_id"             db:"user_id"`
+	Date             DateOnly   `json:"date"                db:"date"`
+	ItemName         string     `json:"item_name"           db:"item_name"`
+	Type             string     `json:"type"                db:"type"`
+	Qty              *float64   `json:"qty"                 db:"qty"`
+	Uom              *string    `json:"uom"                 db:"uom"`
+	Calories         int        `json:"calories"            db:"calories"`
+	ProteinG         *float64   `json:"protein_g"           db:"protein_g"`
+	CarbsG           *float64   `json:"carbs_g"             db:"carbs_g"`
+	FatG             *float64   `json:"fat_g"               db:"fat_g"`
+	RecipeID         *int       `json:"recipe_id"           db:"recipe_id"`
+	// Set when this item was logged from a meal plan entry; null for manually-added items.
+	MealPlanEntryID  *int       `json:"meal_plan_entry_id"  db:"meal_plan_entry_id"`
+	CreatedAt        *time.Time `json:"created_at"          db:"created_at"`
+	UpdatedAt        *time.Time `json:"updated_at"          db:"updated_at"`
 }
 
 // calorieLogUserSettings maps to calorie_log_user_settings. One row per user
@@ -453,16 +455,17 @@ type createFavoriteRequest struct {
 
 // createCalorieLogItemRequest is the request body for POST /api/calorie-log/items.
 type createCalorieLogItemRequest struct {
-	Date     string   `json:"date"`
-	ItemName string   `json:"item_name"`
-	Type     string   `json:"type"`
-	Qty      *float64 `json:"qty"`
-	Uom      *string  `json:"uom"`
-	Calories int      `json:"calories"`
-	ProteinG *float64 `json:"protein_g"`
-	CarbsG   *float64 `json:"carbs_g"`
-	FatG     *float64 `json:"fat_g"`
-	RecipeID *int     `json:"recipe_id"`
+	Date            string   `json:"date"`
+	ItemName        string   `json:"item_name"`
+	Type            string   `json:"type"`
+	Qty             *float64 `json:"qty"`
+	Uom             *string  `json:"uom"`
+	Calories        int      `json:"calories"`
+	ProteinG        *float64 `json:"protein_g"`
+	CarbsG          *float64 `json:"carbs_g"`
+	FatG            *float64 `json:"fat_g"`
+	RecipeID        *int     `json:"recipe_id"`
+	MealPlanEntryID *int     `json:"meal_plan_entry_id"`
 }
 
 // patchUserSettingsRequest is the request body for PATCH /api/calorie-log/user-settings.
@@ -570,4 +573,87 @@ type updateTaskRequest struct {
 	Status         *string          `json:"status"`
 	RecurrenceRule *json.RawMessage `json:"recurrence_rule"` // null clears recurrence
 	Tags           *[]string        `json:"tags"`
+}
+
+/* ─── Meal Plan structs ──────────────────────────────────────────────── */
+
+// mealPlanEntry maps to the meal_plan_entries table. Only the fields relevant to
+// entry_type are populated; the rest are null (food fields for takeout/recipe, etc.).
+type mealPlanEntry struct {
+	ID           int        `json:"id"            db:"id"`
+	UserID       int        `json:"user_id"       db:"user_id"`
+	Date         DateOnly   `json:"date"          db:"date"`
+	MealType     string     `json:"meal_type"     db:"meal_type"`     // meal_plan_meal_type enum
+	EntryType    string     `json:"entry_type"    db:"entry_type"`    // meal_plan_entry_type enum
+	SortOrder    int        `json:"sort_order"    db:"sort_order"`
+	// food type fields (also populated for recipe entries after calorie/macro snapshot)
+	ItemName     *string    `json:"item_name"     db:"item_name"`
+	Qty          *float64   `json:"qty"           db:"qty"`
+	Uom          *string    `json:"uom"           db:"uom"`
+	Calories     *int       `json:"calories"      db:"calories"`
+	ProteinG     *float64   `json:"protein_g"     db:"protein_g"`
+	CarbsG       *float64   `json:"carbs_g"       db:"carbs_g"`
+	FatG         *float64   `json:"fat_g"         db:"fat_g"`
+	// recipe type fields
+	RecipeID     *int       `json:"recipe_id"     db:"recipe_id"`
+	Servings     *float64   `json:"servings"      db:"servings"`
+	// takeout type fields
+	TakeoutName  *string    `json:"takeout_name"  db:"takeout_name"`
+	CalorieLimit *int       `json:"calorie_limit" db:"calorie_limit"`
+	NoSnacks     bool       `json:"no_snacks"     db:"no_snacks"`
+	NoSides      bool       `json:"no_sides"      db:"no_sides"`
+	CreatedAt    *time.Time `json:"created_at"    db:"created_at"`
+	UpdatedAt    *time.Time `json:"updated_at"    db:"updated_at"`
+}
+
+// createMealPlanEntryRequest is the request body for POST /api/meal-plan/entries.
+type createMealPlanEntryRequest struct {
+	Date         string   `json:"date"`
+	MealType     string   `json:"meal_type"     binding:"required"`
+	EntryType    string   `json:"entry_type"    binding:"required"`
+	SortOrder    *int     `json:"sort_order"`
+	ItemName     *string  `json:"item_name"`
+	Qty          *float64 `json:"qty"`
+	Uom          *string  `json:"uom"`
+	Calories     *int     `json:"calories"`
+	ProteinG     *float64 `json:"protein_g"`
+	CarbsG       *float64 `json:"carbs_g"`
+	FatG         *float64 `json:"fat_g"`
+	RecipeID     *int     `json:"recipe_id"`
+	Servings     *float64 `json:"servings"`
+	TakeoutName  *string  `json:"takeout_name"`
+	CalorieLimit *int     `json:"calorie_limit"`
+	NoSnacks     bool     `json:"no_snacks"`
+	NoSides      bool     `json:"no_sides"`
+}
+
+// updateMealPlanEntryRequest is the request body for PUT /api/meal-plan/entries/:id.
+// All fields are pointers — only non-nil values are written to the DB.
+// Pointer booleans allow distinguishing "not provided" (nil → keep existing) from
+// explicit false (update to false).
+type updateMealPlanEntryRequest struct {
+	MealType     *string  `json:"meal_type"`
+	EntryType    *string  `json:"entry_type"`
+	SortOrder    *int     `json:"sort_order"`
+	ItemName     *string  `json:"item_name"`
+	Qty          *float64 `json:"qty"`
+	Uom          *string  `json:"uom"`
+	Calories     *int     `json:"calories"`
+	ProteinG     *float64 `json:"protein_g"`
+	CarbsG       *float64 `json:"carbs_g"`
+	FatG         *float64 `json:"fat_g"`
+	RecipeID     *int     `json:"recipe_id"`
+	Servings     *float64 `json:"servings"`
+	TakeoutName  *string  `json:"takeout_name"`
+	CalorieLimit *int     `json:"calorie_limit"`
+	NoSnacks     *bool    `json:"no_snacks"`
+	NoSides      *bool    `json:"no_sides"`
+}
+
+// copyWeekInput is the request body for POST /api/meal-plan/copy-week.
+type copyWeekInput struct {
+	SourceWeek string   `json:"source_week" binding:"required"`
+	TargetWeek string   `json:"target_week" binding:"required"`
+	Days       []int    `json:"days"`       // 0=Mon … 6=Sun; empty = all days
+	MealTypes  []string `json:"meal_types"` // empty = all meal types
 }

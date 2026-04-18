@@ -10,6 +10,11 @@ export const FOOD_UNITS = ['each', 'g', 'serving'] as const
 // EXERCISE_UNITS is the set of UOM values shown for exercise entries.
 export const EXERCISE_UNITS = ['each', 'minutes', 'miles', 'km', 'reps'] as const
 
+// MEAL_PLAN_MEAL_TYPES is the ordered list of meal types shown in the meal planning grid.
+// Exercise is excluded — meal planning only covers food meal slots.
+export const MEAL_PLAN_MEAL_TYPES = ['breakfast', 'lunch', 'dinner', 'snack'] as const
+export type MealPlanMealType = typeof MEAL_PLAN_MEAL_TYPES[number]
+
 // UNIT_LABELS maps DB UOM values (lowercase) to human-readable display strings.
 export const UNIT_LABELS: Record<string, string> = {
   each: 'Each',

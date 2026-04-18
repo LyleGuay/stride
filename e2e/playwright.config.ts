@@ -27,8 +27,11 @@ export default defineConfig({
     ...(DOCKER && { serviceWorkers: 'block' as const }),
   },
   projects: [
-    // Solo app — chromium only for now
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
+    // Mobile Chrome — Pixel 7 viewport, catches responsive breakpoint issues.
+    // Only run specs that explicitly opt in with the *-mobile.spec.ts suffix so
+    // desktop-only flows don't run on a phone viewport and fail.
+    { name: 'Mobile Chrome', use: { ...devices['Pixel 7'] }, testMatch: ['**/*-mobile.spec.ts'] },
   ],
   // In Docker mode the container is already running, so no webServer config is
   // needed. In dev mode, spin up the two dev servers.

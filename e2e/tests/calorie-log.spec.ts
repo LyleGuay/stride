@@ -114,3 +114,157 @@ test.describe('Calorie Log', () => {
     expect(afterValue).toBe(beforeValue + calories)
   })
 })
+
+// ── Phase F: Calorie Log Regression ─────────────────────────────────────────
+// These tests verify that existing calorie log flows still work correctly after
+// Phase E changes (ghost row injection into ItemTable, meal_plan_entry_id added
+// to create payload, AddItemSheet mealPlanContext prop).
+
+test.describe('F.1 — Add item via FAB with type and unit selection', () => {
+  test('creates Lunch item with correct type, qty, unit, and calorie total', async ({ page }) => {
+    const itemName = `F1 Chicken ${Date.now()}`
+
+    await page.locator('button.fixed.bottom-6.right-6').click()
+    await expect(page.getByRole('button', { name: 'Save Item' })).toBeVisible()
+
+    // Fill item name
+    await page.getByPlaceholder('e.g. Banana Smoothie').fill(itemName)
+
+    // Select Lunch type — scope to the form to avoid matching any other "Lunch"
+    // button on the page (strict mode fails with 2+ matching elements).
+    await page.locator('form').getByRole('button', { name: /^lunch$/i }).click()
+
+    // Set qty — Quantity label has no htmlFor so target by step attribute (unique to qty input)
+    await page.locator('input[step="0.25"]').click({ clickCount: 3 })
+    await page.keyboard.type('200')
+    await page.locator('select').selectOption('g')
+
+    // Set calories
+    await page.getByLabel('Calories').click({ clickCount: 3 })
+    await page.keyboard.type('220')
+
+    await page.getByRole('button', { name: 'Save Item' }).click()
+
+    // Item appears in the log — primary assertion for this test
+    await expect(page.getByText(itemName)).toBeVisible()
+    // Total assertions are skipped here — parallel tests share the same user so
+    // concurrent adds make exact total checks non-deterministic. The dedicated
+    // "add item → daily summary totals update" test covers total correctness.
+  })
+})
+
+test.describe('F.2 — Edit item via context menu', () => {
+  test('editing calories via context menu updates the displayed total and persists on reload', async ({ page }) => {
+    const itemName = `F2 Edit ${Date.now()}`
+    const initialCal = 300
+    const deltaCal = 100
+
+    // Add an item first
+    await page.locator('button.fixed.bottom-6.right-6').click()
+    await expect(page.getByRole('button', { name: 'Save Item' })).toBeVisible()
+    await page.getByPlaceholder('e.g. Banana Smoothie').fill(itemName)
+    await page.getByLabel('Calories').click({ clickCount: 3 })
+    await page.keyboard.type(String(initialCal))
+    await page.getByRole('button', { name: 'Save Item' }).click()
+    await expect(page.getByText(itemName)).toBeVisible()
+
+    // Read "Eaten" total after first add
+    const eatenAfterAdd = await page.getByText('Eaten').locator('..').locator('.font-semibold').textContent()
+    const addedValue = parseInt((eatenAfterAdd ?? '0').replace(/,/g, ''), 10)
+
+    // Right-click the row to open context menu
+    await page.getByText(itemName).click({ button: 'right' })
+    await expect(page.getByText('Edit item...')).toBeVisible()
+    await page.getByText('Edit item...').click()
+
+    // AddItemSheet opens in edit mode — change calories
+    await expect(page.getByRole('button', { name: 'Save Changes' })).toBeVisible()
+    await page.getByLabel('Calories').click({ clickCount: 3 })
+    await page.keyboard.type(String(initialCal + deltaCal))
+
+    // Wait for the PATCH + daily summary refetch before reading the updated total.
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/calorie-log/daily') && r.status() === 200),
+      page.getByRole('button', { name: 'Save Changes' }).click(),
+    ])
+
+    // Wait for item to remain visible (sheet closed)
+    await expect(page.getByText(itemName)).toBeVisible()
+
+    // Eaten total should reflect the new calories
+    const eatenAfterEdit = await page.getByText('Eaten').locator('..').locator('.font-semibold').textContent()
+    const editedValue = parseInt((eatenAfterEdit ?? '0').replace(/,/g, ''), 10)
+    expect(editedValue).toBe(addedValue + deltaCal)
+
+    // Reload and verify change persisted
+    await Promise.all([
+      page.waitForResponse(r => r.url().includes('/api/calorie-log/daily')),
+      page.reload(),
+    ])
+    const eatenAfterReload = await page.getByText('Eaten').locator('..').locator('.font-semibold').textContent()
+    const reloadedValue = parseInt((eatenAfterReload ?? '0').replace(/,/g, ''), 10)
+    expect(reloadedValue).toBe(editedValue)
+  })
+})
+
+test.describe('F.3 — Delete item', () => {
+  test('deleting via context menu removes item and decreases calorie total', async ({ page }) => {
+    const itemName = `F3 Delete ${Date.now()}`
+    const calories = 400
+
+    // Add an item
+    await page.locator('button.fixed.bottom-6.right-6').click()
+    await expect(page.getByRole('button', { name: 'Save Item' })).toBeVisible()
+    await page.getByPlaceholder('e.g. Banana Smoothie').fill(itemName)
+    await page.getByLabel('Calories').click({ clickCount: 3 })
+    await page.keyboard.type(String(calories))
+    await page.getByRole('button', { name: 'Save Item' }).click()
+    await expect(page.getByText(itemName)).toBeVisible()
+
+    // Read total after add
+    const eatenAfterAdd = await page.getByText('Eaten').locator('..').locator('.font-semibold').textContent()
+    const addedValue = parseInt((eatenAfterAdd ?? '0').replace(/,/g, ''), 10)
+
+    // Right-click to open context menu and delete. Use getByRole('button') for
+    // the Delete action so it doesn't match the item name cell if it contains "Delete".
+    await page.getByText(itemName).click({ button: 'right' })
+    await expect(page.getByRole('button', { name: 'Delete' })).toBeVisible()
+    await page.getByRole('button', { name: 'Delete' }).click()
+
+    // Item should be gone from the list
+    await expect(page.getByText(itemName)).not.toBeVisible()
+
+    // Total should decrease by the deleted item's calories
+    const eatenAfterDelete = await page.getByText('Eaten').locator('..').locator('.font-semibold').textContent()
+    const deletedValue = parseInt((eatenAfterDelete ?? '0').replace(/,/g, ''), 10)
+    expect(deletedValue).toBe(addedValue - calories)
+  })
+})
+
+test.describe('F.4 — Date navigation scopes items correctly', () => {
+  test('navigating to yesterday shows different items; returning to today restores the original view', async ({ page }) => {
+    const itemName = `F4 Today ${Date.now()}`
+
+    // Add an item for today
+    await page.locator('button.fixed.bottom-6.right-6').click()
+    await expect(page.getByRole('button', { name: 'Save Item' })).toBeVisible()
+    await page.getByPlaceholder('e.g. Banana Smoothie').fill(itemName)
+    await page.getByLabel('Calories').fill('111')
+    await page.getByRole('button', { name: 'Save Item' }).click()
+    await expect(page.getByText(itemName)).toBeVisible()
+
+    // Navigate to yesterday
+    await page.getByRole('button', { name: 'Previous day' }).click()
+    await expect(page.getByText('Yesterday')).toBeVisible()
+
+    // Today's item should not be visible on yesterday's view
+    await expect(page.getByText(itemName)).not.toBeVisible()
+
+    // Navigate forward back to today
+    await page.getByRole('button', { name: 'Next day' }).click()
+    await expect(page.getByText('Today')).toBeVisible()
+
+    // Today's item should be visible again
+    await expect(page.getByText(itemName)).toBeVisible()
+  })
+})

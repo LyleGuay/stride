@@ -16,6 +16,8 @@ export interface CalorieLogItem {
   fat_g: number | null
   // Set when this item was logged from a recipe; null for manually-added items.
   recipe_id: number | null
+  // Set when this item was logged from a meal plan entry; null for manually-added items.
+  meal_plan_entry_id: number | null
   created_at: string
   updated_at: string
 }
@@ -488,4 +490,67 @@ export interface UpdateTaskInput {
   status?: 'todo' | 'in_progress' | 'completed' | 'canceled'
   recurrence_rule?: object | null
   tags?: string[]
+}
+
+/* ─── Meal Plan types ────────────────────────────────────────────────── */
+
+// MealPlanEntry mirrors the meal_plan_entries DB row.
+// Only the fields relevant to entry_type are populated; the rest are null.
+export interface MealPlanEntry {
+  id: number
+  user_id: number
+  date: string                          // YYYY-MM-DD
+  meal_type: 'breakfast' | 'lunch' | 'dinner' | 'snack'
+  entry_type: 'food' | 'takeout' | 'recipe'
+  sort_order: number
+  // food fields
+  item_name: string | null
+  qty: number | null
+  uom: string | null
+  calories: number | null
+  protein_g: number | null
+  carbs_g: number | null
+  fat_g: number | null
+  // recipe fields
+  recipe_id: number | null
+  servings: number | null
+  // takeout fields
+  takeout_name: string | null
+  calorie_limit: number | null
+  no_snacks: boolean
+  no_sides: boolean
+  created_at: string
+  updated_at: string
+}
+
+// CreateMealPlanEntryInput is the body for POST /api/meal-plan/entries.
+export interface CreateMealPlanEntryInput {
+  date: string
+  meal_type: 'breakfast' | 'lunch' | 'dinner' | 'snack'
+  entry_type: 'food' | 'takeout' | 'recipe'
+  sort_order?: number
+  item_name?: string | null
+  qty?: number | null
+  uom?: string | null
+  calories?: number | null
+  protein_g?: number | null
+  carbs_g?: number | null
+  fat_g?: number | null
+  recipe_id?: number | null
+  servings?: number | null
+  takeout_name?: string | null
+  calorie_limit?: number | null
+  no_snacks?: boolean
+  no_sides?: boolean
+}
+
+// UpdateMealPlanEntryInput is the body for PUT /api/meal-plan/entries/:id.
+export type UpdateMealPlanEntryInput = Partial<CreateMealPlanEntryInput>
+
+// CopyWeekInput is the body for POST /api/meal-plan/copy-week.
+export interface CopyWeekInput {
+  source_week: string   // YYYY-MM-DD (Monday)
+  target_week: string   // YYYY-MM-DD (Monday)
+  days: number[]        // 0=Mon … 6=Sun
+  meal_types: ('breakfast' | 'lunch' | 'dinner' | 'snack')[]
 }

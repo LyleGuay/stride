@@ -29,6 +29,7 @@ interface Props {
     protein_g: number | null
     carbs_g: number | null
     fat_g: number | null
+    meal_plan_entry_id?: number | null
   }) => void
   // Pre-fill fields from an existing item (edit mode).
   editItem?: CalorieLogItem | null
@@ -36,9 +37,18 @@ interface Props {
   defaultType?: string
   favorites: CalorieLogFavorite[]
   onManageFavorites: () => void
+  // When logging a takeout meal plan entry: pre-fills the name, shows an amber
+  // banner with plan context, and attaches meal_plan_entry_id to the saved item.
+  mealPlanContext?: {
+    entryId: number
+    takeoutName: string
+    calorieLimit: number | null
+    noSnacks: boolean
+    noSides: boolean
+  }
 }
 
-export default function AddItemSheet({ open, onClose, onSave, editItem, defaultType, favorites, onManageFavorites }: Props) {
+export default function AddItemSheet({ open, onClose, onSave, editItem, defaultType, favorites, onManageFavorites, mealPlanContext }: Props) {
   const [name, setName] = useState('')
   const [type, setType] = useState<string>('snack')
   const [qty, setQty] = useState('1')
@@ -78,7 +88,8 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
       setCarbs(editItem.carbs_g?.toString() ?? '')
       setFat(editItem.fat_g?.toString() ?? '')
     } else {
-      setName('')
+      // Pre-fill name from meal plan takeout context if provided.
+      setName(mealPlanContext ? mealPlanContext.takeoutName : '')
       setType(defaultType || 'snack')
       setQty('1')
       setUom('each')
@@ -87,7 +98,7 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
       setCarbs('')
       setFat('')
     }
-  }, [open, editItem, defaultType])
+  }, [open, editItem, defaultType, mealPlanContext])
 
   // Fill all form fields from a selected favorite (scaled to the chosen qty).
   // Marks all fields dirty so the AI suggestion strip won't overwrite them.
@@ -135,6 +146,9 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
       protein_g: protein ? parseFloat(protein) : null,
       carbs_g: carbs ? parseFloat(carbs) : null,
       fat_g: fat ? parseFloat(fat) : null,
+      // Include meal_plan_entry_id when logging a takeout plan entry so the
+      // ghost row disappears after the item is saved.
+      meal_plan_entry_id: mealPlanContext?.entryId ?? null,
     })
   }
 
@@ -179,6 +193,27 @@ export default function AddItemSheet({ open, onClose, onSave, editItem, defaultT
                 </svg>
               </button>
             </div>
+
+          {/* Meal plan takeout banner — shown when logging a takeout entry from the plan */}
+          {mealPlanContext && (
+            <div className="mb-4 flex flex-col gap-1 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-800">
+              <div className="flex items-center gap-2 font-medium">
+                <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+                </svg>
+                Planned takeout: {mealPlanContext.takeoutName}
+              </div>
+              {mealPlanContext.calorieLimit != null && (
+                <p className="text-xs text-amber-700">Target: ≤ {mealPlanContext.calorieLimit} cal</p>
+              )}
+              {mealPlanContext.noSnacks && (
+                <p className="text-xs text-amber-700">Plan: no snacks</p>
+              )}
+              {mealPlanContext.noSides && (
+                <p className="text-xs text-amber-700">Plan: no sides</p>
+              )}
+            </div>
+          )}
 
           {/* Item name */}
           <div className="mb-2">

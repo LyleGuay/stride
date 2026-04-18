@@ -132,6 +132,12 @@ func (h *Handler) registerRoutes(router *gin.Engine) {
 	api.PATCH("/tasks/:id/complete", h.completeTask)
 	api.PATCH("/tasks/:id/complete-forever", h.completeTaskForever)
 	api.DELETE("/tasks/:id/completions/latest", h.undoCompletion)
+	// Meal plan routes
+	api.GET("/meal-plan/entries", h.getMealPlanEntries)
+	api.POST("/meal-plan/entries", h.createMealPlanEntry)
+	api.PUT("/meal-plan/entries/:id", h.updateMealPlanEntry)
+	api.DELETE("/meal-plan/entries/:id", h.deleteMealPlanEntry)
+	api.POST("/meal-plan/copy-week", h.copyMealPlanWeek)
 	// Habit routes — /week must be registered before /:id to avoid param capture
 	api.GET("/habits/week", h.listHabitsWeek)
 	api.GET("/habits", h.listHabits)

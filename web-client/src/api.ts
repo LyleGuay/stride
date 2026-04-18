@@ -1,10 +1,10 @@
 // API service layer — all backend calls go through request() which handles
 // auth headers, 401 redirects, and consistent error extraction.
 
-import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, JournalSummaryRange, JournalCalendarDay, JournalTagDay, CreateJournalEntryInput, UpdateJournalEntryInput, Task, TaskListResponse, CreateTaskInput, UpdateTaskInput, CompleteTaskResponse } from './types'
+import type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, JournalSummaryRange, JournalCalendarDay, JournalTagDay, CreateJournalEntryInput, UpdateJournalEntryInput, Task, TaskListResponse, CreateTaskInput, UpdateTaskInput, CompleteTaskResponse, MealPlanEntry, CreateMealPlanEntryInput, UpdateMealPlanEntryInput, CopyWeekInput } from './types'
 
 // Re-export types so existing imports from api.ts keep working.
-export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, JournalSummaryRange, JournalCalendarDay, JournalTagDay, CreateJournalEntryInput, UpdateJournalEntryInput, Task, TaskListResponse, CreateTaskInput, UpdateTaskInput, CompleteTaskResponse }
+export type { AISuggestion, CalorieLogItem, CalorieLogUserSettings, DailySummary, WeekDaySummary, WeekSummaryResponse, WeightEntry, ProgressStats, ProgressResponse, CalorieLogFavorite, RecipeListItem, RecipeDetail, CreateRecipeInput, UpdateRecipeInput, Habit, HabitLog, HabitWithLog, HabitWeekEntry, CreateHabitInput, UpdateHabitInput, JournalEntry, JournalSummaryResponse, JournalSummaryRange, JournalCalendarDay, JournalTagDay, CreateJournalEntryInput, UpdateJournalEntryInput, Task, TaskListResponse, CreateTaskInput, UpdateTaskInput, CompleteTaskResponse, MealPlanEntry, CreateMealPlanEntryInput, UpdateMealPlanEntryInput, CopyWeekInput }
 
 function getToken(): string | null {
   return localStorage.getItem('token')
@@ -56,7 +56,7 @@ export function fetchDailySummary(date: string) {
   return request<DailySummary>(`/api/calorie-log/daily?date=${date}`)
 }
 
-export function createCalorieLogItem(item: Omit<CalorieLogItem, 'id' | 'user_id' | 'recipe_id' | 'created_at' | 'updated_at'>) {
+export function createCalorieLogItem(item: Omit<CalorieLogItem, 'id' | 'user_id' | 'recipe_id' | 'meal_plan_entry_id' | 'created_at' | 'updated_at'> & { meal_plan_entry_id?: number | null }) {
   return request<CalorieLogItem>('/api/calorie-log/items', {
     method: 'POST',
     body: JSON.stringify(item),
@@ -445,4 +445,42 @@ export function completeTaskForever(id: number): Promise<Task> {
 // back to todo for non-recurring tasks.
 export function undoCompletion(id: number): Promise<Task> {
   return request<Task>(`/api/tasks/${id}/completions/latest`, { method: 'DELETE' })
+}
+
+/* ─── Meal Plan API ───────────────────────────────────────────────── */
+
+// fetchMealPlanEntries returns entries for a single day (date) or a full Mon–Sun week (week_start).
+export function fetchMealPlanEntries(params: { date: string } | { week_start: string }): Promise<MealPlanEntry[]> {
+  const qs = 'date' in params ? `date=${params.date}` : `week_start=${params.week_start}`
+  return request<MealPlanEntry[]>(`/api/meal-plan/entries?${qs}`)
+}
+
+// createMealPlanEntry inserts a new meal plan entry and returns it.
+export function createMealPlanEntry(input: CreateMealPlanEntryInput): Promise<MealPlanEntry> {
+  return request<MealPlanEntry>('/api/meal-plan/entries', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
+}
+
+// updateMealPlanEntry patches the given fields on an entry and returns the updated record.
+export function updateMealPlanEntry(id: number, input: UpdateMealPlanEntryInput): Promise<MealPlanEntry> {
+  return request<MealPlanEntry>(`/api/meal-plan/entries/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}
+
+// deleteMealPlanEntry removes an entry by id.
+export function deleteMealPlanEntry(id: number): Promise<void> {
+  return request<void>(`/api/meal-plan/entries/${id}`, { method: 'DELETE' })
+}
+
+// copyMealPlanWeek copies entries from a source week into a target week, filtered by
+// the requested days and meal_types. Returns the newly inserted entries.
+export function copyMealPlanWeek(input: CopyWeekInput): Promise<MealPlanEntry[]> {
+  return request<MealPlanEntry[]>('/api/meal-plan/copy-week', {
+    method: 'POST',
+    body: JSON.stringify(input),
+  })
 }

@@ -15,9 +15,10 @@ import {
   upsertWeightEntry, updateWeightEntry, deleteWeightEntry,
   fetchFavorites, createFavorite, deleteFavorite,
   type WeekSummaryResponse, type CalorieLogItem, type ProgressResponse, type WeightEntry,
-  type CalorieLogFavorite,
+  type CalorieLogFavorite, type MealPlanEntry,
 } from '../api'
 import { useDailySummary } from '../hooks/useDailySummary'
+import { useMealPlanDay } from '../hooks/useMealPlanDay'
 import { useSidebar } from '../components/SidebarContext'
 import { todayString, getMondayOf, shiftWeek, formatWeekRange } from '../utils/dates'
 import { getRangeDates, RANGE_LABELS, type ProgressRange } from '../utils/progressGrouping'
@@ -26,6 +27,7 @@ import DateHeader from '../components/calorie-log/DateHeader'
 import DailySummary from '../components/calorie-log/DailySummary'
 import ItemTable from '../components/calorie-log/ItemTable'
 import AddItemSheet from '../components/calorie-log/AddItemSheet'
+import LogFromPlanSheet from '../components/meal-plan/LogFromPlanSheet'
 import FloatingActionButton from '../components/calorie-log/FloatingActionButton'
 import ContextMenu from '../components/calorie-log/ContextMenu'
 import WeeklySummary from '../components/calorie-log/WeeklySummary'
@@ -43,7 +45,32 @@ export default function CalorieLog() {
 
   const [date, setDate] = useState(todayString)
   const { summary, loading, reload: loadSummary } = useDailySummary(date)
+  const { entries: planEntries, reload: reloadPlanEntries } = useMealPlanDay(date)
   const [error, setError] = useState('')
+
+  // Ghost row logging state — tracks which plan entry and which flow to use.
+  // food/recipe entries open LogFromPlanSheet; takeout opens AddItemSheet.
+  const [logPlanEntry, setLogPlanEntry] = useState<MealPlanEntry | null>(null)
+  const [logPlanSheetOpen, setLogPlanSheetOpen] = useState(false)
+  const [takeoutPlanEntry, setTakeoutPlanEntry] = useState<MealPlanEntry | null>(null)
+
+  // IDs of plan entries that are already logged today — used to suppress ghost rows.
+  const loggedEntryIds = new Set(
+    summary?.items.map(i => i.meal_plan_entry_id).filter((id): id is number => id != null) ?? []
+  )
+
+  // Dispatch ghost-row Log button to the right flow based on entry_type.
+  const handleLogPlanEntry = (entry: MealPlanEntry) => {
+    if (entry.entry_type === 'takeout') {
+      setTakeoutPlanEntry(entry)
+      setSheetType(entry.meal_type)
+      setEditItem(null)
+      setSheetOpen(true)
+    } else {
+      setLogPlanEntry(entry)
+      setLogPlanSheetOpen(true)
+    }
+  }
 
   // Bottom sheet state
   const [sheetOpen, setSheetOpen] = useState(false)
@@ -170,6 +197,7 @@ export default function CalorieLog() {
   const handleSheetSave = async (item: {
     item_name: string; type: string; qty: number | null; uom: string | null;
     calories: number; protein_g: number | null; carbs_g: number | null; fat_g: number | null;
+    meal_plan_entry_id?: number | null;
   }) => {
     try {
       if (editItem) {
@@ -178,13 +206,15 @@ export default function CalorieLog() {
           ...item, type: item.type as CalorieLogItem['type'],
         })
       } else {
-        // Create mode — new item
+        // Create mode — new item (may carry meal_plan_entry_id from takeout plan logging)
         await createCalorieLogItem({
           ...item, date, type: item.type as CalorieLogItem['type'],
         })
       }
       setSheetOpen(false)
+      setTakeoutPlanEntry(null)
       loadSummary()
+      reloadPlanEntries()
     } catch {
       setError('Failed to save item')
     }
@@ -543,18 +573,37 @@ export default function CalorieLog() {
                 onOpenIngredients={item => setRecipeModal({ recipeId: item.recipe_id! })}
                 favorites={favorites}
                 onManageFavorites={() => setManageFavoritesOpen(true)}
+                planEntries={planEntries}
+                loggedEntryIds={loggedEntryIds}
+                onLogPlanEntry={handleLogPlanEntry}
               />
             </>
           )}
 
           <AddItemSheet
             open={sheetOpen}
-            onClose={() => setSheetOpen(false)}
+            onClose={() => { setSheetOpen(false); setTakeoutPlanEntry(null) }}
             onSave={handleSheetSave}
             editItem={editItem}
             defaultType={sheetType}
             favorites={favorites}
             onManageFavorites={() => setManageFavoritesOpen(true)}
+            mealPlanContext={takeoutPlanEntry ? {
+              entryId: takeoutPlanEntry.id,
+              takeoutName: takeoutPlanEntry.takeout_name ?? '',
+              calorieLimit: takeoutPlanEntry.calorie_limit,
+              noSnacks: takeoutPlanEntry.no_snacks,
+              noSides: takeoutPlanEntry.no_sides,
+            } : undefined}
+          />
+
+          {/* LogFromPlanSheet — qty-scaling modal for food/recipe plan entries */}
+          <LogFromPlanSheet
+            open={logPlanSheetOpen}
+            onClose={() => { setLogPlanSheetOpen(false); setLogPlanEntry(null) }}
+            entry={logPlanEntry}
+            date={date}
+            onSaved={() => { loadSummary(); reloadPlanEntries() }}
           />
 
           {/* FAB only shown on daily tab */}

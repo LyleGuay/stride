@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Stride — Meal Planning (Mobile)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            stride: {
+              50: '#eef2ff', 100: '#e0e7ff', 300: '#a5b4fc',
+              500: '#6366f1', 600: '#4f46e5', 700: '#4338ca',
+              800: '#3730a3', 900: '#312e81',
+            }
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    body { background: #f8f9fa; }
+    .meal-breakfast { border-left: 3px solid #fb923c; }
+    .meal-lunch     { border-left: 3px solid #facc15; }
+    .meal-dinner    { border-left: 3px solid #818cf8; }
+    .meal-snack     { border-left: 3px solid #4ade80; }
+    /* Smooth day tab transitions */
+    .day-tab { transition: all 0.15s ease; }
+    /* Sheet transition */
+    #sheet { transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+    #sheet.open { transform: translateY(0); }
+    #sheet.closed { transform: translateY(100%); }
+  </style>
+</head>
+<body class="font-sans text-gray-800 text-sm min-h-screen">
+
+<div class="max-w-sm mx-auto bg-gray-50 min-h-screen relative overflow-hidden pb-20">
+
+  <!-- ── Module header ── -->
+  <header class="bg-white border-b border-gray-200 h-14 flex items-center justify-between px-4 sticky top-0 z-20">
+    <button class="p-2 -ml-2 text-gray-500">
+      <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <span class="text-sm font-semibold text-gray-900">Meal Planning</span>
+    <!-- Week summary chip -->
+    <button onclick="toggleWeekSummary()" class="text-xs bg-stride-50 text-stride-700 rounded-full px-2.5 py-1 font-medium border border-stride-200">
+      14,380 kcal / wk
+    </button>
+  </header>
+
+  <!-- ── Week summary drawer (hidden by default) ── -->
+  <div id="week-summary" class="hidden bg-stride-50 border-b border-stride-100 px-4 py-3">
+    <div class="text-xs font-semibold text-stride-700 mb-2">Week of Apr 14 – Apr 20</div>
+    <div class="flex gap-4">
+      <div>
+        <div class="text-sm font-bold text-gray-900">14,380</div>
+        <div class="text-xs text-gray-400">kcal</div>
+      </div>
+      <div>
+        <div class="text-sm font-bold text-blue-600">908g</div>
+        <div class="text-xs text-gray-400">Protein</div>
+      </div>
+      <div>
+        <div class="text-sm font-bold text-amber-500">1,540g</div>
+        <div class="text-xs text-gray-400">Carbs</div>
+      </div>
+      <div>
+        <div class="text-sm font-bold text-pink-500">476g</div>
+        <div class="text-xs text-gray-400">Fat</div>
+      </div>
+    </div>
+    <div class="text-xs text-stride-500 mt-2">5 of 7 days planned</div>
+  </div>
+
+  <!-- ── Day tab strip ── -->
+  <div class="bg-white border-b border-gray-200 px-3 py-2 flex gap-1.5 overflow-x-auto">
+    <button onclick="selectDay(0)" id="day-0" class="day-tab flex-shrink-0 flex flex-col items-center px-2.5 py-1.5 rounded-lg bg-stride-600 text-white cursor-pointer">
+      <span class="text-xs font-bold">M</span>
+      <span class="text-xs opacity-70">14</span>
+    </button>
+    <button onclick="selectDay(1)" id="day-1" class="day-tab flex-shrink-0 flex flex-col items-center px-2.5 py-1.5 rounded-lg text-gray-500 cursor-pointer hover:bg-gray-50">
+      <span class="text-xs font-semibold">T</span>
+      <span class="text-xs text-gray-400">15</span>
+    </button>
+    <button onclick="selectDay(2)" id="day-2" class="day-tab flex-shrink-0 flex flex-col items-center px-2.5 py-1.5 rounded-lg text-gray-500 cursor-pointer hover:bg-gray-50 relative">
+      <span class="text-xs font-semibold">W</span>
+      <span class="text-xs text-gray-400">16</span>
+      <span class="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-stride-500 border-2 border-white"></span>
+    </button>
+    <button onclick="selectDay(3)" id="day-3" class="day-tab flex-shrink-0 flex flex-col items-center px-2.5 py-1.5 rounded-lg text-gray-500 cursor-pointer hover:bg-gray-50">
+      <span class="text-xs font-semibold">T</span>
+      <span class="text-xs text-gray-400">17</span>
+    </button>
+    <button onclick="selectDay(4)" id="day-4" class="day-tab flex-shrink-0 flex flex-col items-center px-2.5 py-1.5 rounded-lg text-gray-500 cursor-pointer hover:bg-gray-50">
+      <span class="text-xs font-semibold">F</span>
+      <span class="text-xs text-gray-400">18</span>
+    </button>
+    <button onclick="selectDay(5)" id="day-5" class="day-tab flex-shrink-0 flex flex-col items-center px-2.5 py-1.5 rounded-lg text-gray-500 cursor-pointer hover:bg-gray-50">
+      <span class="text-xs font-semibold">S</span>
+      <span class="text-xs text-gray-400">19</span>
+    </button>
+    <button onclick="selectDay(6)" id="day-6" class="day-tab flex-shrink-0 flex flex-col items-center px-2.5 py-1.5 rounded-lg text-gray-500 cursor-pointer hover:bg-gray-50">
+      <span class="text-xs font-semibold">S</span>
+      <span class="text-xs text-gray-400">20</span>
+    </button>
+  </div>
+
+  <!-- ── Day label + total ── -->
+  <div id="day-label" class="bg-white border-b border-gray-200 px-4 py-2.5 flex items-center justify-between">
+    <div>
+      <span class="text-sm font-semibold text-gray-900">Monday, Apr 14</span>
+    </div>
+    <div class="text-sm font-bold text-stride-700">2,040 kcal</div>
+  </div>
+
+  <!-- ── Day content ── -->
+  <div id="day-content" class="px-4 py-3 space-y-3">
+
+    <!-- Breakfast section -->
+    <section>
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-2 h-2 rounded-full bg-orange-400"></div>
+        <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Breakfast</span>
+        <span class="text-xs text-gray-400 ml-auto">380 kcal</span>
+      </div>
+      <div class="space-y-2">
+        <div class="meal-breakfast bg-white rounded-xl border border-gray-200 px-3 py-3 shadow-sm">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-medium text-gray-800">Greek Yogurt Parfait</div>
+              <div class="text-xs text-gray-400 mt-0.5">1 × bowl</div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm font-semibold text-gray-700">380</div>
+              <div class="text-xs text-gray-400">kcal</div>
+            </div>
+          </div>
+          <div class="mt-2 pt-2 border-t border-gray-100 flex gap-3 text-xs">
+            <span><span class="font-medium text-blue-500">24g</span> <span class="text-gray-400">P</span></span>
+            <span><span class="font-medium text-amber-500">48g</span> <span class="text-gray-400">C</span></span>
+            <span><span class="font-medium text-pink-400">8g</span> <span class="text-gray-400">F</span></span>
+          </div>
+        </div>
+        <button onclick="openAddSheet('Breakfast')" class="w-full flex items-center justify-center gap-1.5 text-xs text-gray-400 hover:text-stride-600 hover:bg-stride-50 border-2 border-dashed border-gray-200 hover:border-stride-300 rounded-xl py-3 cursor-pointer transition-colors font-medium">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Add to Breakfast
+        </button>
+      </div>
+    </section>
+
+    <!-- Lunch section -->
+    <section>
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-2 h-2 rounded-full bg-yellow-400"></div>
+        <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Lunch</span>
+        <span class="text-xs text-gray-400 ml-auto">520 kcal</span>
+      </div>
+      <div class="space-y-2">
+        <div class="meal-lunch bg-white rounded-xl border border-gray-200 px-3 py-3 shadow-sm">
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <div class="text-sm font-medium text-gray-800">Chicken Caesar Salad</div>
+              <div class="flex items-center gap-1.5 mt-1">
+                <span class="inline-flex items-center gap-1 text-xs bg-violet-100 text-violet-600 rounded-full px-2 py-0.5 font-medium">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13"/></svg>
+                  Recipe · 1.5×
+                </span>
+              </div>
+            </div>
+            <div class="text-right ml-2">
+              <div class="text-sm font-semibold text-gray-700">520</div>
+              <div class="text-xs text-gray-400">kcal</div>
+            </div>
+          </div>
+          <div class="mt-2 pt-2 border-t border-gray-100 flex gap-3 text-xs">
+            <span><span class="font-medium text-blue-500">42g</span> <span class="text-gray-400">P</span></span>
+            <span><span class="font-medium text-amber-500">38g</span> <span class="text-gray-400">C</span></span>
+            <span><span class="font-medium text-pink-400">18g</span> <span class="text-gray-400">F</span></span>
+          </div>
+        </div>
+        <button onclick="openAddSheet('Lunch')" class="w-full flex items-center justify-center gap-1.5 text-xs text-gray-400 hover:text-stride-600 hover:bg-stride-50 border-2 border-dashed border-gray-200 hover:border-stride-300 rounded-xl py-3 cursor-pointer transition-colors font-medium">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Add to Lunch
+        </button>
+      </div>
+    </section>
+
+    <!-- Dinner section -->
+    <section>
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-2 h-2 rounded-full bg-indigo-400"></div>
+        <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Dinner</span>
+        <span class="text-xs text-gray-400 ml-auto">780 kcal</span>
+      </div>
+      <div class="space-y-2">
+        <div class="meal-dinner bg-white rounded-xl border border-gray-200 px-3 py-3 shadow-sm">
+          <div class="flex items-start justify-between">
+            <div class="flex-1">
+              <div class="text-sm font-medium text-gray-800">Pasta Bolognese</div>
+              <div class="flex items-center gap-1.5 mt-1">
+                <span class="inline-flex items-center gap-1 text-xs bg-violet-100 text-violet-600 rounded-full px-2 py-0.5 font-medium">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13"/></svg>
+                  Recipe · 2×
+                </span>
+              </div>
+            </div>
+            <div class="text-right ml-2">
+              <div class="text-sm font-semibold text-gray-700">780</div>
+              <div class="text-xs text-gray-400">kcal</div>
+            </div>
+          </div>
+          <div class="mt-2 pt-2 border-t border-gray-100 flex gap-3 text-xs">
+            <span><span class="font-medium text-blue-500">48g</span> <span class="text-gray-400">P</span></span>
+            <span><span class="font-medium text-amber-500">82g</span> <span class="text-gray-400">C</span></span>
+            <span><span class="font-medium text-pink-400">28g</span> <span class="text-gray-400">F</span></span>
+          </div>
+        </div>
+        <button onclick="openAddSheet('Dinner')" class="w-full flex items-center justify-center gap-1.5 text-xs text-gray-400 hover:text-stride-600 hover:bg-stride-50 border-2 border-dashed border-gray-200 hover:border-stride-300 rounded-xl py-3 cursor-pointer transition-colors font-medium">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Add to Dinner
+        </button>
+      </div>
+    </section>
+
+    <!-- Snacks section -->
+    <section>
+      <div class="flex items-center gap-2 mb-2">
+        <div class="w-2 h-2 rounded-full bg-green-400"></div>
+        <span class="text-xs font-semibold text-gray-600 uppercase tracking-wide">Snacks</span>
+        <span class="text-xs text-gray-400 ml-auto">360 kcal</span>
+      </div>
+      <div class="space-y-2">
+        <div class="meal-snack bg-white rounded-xl border border-gray-200 px-3 py-3 shadow-sm">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-medium text-gray-800">Almonds</div>
+              <div class="text-xs text-gray-400 mt-0.5">30g</div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm font-semibold text-gray-700">180</div>
+              <div class="text-xs text-gray-400">kcal</div>
+            </div>
+          </div>
+        </div>
+        <div class="meal-snack bg-white rounded-xl border border-gray-200 px-3 py-3 shadow-sm">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="text-sm font-medium text-gray-800">Apple</div>
+              <div class="text-xs text-gray-400 mt-0.5">1 × medium</div>
+            </div>
+            <div class="text-right">
+              <div class="text-sm font-semibold text-gray-700">95</div>
+              <div class="text-xs text-gray-400">kcal</div>
+            </div>
+          </div>
+        </div>
+        <button onclick="openAddSheet('Snacks')" class="w-full flex items-center justify-center gap-1.5 text-xs text-gray-400 hover:text-stride-600 hover:bg-stride-50 border-2 border-dashed border-gray-200 hover:border-stride-300 rounded-xl py-3 cursor-pointer transition-colors font-medium">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          Add to Snacks
+        </button>
+      </div>
+    </section>
+
+  </div><!-- /day-content -->
+
+  <!-- ── FAB ── -->
+  <button onclick="openAddSheet('')" class="fixed bottom-5 right-4 w-12 h-12 bg-stride-600 hover:bg-stride-700 rounded-full shadow-lg flex items-center justify-center text-white cursor-pointer z-10">
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+  </button>
+
+</div><!-- /max-w-sm -->
+
+
+<!-- ── Bottom Sheet ── -->
+<div id="sheet-backdrop" class="hidden fixed inset-0 bg-black/30 z-40" onclick="closeSheet()"></div>
+<div id="sheet" class="fixed bottom-0 left-0 right-0 z-50 closed max-w-sm mx-auto">
+  <div class="bg-white rounded-t-2xl shadow-2xl max-h-[88vh] overflow-y-auto">
+    <!-- Drag handle -->
+    <div class="flex justify-center pt-3 pb-1">
+      <div class="w-8 h-1 bg-gray-300 rounded-full"></div>
+    </div>
+
+    <!-- Header -->
+    <div class="px-5 pt-3 pb-3 border-b border-gray-100">
+      <div class="flex items-center justify-between">
+        <h2 id="sheet-title" class="text-sm font-semibold text-gray-900">Add to Dinner</h2>
+        <button onclick="closeSheet()" class="text-gray-400 cursor-pointer">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Item type tabs -->
+    <div class="px-5 pt-4 pb-2">
+      <div class="flex bg-gray-100 rounded-lg p-0.5 gap-0.5">
+        <button onclick="switchType('food')" id="tab-food" class="flex-1 text-xs py-1.5 rounded-md font-medium bg-white text-gray-700 shadow-sm cursor-pointer">Food</button>
+        <button onclick="switchType('takeout')" id="tab-takeout" class="flex-1 text-xs py-1.5 rounded-md font-medium text-gray-500 cursor-pointer">Takeout</button>
+        <button onclick="switchType('recipe')" id="tab-recipe" class="flex-1 text-xs py-1.5 rounded-md font-medium text-gray-500 cursor-pointer">Recipe</button>
+        <button onclick="switchType('favorites')" id="tab-favorites" class="flex-1 text-xs py-1.5 rounded-md font-medium text-gray-500 cursor-pointer">Favs</button>
+      </div>
+    </div>
+
+    <!-- Food form -->
+    <div id="form-food" class="px-5 pb-8 space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Item name</label>
+        <input type="text" placeholder="e.g. Grilled salmon, brown rice..." class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500/40 focus:border-stride-500" />
+        <div class="mt-1.5 text-xs text-gray-400 flex items-center gap-1">
+          <svg class="w-3.5 h-3.5 text-stride-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+          AI suggestions will appear as you type
+        </div>
+      </div>
+      <div class="flex gap-3">
+        <div class="flex-1">
+          <label class="block text-xs font-medium text-gray-700 mb-1">Qty</label>
+          <input type="number" value="1" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500/40" />
+        </div>
+        <div class="flex-1">
+          <label class="block text-xs font-medium text-gray-700 mb-1">Unit</label>
+          <select class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500/40 bg-white">
+            <option>Each</option><option>g</option><option>oz</option><option>cup</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Calories</label>
+        <input type="number" placeholder="0" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500/40" />
+      </div>
+      <div>
+        <div class="text-xs font-medium text-gray-700 mb-2">Macros <span class="text-gray-400 font-normal">(optional)</span></div>
+        <div class="flex gap-2">
+          <div class="flex-1"><label class="block text-xs text-gray-400 mb-1">Protein</label><input type="number" placeholder="g" class="w-full border border-gray-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500/40" /></div>
+          <div class="flex-1"><label class="block text-xs text-gray-400 mb-1">Carbs</label><input type="number" placeholder="g" class="w-full border border-gray-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500/40" /></div>
+          <div class="flex-1"><label class="block text-xs text-gray-400 mb-1">Fat</label><input type="number" placeholder="g" class="w-full border border-gray-200 rounded-xl px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500/40" /></div>
+        </div>
+      </div>
+      <button onclick="closeSheet()" class="w-full bg-stride-600 text-white text-sm font-semibold py-3 rounded-xl cursor-pointer">Add to Plan</button>
+    </div>
+
+    <!-- Takeout form -->
+    <div id="form-takeout" class="hidden px-5 pb-8 space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Restaurant / description</label>
+        <input type="text" placeholder="e.g. Chipotle, Any sushi..." class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500/40" />
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Calorie limit</label>
+        <div class="relative">
+          <input type="number" placeholder="1000" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500/40 pr-12" />
+          <span class="absolute right-3 top-2.5 text-xs text-gray-400">kcal</span>
+        </div>
+      </div>
+      <div>
+        <div class="text-xs font-medium text-gray-700 mb-3">Constraints</div>
+        <div class="space-y-3">
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-stride-600" />
+            <span class="text-sm text-gray-700">No snacks</span>
+          </label>
+          <label class="flex items-center gap-3 cursor-pointer">
+            <input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-stride-600" />
+            <span class="text-sm text-gray-700">No sides</span>
+          </label>
+        </div>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Notes <span class="text-gray-400 font-normal">(optional)</span></label>
+        <textarea rows="2" placeholder="Any notes..." class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500/40 resize-none"></textarea>
+      </div>
+      <button onclick="closeSheet()" class="w-full bg-stride-600 text-white text-sm font-semibold py-3 rounded-xl cursor-pointer">Add to Plan</button>
+    </div>
+
+    <!-- Recipe form -->
+    <div id="form-recipe" class="hidden px-5 pb-8 space-y-4">
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Recipe</label>
+        <select class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500/40 bg-white">
+          <option value="" disabled selected>Choose a recipe...</option>
+          <option>Pasta Bolognese (780 kcal)</option>
+          <option>Overnight Oats (420 kcal)</option>
+          <option>Chicken Caesar Salad (347 kcal)</option>
+          <option>Stir-Fry Chicken &amp; Rice (650 kcal)</option>
+        </select>
+      </div>
+      <div>
+        <label class="block text-xs font-medium text-gray-700 mb-1">Servings</label>
+        <input type="number" value="1" min="0.25" step="0.25" class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500/40" />
+      </div>
+      <div class="bg-gray-50 rounded-xl p-4 border border-gray-200">
+        <div class="text-xs text-gray-500 mb-2 font-medium">Computed for 1× serving</div>
+        <div class="flex gap-4">
+          <div class="text-center"><div class="text-sm font-bold text-gray-800">780</div><div class="text-xs text-gray-400">kcal</div></div>
+          <div class="text-center"><div class="text-sm font-bold text-blue-600">48g</div><div class="text-xs text-gray-400">Protein</div></div>
+          <div class="text-center"><div class="text-sm font-bold text-amber-500">82g</div><div class="text-xs text-gray-400">Carbs</div></div>
+          <div class="text-center"><div class="text-sm font-bold text-pink-500">28g</div><div class="text-xs text-gray-400">Fat</div></div>
+        </div>
+      </div>
+      <button onclick="closeSheet()" class="w-full bg-stride-600 text-white text-sm font-semibold py-3 rounded-xl cursor-pointer">Add to Plan</button>
+    </div>
+
+    <!-- Favorites form -->
+    <div id="form-favorites" class="hidden px-5 pb-8 space-y-3">
+      <div><input type="text" placeholder="Search favorites..." class="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-stride-500/40" /></div>
+      <div class="space-y-1.5">
+        <button onclick="closeSheet()" class="w-full flex items-center justify-between px-3 py-2.5 bg-white border border-gray-200 rounded-xl hover:border-stride-300 hover:bg-stride-50 cursor-pointer text-left">
+          <div><div class="text-sm font-medium text-gray-800">Greek Yogurt Parfait</div><div class="text-xs text-gray-400 mt-0.5">Breakfast · 1 × bowl · 380 kcal</div></div>
+          <div class="text-xs font-semibold text-gray-600 ml-2">380</div>
+        </button>
+        <button onclick="closeSheet()" class="w-full flex items-center justify-between px-3 py-2.5 bg-white border border-gray-200 rounded-xl hover:border-stride-300 hover:bg-stride-50 cursor-pointer text-left">
+          <div><div class="text-sm font-medium text-gray-800">Almonds</div><div class="text-xs text-gray-400 mt-0.5">Snack · 30g · 180 kcal</div></div>
+          <div class="text-xs font-semibold text-gray-600 ml-2">180</div>
+        </button>
+        <button onclick="closeSheet()" class="w-full flex items-center justify-between px-3 py-2.5 bg-white border border-gray-200 rounded-xl hover:border-stride-300 hover:bg-stride-50 cursor-pointer text-left">
+          <div><div class="text-sm font-medium text-gray-800">Turkey Sandwich</div><div class="text-xs text-gray-400 mt-0.5">Lunch · 1 × each · 480 kcal</div></div>
+          <div class="text-xs font-semibold text-gray-600 ml-2">480</div>
+        </button>
+        <button onclick="closeSheet()" class="w-full flex items-center justify-between px-3 py-2.5 bg-white border border-gray-200 rounded-xl hover:border-stride-300 hover:bg-stride-50 cursor-pointer text-left">
+          <div><div class="text-sm font-medium text-gray-800">Banana Smoothie</div><div class="text-xs text-gray-400 mt-0.5">Breakfast · 1 × serving · 350 kcal</div></div>
+          <div class="text-xs font-semibold text-gray-600 ml-2">350</div>
+        </button>
+      </div>
+      <p class="text-xs text-gray-400 text-center">Tap a favorite to pre-fill. Adjust qty before saving.</p>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── Day data ── -->
+<script>
+  const days = [
+    { label: 'Monday, Apr 14', kcal: '2,040 kcal', planned: true },
+    { label: 'Tuesday, Apr 15', kcal: '2,100 kcal', planned: true },
+    { label: 'Wednesday, Apr 16 · Today', kcal: '2,240 kcal', planned: true },
+    { label: 'Thursday, Apr 17', kcal: '1,980 kcal', planned: true },
+    { label: 'Friday, Apr 18', kcal: '2,020 kcal', planned: true },
+    { label: 'Saturday, Apr 19', kcal: '—', planned: false },
+    { label: 'Sunday, Apr 20', kcal: '—', planned: false },
+  ];
+  let selectedDay = 0;
+
+  function selectDay(idx) {
+    // Update tab styles
+    days.forEach((_, i) => {
+      const tab = document.getElementById(`day-${i}`);
+      if (i === idx) {
+        tab.className = 'day-tab flex-shrink-0 flex flex-col items-center px-2.5 py-1.5 rounded-lg bg-stride-600 text-white cursor-pointer';
+      } else {
+        tab.className = 'day-tab flex-shrink-0 flex flex-col items-center px-2.5 py-1.5 rounded-lg text-gray-500 cursor-pointer hover:bg-gray-50';
+      }
+    });
+
+    // Update day label
+    const d = days[idx];
+    const labelEl = document.getElementById('day-label');
+    labelEl.innerHTML = `
+      <div><span class="text-sm font-semibold text-gray-900">${d.label}</span></div>
+      <div class="text-sm font-bold ${d.planned ? 'text-stride-700' : 'text-gray-300'}">${d.kcal}</div>
+    `;
+
+    selectedDay = idx;
+  }
+
+  function toggleWeekSummary() {
+    document.getElementById('week-summary').classList.toggle('hidden');
+  }
+
+  function openAddSheet(meal) {
+    const title = meal ? `Add to ${meal}` : 'Add to plan';
+    document.getElementById('sheet-title').textContent = title;
+    document.getElementById('sheet-backdrop').classList.remove('hidden');
+    const sheet = document.getElementById('sheet');
+    sheet.classList.remove('hidden');
+    requestAnimationFrame(() => {
+      sheet.classList.remove('closed');
+      sheet.classList.add('open');
+    });
+    switchType('food');
+  }
+
+  function closeSheet() {
+    const sheet = document.getElementById('sheet');
+    sheet.classList.remove('open');
+    sheet.classList.add('closed');
+    document.getElementById('sheet-backdrop').classList.add('hidden');
+  }
+
+  function switchType(type) {
+    ['food','takeout','recipe','favorites'].forEach(t => {
+      const tab = document.getElementById(`tab-${t}`);
+      const form = document.getElementById(`form-${t}`);
+      const active = t === type;
+      tab.className = `flex-1 text-xs py-1.5 rounded-md font-medium cursor-pointer ${active ? 'bg-white text-gray-700 shadow-sm' : 'text-gray-500'}`;
+      form.classList.toggle('hidden', !active);
+    });
+  }
+</script>
+
+</body>
+</html>

@@ -14,6 +14,7 @@ import HabitsPage from './pages/HabitsPage'
 import HabitDetail from './pages/HabitDetail'
 import JournalPage from './pages/JournalPage'
 import TasksPage from './pages/TasksPage'
+import MealPlanPage from './pages/MealPlanPage'
 
 export default function Router() {
   return (
@@ -29,6 +30,7 @@ export default function Router() {
         >
           <Route index element={<Navigate to="/calorie-log" replace />} />
           <Route path="calorie-log" element={<CalorieLog />} />
+          <Route path="meal-plan" element={<MealPlanPage />} />
           <Route path="habits" element={<HabitsPage />} />
           <Route path="journal" element={<JournalPage />} />
           <Route path="tasks" element={<TasksPage />} />
