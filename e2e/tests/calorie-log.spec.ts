@@ -107,7 +107,9 @@ test.describe('Calorie Log — shared user (no aggregate assertions)', () => {
 
   // ── F.4 — Date navigation scopes items correctly ───────────────────────────
   test('F.4 navigating to yesterday shows different items; returning to today restores the original view', async ({ page }) => {
-    const itemName = `F4 Today ${Date.now()}`
+    // Avoid day-name words ("Today"/"Yesterday") in the item name — they collide
+    // with the date header labels under Playwright strict mode.
+    const itemName = `F4 Item ${Date.now()}`
 
     // Add an item for today
     await page.locator('button.fixed.bottom-6.right-6').click()
@@ -119,14 +121,14 @@ test.describe('Calorie Log — shared user (no aggregate assertions)', () => {
 
     // Navigate to yesterday
     await page.getByRole('button', { name: 'Previous day' }).click()
-    await expect(page.getByText('Yesterday')).toBeVisible()
+    await expect(page.getByText('Yesterday', { exact: true })).toBeVisible()
 
     // Today's item should not be visible on yesterday's view
     await expect(page.getByText(itemName)).not.toBeVisible()
 
     // Navigate forward back to today
     await page.getByRole('button', { name: 'Next day' }).click()
-    await expect(page.getByText('Today')).toBeVisible()
+    await expect(page.getByText('Today', { exact: true })).toBeVisible()
 
     // Today's item should be visible again
     await expect(page.getByText(itemName)).toBeVisible()

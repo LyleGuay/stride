@@ -1,5 +1,45 @@
 # CLAUDE.md
 
+Project-wide conventions for Stride. Per-folder details live in each folder's own `CLAUDE.md`:
+
+- **`go-api/CLAUDE.md`** — backend commands, architecture, migrations, feature/endpoint list, testing, env vars.
+- **`web-client/CLAUDE.md`** — frontend commands, architecture, platform policy, pages, testing.
+- **`e2e/CLAUDE.md`** — Playwright runbook, test-user pattern, isolation conventions, selector patterns.
+- **`mobile-client/CLAUDE.md`** — inactive Expo scaffold.
+
+When working inside one of those folders, Claude Code loads the folder's `CLAUDE.md` automatically. This root file is what all agents see.
+
+## Project Overview
+
+Stride is a personal life & productivity dashboard. **This is a personal hobby project built for one user.** There is no multi-tenant architecture, no iOS support, and no need to design for hypothetical future scale. The only mobile device is a Google Pixel (Android). Optimize for the current use case.
+
+**Modules implemented today:**
+
+- **Calorie Log** — daily/weekly/progress views, meal sections, AI-powered calorie/macro suggestions, favorites, recipe logging, weight tracking, TDEE-based budget auto-compute.
+- **Recipes** — full CRUD, AI generate/modify/copy/nutrition, step-by-step execution view.
+- **Habits** — proportional level logging (L1/L2/L3), weekly progress, streaks.
+- **Journal** — daily entries (Markdown), mood + mental-state scoring, tags, Summary tab with Week/Month/6M/1Y/All ranges, calendar picker.
+- **Tasks** — Today/Upcoming/All tabs, scheduled_date + deadline, recurrence, Complete-Forever.
+- **Meal Planning** — weekly grid with food/takeout/recipe entries, copy-from-last-week, ghost rows in the calorie log for planned-but-unlogged items.
+
+## Repo structure
+
+```
+stride/
+  go-api/           Go backend (Gin + PostgreSQL via pgx) — active
+  web-client/       React web app (Vite + Tailwind + PWA) — active, desktop + mobile web
+  e2e/              Playwright E2E suite
+  packages/shared/  Shared TypeScript types and pure utilities
+  mobile-client/    Expo React Native scaffold — inactive
+  db/
+    migrations/     SQL migrations (run via go-api/cmd/migrate)
+    misc/           one-off data scripts
+  design/           mockups, research, feature specs
+  plan/             implementation plans for in-progress features
+```
+
+**Note on mobile:** `web-client/` is a responsive PWA serving desktop and mobile web. Capacitor (Android wrapper) is planned but not yet integrated — see `plan/capacitor-mobile-plan.md`. Until Capacitor lands, treat the web-client as a web-only PWA. The `mobile-client/` Expo scaffold is kept as a fallback path but isn't actively developed.
+
 ## Core Behavior
 
 - **Do only what is asked.** Do not refactor, reorganize, or "improve" code outside the scope of the current task.
@@ -11,7 +51,7 @@
 ## Git
 
 - **Never amend commits.** Always create a new commit for follow-up fixes. `git commit --amend` rewrites history and causes problems if the commit was already pushed.
-- **Run `npm run build && npm run lint` before committing** in `web-client/`. Don't commit code that fails either check.
+- Folder-specific pre-commit checks (e.g. `npm run build && npm run lint` in `web-client/`) live in that folder's `CLAUDE.md`.
 
 ## Token Efficiency
 
@@ -92,74 +132,33 @@ try { await uploadAvatar(file); } catch { }
 When you change code, update any documentation or comments affected by the change:
 
 - **Comments near changed code.** If a comment describes behavior you just changed, update it. Stale comments are worse than no comments.
-- **CLAUDE.md.** If you change architecture, add/remove commands, change table names, update routes, etc., update the relevant sections here.
+- **Per-folder `CLAUDE.md`.** If you change architecture, add/remove commands, change table names, or update routes inside `go-api/` / `web-client/` / `e2e/`, update *that folder's* `CLAUDE.md`, not this root file.
+- **Root `CLAUDE.md`** (this file). Only update when the project overview, module list, or repo structure changes — e.g. you added a new top-level module, or a planned-but-unimplemented feature became real.
 - **README files.** If a README describes something you changed, update it.
 - **Plan files.** Do not modify task descriptions in plan files — only check off completed tasks.
 
 This is not optional. Outdated docs actively mislead, so treat doc updates as part of the change.
+
+## Markdown
+
+**All multi-line description/body fields across the app support Markdown.** This includes journal entry bodies, task descriptions, and any future freeform text field. The frontend renders these with a markdown-aware editor (matching the journal's implementation) rather than a plain `<textarea>`. When adding a new description field to any module, use the same markdown editor component — do not use a plain textarea.
 
 ## Changes and Testing
 
 - Run the relevant linter/typecheck after making changes. Fix issues before moving on.
 - Run relevant tests after changes. Do not mark work as done if tests fail.
 - Do not modify test expectations to make tests pass unless the test was wrong. If a test fails, fix the code.
-- **Every feature or bug fix should include corresponding tests.** When building a plan, explicitly scope out what tests are needed — Go unit tests for pure logic, Vitest tests for web-client hooks/utilities, Playwright E2E for new critical web flows (including a `Mobile Chrome` project for mobile viewport coverage), and manual test steps for native device UX flows. Test tasks belong in the same phase as the code they cover, not a separate phase at the end.
+- **Every feature or bug fix should include corresponding tests.** When building a plan, explicitly scope out what tests are needed — Go unit tests for pure logic, Vitest tests for web-client hooks/utilities, Playwright E2E for new critical web flows (including `*-mobile.spec.ts` for mobile viewport coverage), and manual test steps for anything touching native device behavior. Test tasks belong in the same phase as the code they cover, not a separate phase at the end.
 
-## Testing Strategy
-
-### Philosophy
+### Testing philosophy (applies everywhere)
 
 Coverage percentage is not a goal. A test is worth writing if it would catch a real bug or if breaking the logic would break the test. If renaming a variable causes a test to fail, that test is testing implementation — it should be deleted.
 
 **Test behaviour, not implementation.** Before writing a test, ask: *"Could this code be wrong in a way that's non-obvious and hard to spot manually?"* Pure business logic with real edge cases — yes. A component rendering without crashing — no.
 
-### Go API (`go-api/`)
+Folder-specific testing conventions (what tools, what to test, what to skip) live in each folder's `CLAUDE.md`.
 
-**Tools:** Go's built-in `testing` package. No third-party test framework.
-
-**What to test:**
-- Pure functions with meaningful logic: `computeTDEE`, `currentMonday`, any extracted validation helpers. These have clear inputs/outputs and real edge cases.
-- Handler integration tests (when written): use `net/http/httptest` against a real test PostgreSQL database, not mocks. Tests the real SQL, catches constraint violations.
-
-**What to skip:**
-- Handlers that are a straight pass-through to the DB — that's testing pgx and PostgreSQL, not our code.
-- Anything that would only fail if a library is broken.
-
-### Web Client (`web-client/`)
-
-**Tools:** Vitest (Vite-native, fast). `@testing-library/react` with `renderHook` for hooks. `msw` (Mock Service Worker) for mocking network calls in hook tests — intercepts at the network level so real hook logic runs.
-
-**What to test:**
-- Pure utility functions: date helpers (`today`, `getMondayOf`, `shiftWeek`), any extracted business logic (TDEE equivalent in Settings).
-- Custom hooks (e.g. `useDailySummary`): does it set loading correctly, handle errors, refetch on date change?
-- Components with non-trivial logic where bugs are non-obvious and faster to catch than via E2E. Good candidates: form validation, create vs edit mode behaviour, type/unit relationships (`AddItemSheet`), keyboard navigation (`InlineAddRow`), computed display logic like budget bar thresholds (`DailySummary`). Ask: *"Could this component behave incorrectly in a way that's hard to spot manually?"* If yes, write a component test.
-
-**What to skip:**
-- Purely presentational components — if it just renders props into JSX, E2E covers what matters.
-- Snapshot tests — high maintenance, low signal.
-- Tests that only verify a component renders without crashing.
-- Tests that verify CSS classes or visual appearance.
-
-### E2E (`playwright`)
-
-Covers critical user flows only — happy paths that verify the app works end-to-end with a real browser, real API, and real database. Not for edge cases (unit tests cover those).
-
-**Flows worth covering:**
-- Login → add an item → verify totals update
-- Edit an item inline → verify change persists on reload
-- Settings save → verify calorie budget updates
-
-### Android / Capacitor (`web-client/` built with Capacitor)
-
-Mobile is tested at two levels:
-
-**Playwright `Mobile Chrome` project** — runs the full E2E suite against a Pixel 7 viewport in a desktop browser. Catches responsive layout bugs (breakpoint-gated components, column hiding, etc.) without needing a real device. Add `{ name: 'Mobile Chrome', use: { ...devices['Pixel 7'] } }` to `e2e/playwright.config.ts` and write mobile-specific specs in `e2e/tests/*-mobile.spec.ts` where behaviour diverges from desktop.
-
-**Manual testing on physical Pixel** — required for anything touching Capacitor native APIs (safe area insets, haptics, camera, status bar) or genuine touch UX (scrolling feel, keyboard avoiding, gesture nav). When writing tasks, specify: "Manually verify on Android (physical Pixel): ..."
-
-`mobile-client/` (Expo) is not actively developed and has no test requirements.
-
-### CI Order of Operations
+### CI order of operations
 
 When introducing tests to an existing codebase:
 1. Write E2E tests first — they become the safety net for structural refactoring.
@@ -175,68 +174,3 @@ All Linear issues must be added to the **Stride** project (`939cc8a9-92ac-4ece-9
 - When starting a task, briefly state your approach before writing code.
 - When done with a task, state what you changed and what files were affected.
 - If you discover something broken that is outside the current task, mention it but don't fix it.
-
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
-
-## Project Overview
-
-Stride is a personal life & productivity dashboard — habits, tasks, goals, calorie logging, and more. The first feature being built is a calorie log (replacing an existing Google Sheets workflow; see `design/existing_calorie_log_spreadsheet/` for reference).
-
-**This is a personal hobby project built for one user.** There is no multi-tenant architecture, no iOS support, and no need to design for hypothetical future scale. The only mobile device is a Google Pixel (Android). Optimize for the current use case.
-
-## Modules
-
-- **`go-api/`** — Go backend (Gin + PostgreSQL via pgx). This is the active backend.
-- **`web-client/`** — React frontend (Vite + Tailwind CSS + PWA). **Desktop primary, Android via Capacitor.** The same codebase is built as a native Android APK using Capacitor (`npm run cap:sync`). Platform-specific behaviour is gated via `src/platform/index.ts`.
-- **`mobile-client/`** — Expo React Native scaffold. **Not actively developed** — mobile is handled via Capacitor in `web-client/`.
-- **`packages/shared/`** — Shared TypeScript types and pure utilities consumed by both clients.
-
-**`web-client` mobile policy:** Desktop and Android are both first-class targets. Use Tailwind responsive breakpoints (`sm:`) to adapt layouts — the `sm` breakpoint (640px) is the primary desktop/mobile split. Hide desktop-only interactions (e.g. `InlineAddRow`) below `sm`. Gate native-only behaviour (e.g. haptics, camera) on `platform.isNative` from `src/platform/index.ts`. Hover interactions are fine for progressive disclosure on desktop; ensure primary actions are also accessible via tap on mobile.
-
-## Commands
-
-### Go API (`go-api/`)
-
-```bash
-go run .                  # Run server (localhost:3000)
-go run ./cmd/migrate      # Run pending migrations from db/migrations/ (project root, NOT go-api/)
-go run ./cmd/create-user  # Create a user (prompts for username, email, password)
-go mod tidy               # Manage dependencies
-```
-
-### Web Client (`web-client/`)
-
-```bash
-npm run dev       # Vite dev server with HMR (proxies /api to localhost:3000)
-npm run build     # TypeScript check + Vite production build
-npm run lint      # ESLint
-npm run preview   # Preview production build
-```
-
-## Architecture
-
-### Go API
-
-Uses Gin framework with a `Handler` struct that holds a `*pgxpool.Pool` connection pool and an `openAIBaseURL` string (overridable for tests). Routes are registered in `main.go`. PostgreSQL queries use `queryOne[T]` / `queryMany[T]` generic helpers with `pgx.NamedArgs` and `RowToStructByName` for scanning into Go structs. Migrations are plain SQL files in `db/migrations/` at the **project root** (not inside `go-api/`). The migrate CLI resolves this as `../db/migrations` relative to `go-api/`. Pure DDL, no guard checks. Naming: `YYYY-MM-DD-SEQ-name.sql` (e.g. `2026-01-31-001-schema-versions.sql`). The migrate CLI tool handles transaction wrapping and tracking. One-off scripts (data imports, etc.) live in `db/misc/`.
-
-`POST /api/calorie-log/suggest` — AI-powered nutrition/exercise calorie estimation. Accepts `{ description, type }`, calls OpenAI GPT-4o-mini, and returns structured nutrition data (`item_name`, `qty`, `uom`, `calories`, `protein_g`, `carbs_g`, `fat_g`). For exercise entries, loads the user's body stats from DB to improve calorie-burn estimates. Returns `{"error": "unrecognized"}` (200) for unparseable input or `{"error": "openai request failed"}` (500) on API errors. Implementation in `go-api/suggest.go`.
-
-### Web Client
-
-React 19 + TypeScript + Vite 7 + Tailwind CSS 4. Configured as a PWA (`vite-plugin-pwa`). Uses react-router for routing with a token-based auth guard. The Vite dev server proxies `/api` requests to `localhost:3000`. API calls go through `src/api.ts`.
-
-### Database
-
-PostgreSQL (hosted on Neon). Current tables: `users`, `calorie_log_items`, `calorie_log_user_settings`, `habits`, `habit_logs`, `tasks`, `task_tags`. Enum types follow the pattern `{table}_{column}` (e.g. `calorie_log_item_type`, `habit_frequency`). Migration tracking via a `migrations` table (keyed by filename).
-
-## Markdown
-
-**All multi-line description/body fields across the app support Markdown.** This includes journal entry bodies, task descriptions, and any future freeform text field. The frontend renders these with a markdown-aware editor (matching the journal's implementation) rather than a plain `<textarea>`. When adding a new description field to any module, use the same markdown editor component — do not use a plain textarea.
-
-## Environment Variables
-
-### Go API (`go-api/.env`)
-
-- `DB_URL` — PostgreSQL connection string
-- `OPENAI_API_KEY` — OpenAI API key for AI calorie/macro suggestions
-- `OPENAI_BASE_URL` — OpenAI API base URL (default: `https://api.openai.com`; override for testing/proxying)
