@@ -42,10 +42,11 @@ export default async function globalSetup() {
   // In Docker mode the DB is always fresh so users can never already exist.
   // In dev mode the DB persists across runs so "already exists" errors are harmless.
   const testUsers = [
-    { username: 'e2e_user',           email: 'e2e@test.com',           password: 'password123' },
-    { username: 'pace_test_user',     email: 'pace@test.com',          password: 'password123' },
-    { username: 'favorites_test_user',email: 'favorites@test.com',     password: 'password123' },
-    { username: 'recipes_test_user',  email: 'recipes@test.com',       password: 'password123' },
+    { username: 'e2e_user',              email: 'e2e@test.com',             password: 'password123' },
+    { username: 'pace_test_user',        email: 'pace@test.com',            password: 'password123' },
+    { username: 'favorites_test_user',   email: 'favorites@test.com',       password: 'password123' },
+    { username: 'recipes_test_user',     email: 'recipes@test.com',         password: 'password123' },
+    { username: 'calorie_log_test_user', email: 'calorie-log@test.com',     password: 'password123' },
   ]
 
   for (const user of testUsers) {
@@ -100,6 +101,34 @@ export default async function globalSetup() {
     log('[e2e setup] e2e_user profile and calorie data seeded.')
   } catch (err) {
     log(`[e2e setup] Warning: e2e_user seed failed — ${(err as Error).message}`)
+  }
+
+  // Seed calorie_log_test_user with a complete profile and manual budget so the
+  // isolated calorie-log tests (Settings, totals, edit, delete) have a known
+  // starting state. No calorie items are seeded — tests add their own.
+  log('[e2e setup] Seeding calorie_log_test_user profile...')
+  try {
+    const loginRes = await fetch(`${apiURL}/api/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: 'calorie_log_test_user', password: 'password123' }),
+    })
+    if (!loginRes.ok) throw new Error(`Login failed: ${loginRes.status}`)
+    const { token } = await loginRes.json() as { token: string }
+    const authHeaders = { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` }
+
+    await fetch(`${apiURL}/api/calorie-log/user-settings`, {
+      method: 'PATCH',
+      headers: authHeaders,
+      body: JSON.stringify({
+        sex: 'male', date_of_birth: '1990-01-01', height_cm: 178,
+        weight_lbs: 175, activity_level: 'light', calorie_budget: 2300, budget_auto: false,
+      }),
+    })
+
+    log('[e2e setup] calorie_log_test_user profile seeded.')
+  } catch (err) {
+    log(`[e2e setup] Warning: calorie_log_test_user seed failed — ${(err as Error).message}`)
   }
 
   log('[e2e setup] Done.')

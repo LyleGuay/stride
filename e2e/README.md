@@ -49,3 +49,6 @@ docker compose -f docker-compose.test.yml down
 |------|----------------|
 | `tests/auth.spec.ts` | Login with valid/invalid credentials, unauthenticated redirect |
 | `tests/calorie-log.spec.ts` | Add item via FAB, verify item appears and totals update |
+
+## Notes
+- Each test file runs sequentually, separate test files in parallel.

@@ -1,18 +1,49 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type APIRequestContext, type Page } from '@playwright/test'
 
-const E2E_USER = 'e2e_user'
-const E2E_PASSWORD = 'password123'
+const SHARED_USER = 'e2e_user'
+const ISOLATED_USER = 'calorie_log_test_user'
+const PASSWORD = 'password123'
 
-// Log in and land on the calorie log page before each test.
-test.beforeEach(async ({ page }) => {
+// ── Helpers ─────────────────────────────────────────────────────────────────
+
+// apiLogin returns an auth token for the given user via the login endpoint.
+async function apiLogin(request: APIRequestContext, username: string): Promise<string> {
+  const res = await request.post('/api/login', { data: { username, password: PASSWORD } })
+  const body = await res.json()
+  return body.token as string
+}
+
+// Delete every calorie log item for today so each isolated-user test starts
+// from a known-zero Eaten total. Mirrors the pattern used in favorites.spec.ts.
+async function cleanupTodayItems(request: APIRequestContext, token: string) {
+  const headers = { Authorization: `Bearer ${token}` }
+  const today = new Date().toISOString().slice(0, 10)
+  const dailyRes = await request.get(`/api/calorie-log/daily?date=${today}`, { headers })
+  const daily = await dailyRes.json()
+  for (const item of (daily.items ?? [])) {
+    await request.delete(`/api/calorie-log/items/${item.id}`, { headers })
+  }
+}
+
+// loginUI performs the UI login flow and waits for the calorie log landing page.
+async function loginUI(page: Page, username: string) {
   await page.goto('/login')
-  await page.fill('#username', E2E_USER)
-  await page.fill('#password', E2E_PASSWORD)
+  await page.fill('#username', username)
+  await page.fill('#password', PASSWORD)
   await page.click('button[type="submit"]')
   await page.waitForURL('**/calorie-log')
-})
+}
 
-test.describe('Weekly tab', () => {
+// ─────────────────────────────────────────────────────────────────────────────
+// Shared-user tests — these only check unique item names or text patterns, so
+// they're safe to run against the shared e2e_user that other test files use.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Calorie Log — shared user (no aggregate assertions)', () => {
+  test.beforeEach(async ({ page }) => {
+    await loginUI(page, SHARED_USER)
+  })
+
   test('Weekly tab shows Estimated Weight Impact', async ({ page }) => {
     await page.getByRole('button', { name: 'Weekly' }).click()
     await expect(page.getByText('Estimated Weight Impact')).toBeVisible()
@@ -21,9 +52,102 @@ test.describe('Weekly tab', () => {
     const paceValue = page.locator('text=/[+-]?\\d+\\.\\d+ lbs\\/wk/').first()
     await expect(paceValue).toBeVisible()
   })
+
+  test('add item via FAB → item appears in list with correct calories', async ({ page }) => {
+    const itemName = `Test Item ${Date.now()}`
+    const calories = 350
+
+    // Open the add-item sheet via the FAB (the circular + button)
+    await page.locator('button.fixed.bottom-6.right-6').click()
+
+    // Wait for the sheet to open (submit button becomes visible)
+    await expect(page.getByRole('button', { name: 'Save Item' })).toBeVisible()
+
+    // Fill in the form
+    await page.getByPlaceholder('e.g. Banana Smoothie').fill(itemName)
+    await page.getByLabel('Calories').fill(String(calories))
+
+    // Submit
+    await page.getByRole('button', { name: 'Save Item' }).click()
+
+    // Sheet closes and item name appears in the log
+    await expect(page.getByText(itemName)).toBeVisible()
+  })
+
+  // ── F.1 — Add item via FAB with type and unit selection ────────────────────
+  test('F.1 creates Lunch item with correct type, qty, unit, and calorie total', async ({ page }) => {
+    const itemName = `F1 Chicken ${Date.now()}`
+
+    await page.locator('button.fixed.bottom-6.right-6').click()
+    await expect(page.getByRole('button', { name: 'Save Item' })).toBeVisible()
+
+    // Fill item name
+    await page.getByPlaceholder('e.g. Banana Smoothie').fill(itemName)
+
+    // Select Lunch type — scope to the form to avoid matching any other "Lunch"
+    // button on the page (strict mode fails with 2+ matching elements).
+    await page.locator('form').getByRole('button', { name: /^lunch$/i }).click()
+
+    // Set qty — Quantity label has no htmlFor so target by step attribute (unique to qty input)
+    await page.locator('input[step="0.25"]').click({ clickCount: 3 })
+    await page.keyboard.type('200')
+    await page.locator('select').selectOption('g')
+
+    // Set calories
+    await page.getByLabel('Calories').click({ clickCount: 3 })
+    await page.keyboard.type('220')
+
+    await page.getByRole('button', { name: 'Save Item' }).click()
+
+    // Item appears in the log — the primary assertion for this test.
+    // Total assertions are intentionally skipped here (covered by the isolated
+    // "totals update" test below to avoid parallel-test pollution).
+    await expect(page.getByText(itemName)).toBeVisible()
+  })
+
+  // ── F.4 — Date navigation scopes items correctly ───────────────────────────
+  test('F.4 navigating to yesterday shows different items; returning to today restores the original view', async ({ page }) => {
+    const itemName = `F4 Today ${Date.now()}`
+
+    // Add an item for today
+    await page.locator('button.fixed.bottom-6.right-6').click()
+    await expect(page.getByRole('button', { name: 'Save Item' })).toBeVisible()
+    await page.getByPlaceholder('e.g. Banana Smoothie').fill(itemName)
+    await page.getByLabel('Calories').fill('111')
+    await page.getByRole('button', { name: 'Save Item' }).click()
+    await expect(page.getByText(itemName)).toBeVisible()
+
+    // Navigate to yesterday
+    await page.getByRole('button', { name: 'Previous day' }).click()
+    await expect(page.getByText('Yesterday')).toBeVisible()
+
+    // Today's item should not be visible on yesterday's view
+    await expect(page.getByText(itemName)).not.toBeVisible()
+
+    // Navigate forward back to today
+    await page.getByRole('button', { name: 'Next day' }).click()
+    await expect(page.getByText('Today')).toBeVisible()
+
+    // Today's item should be visible again
+    await expect(page.getByText(itemName)).toBeVisible()
+  })
 })
 
-test.describe('Settings', () => {
+// ─────────────────────────────────────────────────────────────────────────────
+// Isolated-user tests — these assert on per-user aggregates (Eaten total,
+// calorie budget). Run against a dedicated user that no other test file
+// touches, and clean up today's items before each test so the baseline is
+// deterministic. Playwright runs tests within a file serially by default, so
+// tests in this describe don't collide with each other either.
+// ─────────────────────────────────────────────────────────────────────────────
+
+test.describe('Calorie Log — isolated user (aggregate-dependent)', () => {
+  test.beforeEach(async ({ page, request }) => {
+    const token = await apiLogin(request, ISOLATED_USER)
+    await cleanupTodayItems(request, token)
+    await loginUI(page, ISOLATED_USER)
+  })
+
   test('changing calorie budget in settings is reflected in daily view', async ({ page }) => {
     await page.goto('/settings')
 
@@ -64,29 +188,6 @@ test.describe('Settings', () => {
     await page.getByRole('button', { name: /save changes/i }).click()
     await expect(page.getByText('Saved!')).toBeVisible()
   })
-})
-
-test.describe('Calorie Log', () => {
-  test('add item via FAB → item appears in list with correct calories', async ({ page }) => {
-    const itemName = `Test Item ${Date.now()}`
-    const calories = 350
-
-    // Open the add-item sheet via the FAB (the circular + button)
-    await page.locator('button.fixed.bottom-6.right-6').click()
-
-    // Wait for the sheet to open (submit button becomes visible)
-    await expect(page.getByRole('button', { name: 'Save Item' })).toBeVisible()
-
-    // Fill in the form
-    await page.getByPlaceholder('e.g. Banana Smoothie').fill(itemName)
-    await page.getByLabel('Calories').fill(String(calories))
-
-    // Submit
-    await page.getByRole('button', { name: 'Save Item' }).click()
-
-    // Sheet closes and item name appears in the log
-    await expect(page.getByText(itemName)).toBeVisible()
-  })
 
   test('add item → daily summary totals update', async ({ page }) => {
     const itemName = `Summary Test ${Date.now()}`
@@ -113,48 +214,9 @@ test.describe('Calorie Log', () => {
 
     expect(afterValue).toBe(beforeValue + calories)
   })
-})
 
-// ── Phase F: Calorie Log Regression ─────────────────────────────────────────
-// These tests verify that existing calorie log flows still work correctly after
-// Phase E changes (ghost row injection into ItemTable, meal_plan_entry_id added
-// to create payload, AddItemSheet mealPlanContext prop).
-
-test.describe('F.1 — Add item via FAB with type and unit selection', () => {
-  test('creates Lunch item with correct type, qty, unit, and calorie total', async ({ page }) => {
-    const itemName = `F1 Chicken ${Date.now()}`
-
-    await page.locator('button.fixed.bottom-6.right-6').click()
-    await expect(page.getByRole('button', { name: 'Save Item' })).toBeVisible()
-
-    // Fill item name
-    await page.getByPlaceholder('e.g. Banana Smoothie').fill(itemName)
-
-    // Select Lunch type — scope to the form to avoid matching any other "Lunch"
-    // button on the page (strict mode fails with 2+ matching elements).
-    await page.locator('form').getByRole('button', { name: /^lunch$/i }).click()
-
-    // Set qty — Quantity label has no htmlFor so target by step attribute (unique to qty input)
-    await page.locator('input[step="0.25"]').click({ clickCount: 3 })
-    await page.keyboard.type('200')
-    await page.locator('select').selectOption('g')
-
-    // Set calories
-    await page.getByLabel('Calories').click({ clickCount: 3 })
-    await page.keyboard.type('220')
-
-    await page.getByRole('button', { name: 'Save Item' }).click()
-
-    // Item appears in the log — primary assertion for this test
-    await expect(page.getByText(itemName)).toBeVisible()
-    // Total assertions are skipped here — parallel tests share the same user so
-    // concurrent adds make exact total checks non-deterministic. The dedicated
-    // "add item → daily summary totals update" test covers total correctness.
-  })
-})
-
-test.describe('F.2 — Edit item via context menu', () => {
-  test('editing calories via context menu updates the displayed total and persists on reload', async ({ page }) => {
+  // ── F.2 — Edit item via context menu ───────────────────────────────────────
+  test('F.2 editing calories via context menu updates the displayed total and persists on reload', async ({ page }) => {
     const itemName = `F2 Edit ${Date.now()}`
     const initialCal = 300
     const deltaCal = 100
@@ -205,10 +267,9 @@ test.describe('F.2 — Edit item via context menu', () => {
     const reloadedValue = parseInt((eatenAfterReload ?? '0').replace(/,/g, ''), 10)
     expect(reloadedValue).toBe(editedValue)
   })
-})
 
-test.describe('F.3 — Delete item', () => {
-  test('deleting via context menu removes item and decreases calorie total', async ({ page }) => {
+  // ── F.3 — Delete item ──────────────────────────────────────────────────────
+  test('F.3 deleting via context menu removes item and decreases calorie total', async ({ page }) => {
     const itemName = `F3 Delete ${Date.now()}`
     const calories = 400
 
@@ -238,33 +299,5 @@ test.describe('F.3 — Delete item', () => {
     const eatenAfterDelete = await page.getByText('Eaten').locator('..').locator('.font-semibold').textContent()
     const deletedValue = parseInt((eatenAfterDelete ?? '0').replace(/,/g, ''), 10)
     expect(deletedValue).toBe(addedValue - calories)
-  })
-})
-
-test.describe('F.4 — Date navigation scopes items correctly', () => {
-  test('navigating to yesterday shows different items; returning to today restores the original view', async ({ page }) => {
-    const itemName = `F4 Today ${Date.now()}`
-
-    // Add an item for today
-    await page.locator('button.fixed.bottom-6.right-6').click()
-    await expect(page.getByRole('button', { name: 'Save Item' })).toBeVisible()
-    await page.getByPlaceholder('e.g. Banana Smoothie').fill(itemName)
-    await page.getByLabel('Calories').fill('111')
-    await page.getByRole('button', { name: 'Save Item' }).click()
-    await expect(page.getByText(itemName)).toBeVisible()
-
-    // Navigate to yesterday
-    await page.getByRole('button', { name: 'Previous day' }).click()
-    await expect(page.getByText('Yesterday')).toBeVisible()
-
-    // Today's item should not be visible on yesterday's view
-    await expect(page.getByText(itemName)).not.toBeVisible()
-
-    // Navigate forward back to today
-    await page.getByRole('button', { name: 'Next day' }).click()
-    await expect(page.getByText('Today')).toBeVisible()
-
-    // Today's item should be visible again
-    await expect(page.getByText(itemName)).toBeVisible()
   })
 })
